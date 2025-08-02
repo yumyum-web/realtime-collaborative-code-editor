@@ -1,14 +1,3 @@
-// import mongoose from 'mongoose';
-
-// const MONGODB_URI = process.env.MONGO_URI!;
-
-// const connectDB = async () => {
-//   if (mongoose.connections[0].readyState) return;
-//   await mongoose.connect(MONGODB_URI);
-// };
-
-// export default connectDB;
-
 import mongoose from 'mongoose';
 
 const connectDB = async () => {
