@@ -1,3 +1,4 @@
+// ======================== Dashboard Page (app/dashboard/page.tsx or pages/dashboard.tsx) ========================
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -14,9 +15,17 @@ export default function Dashboard() {
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        const parsed = JSON.parse(storedUser);
+        setUser({
+          username: parsed.username || 'User',
+          projects: Array.isArray(parsed.projects) ? parsed.projects : [],
+        });
+      } catch {
+        router.push('/signup'); // corrupted data fallback
+      }
     } else {
-      router.push('/signup'); // redirect if no user found
+      router.push('/signup');
     }
   }, [router]);
 
@@ -25,10 +34,10 @@ export default function Dashboard() {
     router.push('/');
   };
 
-  if (!user) return null; // or loading spinner
+  if (!user) return null; // or show a loading spinner
 
   return (
-    <div className="min-h-screen bg-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-100 to-indigo-200">
       {/* Navbar */}
       <nav className="flex justify-between items-center bg-white shadow-md px-6 py-4">
         <div className="text-lg font-semibold text-gray-700">Hello, {user.username}</div>
@@ -42,9 +51,9 @@ export default function Dashboard() {
 
       {/* Projects Section */}
       <main className="p-8 max-w-4xl mx-auto">
-        <h2 className="text-2xl font-bold mb-6 text-gray-800">Signed Projects</h2>
-        {user.projects.length === 0 ? (
-          <p className="text-gray-600">No projects signed yet.</p>
+        <h2 className="text-2xl font-bold mb-6 text-gray-800">Accepted Projects</h2>
+        {!user.projects || user.projects.length === 0 ? (
+          <p className="text-gray-600">No projects accepted yet.</p>
         ) : (
           <ul className="space-y-3">
             {user.projects.map((project, idx) => (
