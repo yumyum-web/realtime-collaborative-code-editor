@@ -1,13 +1,14 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { jwtDecode } from 'jwt-decode';
 
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: any) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
@@ -21,7 +22,8 @@ export default function Login() {
 
     const data = await res.json();
     if (res.ok) {
-      localStorage.setItem('user', JSON.stringify({ username: data.user?.username || 'User' }));
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify({ username: data.username }));
       router.push('/dashboard');
     } else {
       alert(data.error || 'Login failed');
@@ -29,19 +31,16 @@ export default function Login() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center px-4">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md space-y-4 text-gray-800"
-      >
-        <h2 className="text-2xl font-semibold text-center text-purple-700">Log In</h2>
+    <main className="min-h-screen flex justify-center items-center bg-gradient-to-br from-purple-600 to-indigo-700 px-4">
+      <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-xl p-8 space-y-4 w-full max-w-md">
+        <h2 className="text-2xl font-bold text-center text-purple-700">Login</h2>
 
         <input
           type="email"
           name="email"
           placeholder="Email"
           onChange={handleChange}
-          className="block w-full p-2 border rounded"
+          className="w-full border p-2 rounded"
           required
         />
 
@@ -51,32 +50,20 @@ export default function Login() {
             name="password"
             placeholder="Password"
             onChange={handleChange}
-            className="block w-full p-2 border rounded"
+            className="w-full border p-2 rounded"
             required
           />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-2 top-2 text-gray-600"
-          >
+          <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute top-2 right-2">
             {showPassword ? '🙈' : '👁️'}
           </button>
         </div>
 
-        <button
-          type="submit"
-          className="bg-purple-700 text-white p-2 rounded w-full hover:bg-purple-800 transition"
-        >
-          Log In
-        </button>
+        <button className="w-full bg-purple-700 text-white py-2 rounded hover:bg-purple-800">Login</button>
 
-        <p className="mt-4 text-center text-sm text-gray-600">
+        <p className="text-center text-sm text-gray-600">
           Don’t have an account?{' '}
-          <span
-            onClick={() => router.push('/signup')}
-            className="text-purple-700 cursor-pointer hover:underline"
-          >
-            Create new account
+          <span onClick={() => router.push('/signup')} className="text-purple-700 cursor-pointer underline">
+            Sign Up
           </span>
         </p>
       </form>
