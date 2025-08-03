@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '23'
+      - name: Cache NPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            package-lock.json
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+      - name: Install dependencies
+        run: npm install
+      - name: TypeScript type check
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Prettier formatting check
+        run: npm run format:check

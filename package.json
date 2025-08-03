@@ -5,6 +5,7 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev --turbopack",
+    "format:check": "prettier --check .",
     "lint": "next lint",
     "prepare": "husky",
     "start": "next start",
