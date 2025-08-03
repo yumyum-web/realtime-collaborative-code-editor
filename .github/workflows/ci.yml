@@ -12,7 +12,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '23'
+          node-version: "23"
       - name: Cache NPM dependencies
         uses: actions/cache@v4
         with:
