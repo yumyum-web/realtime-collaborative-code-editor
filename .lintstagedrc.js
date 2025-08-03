@@ -7,6 +7,7 @@ const buildEslintCommand = (filenames) =>
 
 const lintStagedConfig = {
   "*.{js,jsx,ts,tsx}": [buildEslintCommand],
+  "*.{js,jsx,ts,tsx,css,md,json}": ["prettier --write"],
 };
 
 export default lintStagedConfig;
