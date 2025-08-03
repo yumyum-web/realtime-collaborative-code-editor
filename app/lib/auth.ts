@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import connectDB from "./connectDB";
-import User from "@/models/User";
+import User from "@/app/models/User";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 
