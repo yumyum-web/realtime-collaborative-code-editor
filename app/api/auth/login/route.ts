@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { loginUser } from "@/lib/auth";
+import { loginUser } from "@/app/lib/auth";
 
 export async function POST(req: Request) {
   const { email, password } = await req.json();
