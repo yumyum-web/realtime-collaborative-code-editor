@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useParams } from 'next/navigation';
+import { useParams } from "next/navigation";
 
 export default function Editor() {
   const { id } = useParams();
@@ -8,7 +8,9 @@ export default function Editor() {
   return (
     <div className="p-6">
       <h1 className="text-xl font-bold">Project Editor</h1>
-      <p className="mt-2">You're editing project: <strong>{id}</strong></p>
+      <p className="mt-2">
+        You&apos;re editing project: <strong>{id}</strong>
+      </p>
     </div>
   );
 }
