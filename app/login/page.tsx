@@ -33,9 +33,9 @@ export default function Login() {
     <main className="min-h-screen flex justify-center items-center bg-gradient-to-br from-purple-600 to-indigo-700 px-4">
       <form
         onSubmit={handleSubmit}
-        className="bg-white shadow-lg rounded-xl p-8 space-y-4 w-full max-w-md"
+        className="bg-white shadow-lg rounded-xl p-8 space-y-4 w-full max-w-md text-gray-800"
       >
-        <h2 className="text-2xl font-bold text-center text-purple-700">
+        <h2 className="text-2xl font-semibold text-center text-purple-700">
           Login
         </h2>
 
@@ -44,7 +44,7 @@ export default function Login() {
           name="email"
           placeholder="Email"
           onChange={handleChange}
-          className="w-full border p-2 rounded"
+          className="block w-full border p-2 rounded"
           required
         />
 
@@ -54,7 +54,7 @@ export default function Login() {
             name="password"
             placeholder="Password"
             onChange={handleChange}
-            className="w-full border p-2 rounded"
+            className="block w-full border p-2 rounded"
             required
           />
           <button
