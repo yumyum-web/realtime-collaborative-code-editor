@@ -7,6 +7,9 @@ export default function ProjectsPage() {
   const [user, setUser] = useState<{ username: string; email: string } | null>(
     null,
   );
+  const [projects, setProjects] = useState<
+    { _id: string; title: string; owner: string }[]
+  >([]);
   const [showPopup, setShowPopup] = useState(false);
   const router = useRouter();
   const popupRef = useRef<HTMLDivElement>(null);
@@ -17,7 +20,23 @@ export default function ProjectsPage() {
     if (!token || !userData) {
       router.push("/");
     } else {
-      setUser(JSON.parse(userData));
+      const parsed = JSON.parse(userData);
+      setUser(parsed);
+
+      // Fetch only assigned projects
+      fetch(`/api/projects?userEmail=${encodeURIComponent(parsed.email)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.length > 0) {
+            setProjects(data);
+          } else {
+            // Fallback to default message if no projects are found
+            console.warn("No projects found for the user.");
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching projects:", error);
+        });
     }
   }, [router]);
 
@@ -30,7 +49,6 @@ export default function ProjectsPage() {
         setShowPopup(false);
       }
     }
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -107,7 +125,7 @@ export default function ProjectsPage() {
         <div className="absolute bottom-8 right-8">
           <div className="group relative">
             <button
-              onClick={() => alert("Open create project modal")}
+              onClick={() => window.open("/projects/create", "_blank")}
               className="w-14 h-14 bg-purple-700 text-white text-3xl rounded-full shadow-lg hover:bg-purple-800 focus:outline-none flex items-center justify-center"
             >
               +
@@ -132,21 +150,21 @@ export default function ProjectsPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[1, 2, 3].map((project) => (
+            {projects.map((project) => (
               <div
-                key={project}
+                key={project._id}
                 className="bg-white p-4 shadow-lg rounded-lg space-y-2 border border-gray-100 hover:shadow-xl transition"
               >
                 <h3 className="font-bold text-xl text-purple-800">
-                  Project Title {project}
+                  {project.title}
                 </h3>
-                <p className="text-sm text-gray-700">Owner: User {project}</p>
+                <p className="text-sm text-gray-700">Owner: {project.owner}</p>
                 <p className="text-xs text-gray-500">Last Modified: Today</p>
                 <div className="pt-2">
                   <button
                     className="bg-purple-600 text-white rounded-lg px-4 py-1 hover:bg-purple-700 font-medium"
                     onClick={() =>
-                      window.open(`/projects/${project}`, "_blank")
+                      window.open(`/editor/${project._id}`, "_blank")
                     }
                   >
                     Open
