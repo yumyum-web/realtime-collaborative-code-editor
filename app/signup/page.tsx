@@ -11,7 +11,7 @@ export default function Signup() {
     confirmPassword: "",
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [status, setStatus] = useState({ type: "", message: "" }); // type: 'success' | 'error'
+  const [status, setStatus] = useState({ type: "", message: "" });
   const router = useRouter();
 
   const checkPasswordStrength = (password: string) => {
@@ -20,11 +20,9 @@ export default function Signup() {
     const hasNumber = /\d/.test(password);
     const hasSymbol = /[^A-Za-z0-9]/.test(password);
     const lengthValid = password.length >= 8;
-
     const strengthCount = [hasUpper, hasLower, hasNumber, hasSymbol].filter(
       Boolean,
     ).length;
-
     if (lengthValid && strengthCount >= 3) return "Strong";
     if (password.length >= 6 && strengthCount >= 2) return "Medium";
     if (password.length > 0) return "Weak";
@@ -44,7 +42,6 @@ export default function Signup() {
     if (form.password !== form.confirmPassword) {
       return setStatus({ type: "error", message: "Passwords do not match!" });
     }
-
     if (passwordStrength === "Weak") {
       return setStatus({
         type: "error",
@@ -66,7 +63,7 @@ export default function Signup() {
     if (res.ok) {
       setStatus({
         type: "success",
-        message: "Signup successful! Redirecting to login...",
+        message: "Signup successful! Redirecting...",
       });
       setTimeout(() => router.push("/login"), 2000);
     } else {
@@ -102,12 +99,12 @@ export default function Signup() {
   );
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center px-4">
+    <main className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
       <form
         onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md space-y-4 text-gray-800"
+        className="bg-gray-800 p-8 rounded-xl shadow-xl w-full max-w-md space-y-4 text-gray-200"
       >
-        <h2 className="text-2xl font-semibold text-center text-purple-700">
+        <h2 className="text-2xl font-semibold text-center text-indigo-400">
           Create New Account
         </h2>
 
@@ -115,8 +112,8 @@ export default function Signup() {
           <div
             className={`text-sm p-2 rounded text-center ${
               status.type === "success"
-                ? "bg-green-100 text-green-700"
-                : "bg-red-100 text-red-700"
+                ? "bg-green-900 text-green-400"
+                : "bg-red-900 text-red-400"
             }`}
           >
             {status.message}
@@ -128,16 +125,15 @@ export default function Signup() {
           name="username"
           placeholder="Username"
           onChange={handleChange}
-          className="block w-full p-2 border rounded"
+          className="block w-full p-3 rounded bg-gray-700 border border-gray-600 text-gray-100 focus:ring-2 focus:ring-indigo-400 outline-none"
           required
         />
-
         <input
           type="email"
           name="email"
           placeholder="Email"
           onChange={handleChange}
-          className="block w-full p-2 border rounded"
+          className="block w-full p-3 rounded bg-gray-700 border border-gray-600 text-gray-100 focus:ring-2 focus:ring-indigo-400 outline-none"
           required
         />
 
@@ -147,14 +143,13 @@ export default function Signup() {
             name="password"
             placeholder="Password"
             onChange={handleChange}
-            className="block w-full p-2 border rounded pr-10"
+            className="block w-full p-3 rounded bg-gray-700 border border-gray-600 text-gray-100 pr-10 focus:ring-2 focus:ring-indigo-400 outline-none"
             required
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-2 top-2 text-gray-600"
-            aria-label="Toggle Password Visibility"
+            className="absolute right-3 top-3 text-gray-400"
           >
             <EyeIcon visible={showPassword} />
           </button>
@@ -164,18 +159,13 @@ export default function Signup() {
           <p
             className={`text-sm font-semibold ${
               passwordStrength === "Strong"
-                ? "text-green-600"
+                ? "text-green-400"
                 : passwordStrength === "Medium"
-                  ? "text-yellow-600"
-                  : "text-red-600"
+                  ? "text-yellow-400"
+                  : "text-red-400"
             }`}
           >
-            Password strength: {passwordStrength}{" "}
-            {passwordStrength !== "Strong" && (
-              <span className="block text-xs font-normal text-gray-500">
-                Use uppercase, lowercase, numbers & symbols
-              </span>
-            )}
+            Password strength: {passwordStrength}
           </p>
         )}
 
@@ -185,14 +175,13 @@ export default function Signup() {
             name="confirmPassword"
             placeholder="Confirm Password"
             onChange={handleChange}
-            className="block w-full p-2 border rounded pr-10"
+            className="block w-full p-3 rounded bg-gray-700 border border-gray-600 text-gray-100 pr-10 focus:ring-2 focus:ring-indigo-400 outline-none"
             required
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-2 top-2 text-gray-600"
-            aria-label="Toggle Password Visibility"
+            className="absolute right-3 top-3 text-gray-400"
           >
             <EyeIcon visible={showPassword} />
           </button>
@@ -200,16 +189,16 @@ export default function Signup() {
 
         <button
           type="submit"
-          className="bg-purple-700 text-white p-2 rounded w-full hover:bg-purple-800 transition"
+          className="w-full py-3 bg-indigo-500 text-white rounded font-semibold hover:bg-indigo-600 transition"
         >
           Sign Up
         </button>
 
-        <p className="mt-4 text-center text-sm text-gray-600">
+        <p className="text-center text-gray-400 text-sm">
           Already have an account?{" "}
           <span
             onClick={() => router.push("/login")}
-            className="text-purple-700 cursor-pointer hover:underline"
+            className="text-indigo-400 cursor-pointer hover:underline"
           >
             Log in
           </span>

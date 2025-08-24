@@ -71,22 +71,18 @@ export default function Login() {
   );
 
   return (
-    <main className="min-h-screen flex justify-center items-center bg-gradient-to-br from-purple-600 to-indigo-700 px-4">
+    <main className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
       <form
         onSubmit={handleSubmit}
-        className="bg-white shadow-lg rounded-xl p-8 space-y-4 w-full max-w-md text-gray-800"
+        className="bg-gray-800 p-8 rounded-xl shadow-xl w-full max-w-md space-y-4 text-gray-200"
       >
-        <h2 className="text-2xl font-semibold text-center text-purple-700">
+        <h2 className="text-2xl font-semibold text-center text-indigo-400">
           Login
         </h2>
 
         {status && (
           <div
-            className={`text-sm text-center p-2 rounded ${
-              status.type === "success"
-                ? "bg-green-100 text-green-700"
-                : "bg-red-100 text-red-700"
-            }`}
+            className={`text-sm text-center p-2 rounded ${status.type === "success" ? "bg-green-900 text-green-400" : "bg-red-900 text-red-400"}`}
           >
             {status.message}
           </div>
@@ -97,7 +93,7 @@ export default function Login() {
           name="email"
           placeholder="Email"
           onChange={handleChange}
-          className="block w-full border p-2 rounded"
+          className="block w-full p-3 rounded bg-gray-700 border border-gray-600 text-gray-100 focus:ring-2 focus:ring-indigo-400 outline-none"
           required
         />
 
@@ -107,14 +103,13 @@ export default function Login() {
             name="password"
             placeholder="Password"
             onChange={handleChange}
-            className="block w-full border p-2 rounded pr-10"
+            className="block w-full p-3 rounded bg-gray-700 border border-gray-600 text-gray-100 pr-10 focus:ring-2 focus:ring-indigo-400 outline-none"
             required
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute top-2 right-2 text-gray-600"
-            aria-label="Toggle Password Visibility"
+            className="absolute right-3 top-3 text-gray-400"
           >
             <EyeIcon visible={showPassword} />
           </button>
@@ -122,16 +117,16 @@ export default function Login() {
 
         <button
           type="submit"
-          className="w-full bg-purple-700 text-white py-2 rounded hover:bg-purple-800"
+          className="w-full py-3 bg-indigo-500 text-white rounded font-semibold hover:bg-indigo-600 transition"
         >
           Login
         </button>
 
-        <p className="text-center text-sm text-gray-600">
+        <p className="text-center text-gray-400 text-sm">
           Don’t have an account?{" "}
           <span
             onClick={() => router.push("/signup")}
-            className="text-purple-700 cursor-pointer underline"
+            className="text-indigo-400 cursor-pointer hover:underline"
           >
             Sign Up
           </span>
