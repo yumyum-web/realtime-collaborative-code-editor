@@ -55,7 +55,7 @@ export default function ProjectsPage() {
     <div className="flex min-h-screen font-sans bg-gray-700 text-gray-200">
       {/* Sidebar */}
       <aside className="w-64 bg-gray-800 p-6 shadow-xl flex flex-col">
-        <h1 className="text-4xl font-serif font-extrabold mb-10 text-gray-200 tracking-tight">
+        <h1 className="text-4xl font-serif font-extrabold mb-10 text-blue-500 tracking-tight">
           RCCE
         </h1>
         <nav className="space-y-4 flex-1">
@@ -122,14 +122,14 @@ export default function ProjectsPage() {
                 placeholder="Search projects..."
                 className="p-3 border border-gray-700 rounded-lg w-1/2 bg-gray-800 text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-600 transition shadow-sm"
               />
-              <button className="px-5 py-3 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 font-semibold transition">
+              <button className="px-5 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-semibold transition">
                 Search
               </button>
             </div>
 
             <button
               onClick={() => window.open("/projects/create", "_blank")}
-              className="px-4 py-3 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 font-semibold transition"
+              className="px-4 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-semibold transition"
             >
               +
             </button>
@@ -149,7 +149,7 @@ export default function ProjectsPage() {
                 <p className="text-xs text-gray-500">Last Modified: Today</p>
                 <div className="pt-2 flex items-center">
                   <button
-                    className="bg-gray-700 text-gray-200 rounded-lg px-4 py-1 hover:bg-gray-600 font-medium transition"
+                    className="bg-blue-700 text-white rounded-lg px-4 py-1 hover:bg-blue-800 font-medium transition"
                     onClick={() =>
                       window.open(`/editor/${project._id}`, "_blank")
                     }
