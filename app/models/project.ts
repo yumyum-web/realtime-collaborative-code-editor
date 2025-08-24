@@ -13,8 +13,8 @@ const FileSchema = new mongoose.Schema(
 const ProjectSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
-    owner: { type: String, required: true }, // <-- Email string, required
-    collaborators: [{ type: String }], // <-- Array of emails
+    owner: { type: String, required: true }, // Email string, required
+    collaborators: [{ type: String }], // Array of emails
     structure: { type: FileSchema, required: true },
   },
   { timestamps: true },

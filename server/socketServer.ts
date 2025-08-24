@@ -26,6 +26,10 @@ io.on("connection", (socket) => {
     if (room) socket.to(room).emit("cursor-update", cursor);
   });
 
+  socket.on("node-added", (payload) => {
+    if (room) socket.to(room).emit("node-added", payload);
+  });
+
   socket.on("disconnect", () => {
     console.log("Client disconnected", socket.id);
   });

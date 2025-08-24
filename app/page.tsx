@@ -1,29 +1,95 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { Code, Users, GitBranch, MessageSquare, Zap } from "lucide-react";
+
 export default function Home() {
+  const router = useRouter();
+
+  const features = [
+    {
+      icon: Users,
+      title: "Real-time Collaboration",
+      description:
+        "Edit code together instantly with live cursors and real-time sync.",
+    },
+    {
+      icon: GitBranch,
+      title: "Integrated Version Control",
+      description:
+        "Manage branches, commits, and merges without leaving the editor.",
+    },
+    {
+      icon: MessageSquare,
+      title: "Live Communication",
+      description: "Chat, comment, and discuss code directly in the platform.",
+    },
+    {
+      icon: Code,
+      title: "Smart Code Editor",
+      description:
+        "Syntax highlighting, auto-complete, and error detection for multiple languages.",
+    },
+    {
+      icon: Zap,
+      title: "Instant Testing",
+      description:
+        "Run unit tests inside the editor and get results instantly.",
+    },
+  ];
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-purple-600 to-indigo-700 flex flex-col items-center justify-center text-white px-6 text-center">
-      <div className="max-w-3xl">
-        <h1 className="text-5xl font-bold mb-6 animate-fade-in">
-          Real-Time Collaborative Code Editor
-        </h1>
-        <p className="text-lg mb-8 animate-fade-in delay-150 leading-relaxed">
-          Collaborate with your teammates in real time. Share code, run tests,
-          and manage versions effortlessly. Our platform supports live sync,
-          terminal output, unit testing, GitHub integration, and in-editor
-          communication.
-        </p>
-        <div className="flex justify-center gap-6 animate-fade-in delay-300">
-          <a href="/login">
-            <button className="bg-white text-purple-700 font-semibold px-6 py-2 rounded-full hover:bg-purple-200 transition shadow-md">
-              Login
+    <div className="min-h-screen bg-gray-900 text-gray-200 flex items-center justify-center px-6">
+      <div className="max-w-6xl w-full flex flex-col md:flex-row gap-12 items-center">
+        {/* Left Side - Hero Section */}
+        <div className="md:w-1/2 flex flex-col justify-center gap-6">
+          <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight">
+            Code Together, <span className="text-indigo-400">Ship Faster</span>
+          </h1>
+          <p className="text-gray-400 text-lg">
+            Build, test, and ship software efficiently with real-time
+            collaboration, integrated version control, and instant code testing.
+          </p>
+          <p className="text-gray-400 text-lg">
+            Empower your team with a professional, secure, and smart coding
+            platform.
+          </p>
+          <div className="flex gap-4 mt-6">
+            <button
+              onClick={() => router.push("/signup")}
+              className="px-6 py-3 rounded-full bg-indigo-500 text-white font-semibold hover:bg-indigo-600 transition"
+            >
+              Create Account
             </button>
-          </a>
-          <a href="/signup">
-            <button className="bg-transparent border-2 border-white px-6 py-2 rounded-full hover:bg-white hover:text-purple-700 transition shadow-md">
-              Sign Up
+            <button
+              onClick={() => router.push("/login")}
+              className="px-6 py-3 rounded-full border border-gray-500 text-gray-200 hover:bg-gray-800 transition"
+            >
+              Log In
             </button>
-          </a>
+          </div>
+        </div>
+
+        {/* Right Side - Feature Cards */}
+        <div className="md:w-1/2 grid gap-4">
+          {features.map((feature, i) => (
+            <div
+              key={i}
+              className="flex items-start gap-4 p-4 bg-gray-800 rounded-lg border border-gray-700 hover:border-indigo-500 transition"
+            >
+              <div className="w-12 h-12 flex items-center justify-center bg-gray-700 rounded-lg text-indigo-400">
+                <feature.icon className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold text-lg">
+                  {feature.title}
+                </h3>
+                <p className="text-gray-400 text-sm">{feature.description}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
-    </main>
+    </div>
   );
 }

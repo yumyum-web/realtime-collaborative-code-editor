@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
-import io, { type Socket } from "socket.io-client";
+import io, { Socket } from "socket.io-client";
 import { useParams } from "next/navigation";
 import {
   VscChevronDown,
@@ -21,9 +21,14 @@ interface FileNode {
   content?: string | null; // only for files
 }
 
-export default function EditorPage() {
-  const { id: projectId } = useParams();
+type NodeAddedPayload = {
+  type: "file" | "folder";
+  parentPath: string;
+  name: string;
+};
 
+export default function EditorPage() {
+  const { id: projectId } = useParams() as { id: string };
   const [socket, setSocket] = useState<typeof Socket | null>(null);
   const editorRef = useRef<
     import("monaco-editor").editor.IStandaloneCodeEditor | null
@@ -37,10 +42,47 @@ export default function EditorPage() {
   const [fileTree, setFileTree] = useState<FileNode[]>([]);
   const [filesContent, setFilesContent] = useState<Record<string, string>>({});
 
-  // Connect socket and join room
+  function addNodeToTree(
+    tree: FileNode[],
+    payload: NodeAddedPayload,
+    onFileInit?: (fullPath: string) => void,
+  ): FileNode[] {
+    const { type, parentPath, name } = payload;
+
+    // deep clone
+    const newTree: FileNode[] = JSON.parse(JSON.stringify(tree));
+
+    function walk(nodes: FileNode[], currentPath: string): boolean {
+      for (const node of nodes) {
+        const nodePath = currentPath
+          ? `${currentPath}/${node.name}`
+          : node.name;
+
+        if (nodePath === parentPath) {
+          if (!node.children) node.children = [];
+          if (type === "file") {
+            node.children.push({ name, type: "file", content: "" });
+            const fullPath = `${nodePath}/${name}`;
+            onFileInit?.(fullPath);
+          } else {
+            node.children.push({ name, type: "folder", children: [] });
+          }
+          return true;
+        }
+
+        if (node.children && walk(node.children, nodePath)) return true;
+      }
+      return false;
+    }
+
+    walk(newTree, "");
+    return newTree;
+  }
+
+  //socket connection
+
   useEffect(() => {
     if (!projectId) return;
-
     const newSocket = io("http://localhost:3001");
     setSocket(newSocket);
 
@@ -53,13 +95,25 @@ export default function EditorPage() {
       },
     );
 
+    // NEW: receive node-added from peers
+    newSocket.on("node-added", (payload: NodeAddedPayload) => {
+      setFileTree((prevTree) =>
+        addNodeToTree(prevTree, payload, (fullPath) =>
+          setFilesContent((prev) => ({ ...prev, [fullPath]: "" })),
+        ),
+      );
+      // expand the parent folder so the new node is visible
+      setExpandedFolders((prev) => new Set(prev).add(payload.parentPath));
+    });
+
     return () => {
       newSocket.disconnect();
       setSocket(null);
     };
   }, [projectId]);
 
-  // Fetch project & structure on load
+  // load initial structure
+
   useEffect(() => {
     if (!projectId) return;
 
@@ -69,7 +123,6 @@ export default function EditorPage() {
         setProjectTitle(data.title);
         const rootNode: FileNode = data.structure;
 
-        // Flatten files for easy access
         const flatFiles: Record<string, string> = {};
         function flatten(node: FileNode, path = "") {
           const currentPath = path ? `${path}/${node.name}` : node.name;
@@ -87,110 +140,108 @@ export default function EditorPage() {
         const firstFile = Object.keys(flatFiles)[0];
         if (firstFile) setActiveFile(firstFile);
 
-        // Expand root folder by default
         setExpandedFolders(new Set([rootNode.name]));
       });
   }, [projectId]);
 
-  // Editor change handler
+  // editor change handler
+
   const onEditorChange = (value?: string) => {
-    if (!value) return;
-    setFilesContent((prev) => {
-      const updated = { ...prev, [activeFile]: value };
-      return updated;
-    });
+    if (value == null) return;
+    setFilesContent((prev) => ({ ...prev, [activeFile]: value }));
     socket?.emit("editor-changes", { file: activeFile, content: value });
   };
 
-  // Toggle folder expanded/collapsed
+  // folder toggle
+
   const toggleFolder = (path: string) => {
     setExpandedFolders((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(path)) newSet.delete(path);
-      else newSet.add(path);
-      return newSet;
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
     });
   };
 
-  // Render the file tree recursively
-  const renderTree = (nodes: FileNode[], basePath = "") => {
-    return nodes.map((node) => {
+  //  tree rendering
+
+  const renderTree = (nodes: FileNode[], basePath = "") =>
+    nodes.map((node) => {
       const path = basePath ? `${basePath}/${node.name}` : node.name;
 
       if (node.type === "folder") {
         const isExpanded = expandedFolders.has(path);
         return (
-          <div key={path} className="ml-2">
+          <div key={path} className="pl-2">
             <div
-              className="cursor-pointer flex items-center gap-1 px-2 py-1 hover:bg-gray-700 rounded select-none"
+              className="cursor-pointer flex items-center gap-2 px-2 py-1 hover:bg-gray-700 rounded select-none"
               onClick={() => toggleFolder(path)}
             >
               {isExpanded ? <VscChevronDown /> : <VscChevronRight />}
               {isExpanded ? <VscFolderOpened /> : <VscFolder />}
-              <span>{node.name}</span>
+              <span className="truncate">{node.name}</span>
               <AddNodeButtons parentPath={path} onAdd={handleAddNode} />
             </div>
             {isExpanded && node.children && (
-              <div className="ml-4">{renderTree(node.children, path)}</div>
+              <div className="pl-6 border-l border-gray-700 ml-2">
+                {renderTree(node.children, path)}
+              </div>
             )}
           </div>
         );
-      } else {
-        return (
-          <div
-            key={path}
-            className={`cursor-pointer flex items-center gap-2 px-2 py-1 hover:bg-gray-700 rounded text-sm select-none ${
-              activeFile === path ? "bg-gray-700" : ""
-            }`}
-            onClick={() => setActiveFile(path)}
-          >
-            <VscFile />
-            <span>{node.name}</span>
-          </div>
-        );
       }
-    });
-  };
 
-  // Add new file or folder to the tree
+      return (
+        <div
+          key={path}
+          className={`cursor-pointer flex items-center gap-2 px-2 py-1 rounded text-sm select-none
+            ${activeFile === path ? "bg-gray-700 text-white" : "hover:bg-gray-700 text-gray-300"}`}
+          onClick={() => setActiveFile(path)}
+        >
+          <VscFile />
+          <span className="truncate">{node.name}</span>
+        </div>
+      );
+    });
+
+  // create node (local + broadcast)
+
   function handleAddNode(type: "file" | "folder", parentPath: string) {
     const name = prompt(`Enter ${type} name`);
     if (!name) return;
-    const nodeName = name; // Assert non-null here
 
-    // Deep copy the fileTree so React notices changes
-    const newTree = JSON.parse(JSON.stringify(fileTree)) as FileNode[];
-
-    function addNode(nodes: FileNode[], currentPath: string): boolean {
-      for (const node of nodes) {
-        const nodePath = currentPath
-          ? `${currentPath}/${node.name}`
-          : node.name;
-
-        if (nodePath === parentPath) {
-          if (!node.children) node.children = [];
-          if (type === "file") {
-            node.children.push({ name: nodeName, type, content: "" });
-            const fullPath = `${nodePath}/${nodeName}`;
-            setFilesContent((prev) => ({ ...prev, [fullPath]: "" }));
-          } else {
-            node.children.push({ name: nodeName, type, children: [] });
-          }
-          return true;
-        }
-
-        if (node.children && addNode(node.children, nodePath)) {
-          return true;
-        }
-      }
-      return false;
-    }
-    addNode(newTree, "");
-    setFileTree(newTree);
+    // 1) apply locally
+    setFileTree((prevTree) =>
+      addNodeToTree(prevTree, { type, parentPath, name }, (fullPath) =>
+        setFilesContent((prev) => ({ ...prev, [fullPath]: "" })),
+      ),
+    );
     setExpandedFolders((prev) => new Set(prev).add(parentPath));
+
+    // 2) notify peers
+    socket?.emit("node-added", { type, parentPath, name } as NodeAddedPayload);
   }
 
-  // Reconstruct the nested structure to save in DB
+  // save
+
+  const handleSave = async () => {
+    if (!projectId) return alert("No project ID!");
+    const updatedStructure = reconstructTree(fileTree)[0];
+    const res = await fetch(`/api/projects/${projectId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ structure: updatedStructure }),
+    });
+    if (res.ok) {
+      alert("Project saved!");
+    } else {
+      alert("Failed to save project");
+    }
+  };
+
   function reconstructTree(nodes: FileNode[], basePath = ""): FileNode[] {
     return nodes.map((node) => {
       const path = basePath ? `${basePath}/${node.name}` : node.name;
@@ -210,45 +261,31 @@ export default function EditorPage() {
     });
   }
 
-  // Save updated project structure and files to DB
-  const handleSave = async () => {
-    if (!projectId) return alert("No project ID!");
-
-    const updatedStructure = reconstructTree(fileTree)[0]; // root node
-
-    const res = await fetch(`/api/projects/${projectId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ structure: updatedStructure }),
-    });
-
-    if (res.ok) alert("Project saved!");
-    else alert("Failed to save project");
-  };
+  // UI
 
   return (
-    <div className="flex h-screen bg-gray-900 text-white">
+    <div className="flex h-screen bg-gray-900 text-gray-200">
       {/* Sidebar */}
-      <aside className="w-64 bg-gray-800 p-4 overflow-y-auto text-sm">
+      <aside className="w-64 bg-gray-800 p-4 overflow-y-auto text-sm border-r border-gray-700">
         <h2 className="text-xl font-bold mb-4 border-b border-gray-700 pb-2">
           {projectTitle}
         </h2>
         <div>{renderTree(fileTree)}</div>
         <button
           onClick={() => handleAddNode("folder", "root")}
-          className="mt-4 bg-blue-600 hover:bg-blue-700 w-full py-1 rounded"
+          className="mt-4 bg-gray-700 hover:bg-gray-600 w-full py-1 rounded"
         >
-          + New Folder in root
+          + New Folder
         </button>
         <button
           onClick={() => handleAddNode("file", "root")}
-          className="mt-2 bg-green-600 hover:bg-green-700 w-full py-1 rounded"
+          className="mt-2 bg-gray-700 hover:bg-gray-600 w-full py-1 rounded"
         >
-          + New File in root
+          + New File
         </button>
       </aside>
 
-      {/* Editor and toolbar */}
+      {/* Editor */}
       <div className="flex-1 flex flex-col">
         <div className="flex justify-between items-center bg-gray-800 px-4 py-2 border-b border-gray-700">
           <div>
@@ -256,7 +293,7 @@ export default function EditorPage() {
           </div>
           <button
             onClick={handleSave}
-            className="bg-purple-700 hover:bg-purple-800 px-4 py-1 rounded"
+            className="bg-gray-700 hover:bg-gray-600 px-4 py-1 rounded"
           >
             Save Project
           </button>
@@ -269,16 +306,14 @@ export default function EditorPage() {
           value={filesContent[activeFile] || ""}
           onMount={(editor) => (editorRef.current = editor)}
           onChange={onEditorChange}
-          options={{
-            minimap: { enabled: false },
-          }}
+          options={{ minimap: { enabled: false } }}
         />
       </div>
     </div>
   );
 }
 
-// Small buttons for adding new files/folders inside each folder node
+// Add file/folder buttons shown on folder rows
 function AddNodeButtons({
   parentPath,
   onAdd,
@@ -287,14 +322,14 @@ function AddNodeButtons({
   onAdd: (type: "file" | "folder", parentPath: string) => void;
 }) {
   return (
-    <div className="ml-auto flex gap-1">
+    <div className="ml-auto flex gap-1 opacity-70 hover:opacity-100">
       <button
         onClick={(e) => {
           e.stopPropagation();
           onAdd("file", parentPath);
         }}
         title="Add File"
-        className="text-green-400 hover:text-green-600"
+        className="text-gray-400 hover:text-gray-200"
       >
         <VscNewFile />
       </button>
@@ -304,7 +339,7 @@ function AddNodeButtons({
           onAdd("folder", parentPath);
         }}
         title="Add Folder"
-        className="text-blue-400 hover:text-blue-600"
+        className="text-gray-400 hover:text-gray-200"
       >
         <VscNewFolder />
       </button>
