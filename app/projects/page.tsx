@@ -61,13 +61,13 @@ export default function ProjectsPage() {
         <nav className="space-y-4 flex-1">
           <button
             onClick={() => router.push("/projects")}
-            className="block w-full text-left px-3 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 font-bold transition"
+            className="block w-full text-left px-3 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 font-bold transition"
           >
             Projects
           </button>
           <button
             onClick={() => router.push("/invitations")}
-            className="block w-full text-left px-3 py-2 rounded-lg hover:bg-gray-600 font-bold transition"
+            className="block w-full text-left px-3 py-2 rounded-lg hover:bg-blue-700 font-bold transition"
           >
             Invitations
           </button>
@@ -122,14 +122,14 @@ export default function ProjectsPage() {
                 placeholder="Search projects..."
                 className="p-3 border border-gray-700 rounded-lg w-1/2 bg-gray-800 text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-600 transition shadow-sm"
               />
-              <button className="px-5 py-3 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 font-semibold transition">
+              <button className="px-5 py-3 bg-blue-800 text-gray-200 rounded-lg hover:bg-blue-700 font-semibold transition">
                 Search
               </button>
             </div>
 
             <button
               onClick={() => window.open("/projects/create", "_blank")}
-              className="px-4 py-3 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 font-semibold transition"
+              className="px-4 py-3 bg-blue-800 text-gray-200 rounded-lg hover:bg-blue-700 font-semibold transition"
             >
               +
             </button>
@@ -149,7 +149,7 @@ export default function ProjectsPage() {
                 <p className="text-xs text-gray-500">Last Modified: Today</p>
                 <div className="pt-2 flex items-center">
                   <button
-                    className="bg-gray-700 text-gray-200 rounded-lg px-4 py-1 hover:bg-gray-600 font-medium transition"
+                    className="bg-blue-800 text-gray-200 rounded-lg px-4 py-1 hover:bg-blue-700 font-medium transition"
                     onClick={() =>
                       window.open(`/editor/${project._id}`, "_blank")
                     }
