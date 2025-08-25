@@ -9,6 +9,9 @@ export default function InvitationsPage() {
   );
   const [showPopup, setShowPopup] = useState(false);
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,6 +43,32 @@ export default function InvitationsPage() {
     router.push("/");
   };
 
+  const handleAcceptInvitation = async (invitationId: number) => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/invitations/accept`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ invitationId }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to accept invitation");
+      }
+      setSuccess("Invitation accepted successfully.");
+      // Optionally, update UI to remove accepted invitation from list
+    } catch (err: any) {
+      setError(err.message || "An error occurred.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen font-sans bg-gray-700 text-gray-200">
       {/* Sidebar */}
@@ -56,7 +85,7 @@ export default function InvitationsPage() {
           </button>
           <button
             onClick={() => router.push("/invitations")}
-            className="block w-full text-left px-3 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 font-bold transition"
+            className="block w-full text-left px-3 py-2 rounded-lg bg-blue-800 hover:bg-blue-600 font-bold transition"
           >
             Invitations
           </button>
@@ -74,7 +103,7 @@ export default function InvitationsPage() {
           {/* User Icon & Popup */}
           <div className="relative" ref={popupRef}>
             <div
-              className="w-11 h-11 bg-gray-700 text-white flex items-center justify-center rounded-full cursor-pointer text-xl font-bold"
+              className="w-11 h-11 bg-blue-800 text-white flex items-center justify-center rounded-full cursor-pointer text-xl font-bold"
               onClick={() => setShowPopup((prev) => !prev)}
             >
               {user?.username?.charAt(0)?.toUpperCase() || "U"}
@@ -90,7 +119,7 @@ export default function InvitationsPage() {
                   {user.email}
                 </p>
                 <button
-                  className="w-full bg-red-700 text-gray-200 py-1.5 rounded hover:bg-red-600 font-medium mt-2 transition"
+                  className="w-full bg-blue-800 text-gray-200 py-1.5 rounded hover:bg-blue-600 font-medium mt-2 transition"
                   onClick={handleLogout}
                 >
                   Logout
@@ -124,13 +153,14 @@ export default function InvitationsPage() {
                 <div className="text-gray-400">User {invitation}</div>
                 <div className="text-gray-500">{24 - invitation} hrs</div>
                 <button
-                  className="w-8 h-8 bg-gray-700 text-gray-200 rounded hover:bg-gray-600 flex items-center justify-center text-sm font-bold transition"
+                  className="w-8 h-8 bg-blue-800 text-gray-200 rounded hover:bg-blue-600 flex items-center justify-center text-sm font-bold transition"
                   title="Accept"
+                  onClick={() => handleAcceptInvitation(invitation)}
                 >
                   ✓
                 </button>
                 <button
-                  className="w-8 h-8 bg-gray-700 text-gray-200 rounded hover:bg-gray-600 flex items-center justify-center text-sm font-bold transition"
+                  className="w-8 h-8 bg-blue-800 text-gray-200 rounded hover:bg-blue-600 flex items-center justify-center text-sm font-bold transition"
                   title="Decline"
                 >
                   ✕

@@ -67,7 +67,7 @@ export default function ProjectsPage() {
           </button>
           <button
             onClick={() => router.push("/invitations")}
-            className="block w-full text-left px-3 py-2 rounded-lg hover:bg-blue-700 font-bold transition"
+            className="block w-full text-left px-3 py-2 rounded-lg hover:bg-gray-600 font-bold transition"
           >
             Invitations
           </button>
@@ -85,7 +85,7 @@ export default function ProjectsPage() {
           {/* User Icon & Popup */}
           <div className="relative" ref={popupRef}>
             <div
-              className="w-11 h-11 bg-gray-700 text-white flex items-center justify-center rounded-full cursor-pointer text-xl font-bold"
+              className="w-11 h-11 bg-blue-800 text-white flex items-center justify-center rounded-full cursor-pointer text-xl font-bold"
               onClick={() => setShowPopup((prev) => !prev)}
             >
               {user?.username?.charAt(0)?.toUpperCase() || "U"}
