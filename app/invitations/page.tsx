@@ -43,9 +43,30 @@ export default function InvitationsPage() {
     router.push("/");
   };
 
-  const handleAcceptInvitation = (invitationId: number) => {
-    console.log(`Accepted invitation with ID: ${invitationId}`);
-    // Add your logic here to handle the invitation acceptance
+  const handleAcceptInvitation = async (invitationId: number) => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/invitations/accept`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ invitationId }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to accept invitation");
+      }
+      setSuccess("Invitation accepted successfully.");
+      // Optionally, update UI to remove accepted invitation from list
+    } catch (err: any) {
+      setError(err.message || "An error occurred.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
