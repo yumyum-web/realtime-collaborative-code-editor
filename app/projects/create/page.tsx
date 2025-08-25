@@ -11,7 +11,6 @@ export default function CreateProjectPage() {
   const [collaborators, setCollaborators] = useState<string[]>([]);
   const [newCollaborator, setNewCollaborator] = useState("");
 
-  // Example: fetch ownerEmail from localStorage or auth here
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -49,40 +48,44 @@ export default function CreateProjectPage() {
   };
 
   return (
-    <main className="min-h-screen flex justify-center items-center bg-gradient-to-br from-purple-600 to-indigo-700 px-4">
+    <main className="min-h-screen flex justify-center items-center bg-gradient-to-br from-gray-900 via-gray-800 to-black px-4">
       <form
         onSubmit={handleSubmit}
-        className="max-w-md w-full space-y-6 bg-white p-8 rounded-xl shadow-lg text-gray-800"
+        className="max-w-md w-full space-y-6 bg-gray-900 p-8 rounded-2xl shadow-xl border border-gray-700 text-gray-100"
       >
-        <h1 className="text-2xl font-bold text-center text-purple-700">
+        <h1 className="text-3xl font-extrabold text-center bg-gradient-to-r from-blue-600 to-indigo-800 bg-clip-text text-transparent tracking-wide">
           Create New Project
         </h1>
 
         <div>
-          <label className="block mb-1 font-medium">Project Title</label>
+          <label className="block mb-1 font-medium text-gray-300">
+            Project Title
+          </label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
             placeholder="Enter project title"
-            className="w-full border border-gray-300 rounded px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 text-gray-100"
           />
         </div>
 
         <div>
-          <label className="block mb-1 font-medium">Owner Email</label>
+          <label className="block mb-1 font-medium text-gray-300">
+            Owner Email
+          </label>
           <input
             type="email"
             value={ownerEmail}
             readOnly
             placeholder="Owner email"
-            className="w-full bg-gray-100 border border-gray-300 rounded px-3 py-2 text-gray-600"
+            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-400"
           />
         </div>
 
         <div>
-          <label className="block mb-1 font-medium">
+          <label className="block mb-1 font-medium text-gray-300">
             Collaborators (Emails)
           </label>
           <div className="flex gap-2 mb-2">
@@ -91,17 +94,17 @@ export default function CreateProjectPage() {
               value={newCollaborator}
               onChange={(e) => setNewCollaborator(e.target.value)}
               placeholder="Enter collaborator email"
-              className="flex-grow border border-gray-300 rounded px-3 py-2 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="flex-grow bg-gray-800 border border-gray-700 rounded px-3 py-2 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 text-gray-100"
             />
             <button
               type="button"
               onClick={handleAddCollaborator}
-              className="bg-purple-600 text-white px-4 rounded hover:bg-purple-700 transition"
+              className="bg-blue-800 text-gray-100 px-4 rounded-lg hover:bg-blue-600 transition"
             >
               Add
             </button>
           </div>
-          <ul className="list-disc pl-5 text-gray-700">
+          <ul className="list-disc pl-5 text-gray-400">
             {collaborators.map((email, idx) => (
               <li key={idx}>{email}</li>
             ))}
@@ -110,7 +113,7 @@ export default function CreateProjectPage() {
 
         <button
           type="submit"
-          className="w-full bg-purple-700 text-white py-2 rounded hover:bg-purple-800 transition"
+          className="w-full bg-blue-800 text-gray-100 py-2 rounded-lg hover:bg-blue-600 transition"
         >
           Create Project
         </button>

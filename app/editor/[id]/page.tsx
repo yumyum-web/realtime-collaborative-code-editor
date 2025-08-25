@@ -273,13 +273,13 @@ export default function EditorPage() {
         <div>{renderTree(fileTree)}</div>
         <button
           onClick={() => handleAddNode("folder", "root")}
-          className="mt-4 bg-gray-700 hover:bg-gray-600 w-full py-1 rounded"
+          className="mt-4 bg-blue-800 hover:bg-blue-600 w-full py-1 rounded"
         >
           + New Folder
         </button>
         <button
           onClick={() => handleAddNode("file", "root")}
-          className="mt-2 bg-gray-700 hover:bg-gray-600 w-full py-1 rounded"
+          className="mt-2 bg-blue-800 hover:bg-blue-600 w-full py-1 rounded"
         >
           + New File
         </button>
@@ -293,7 +293,7 @@ export default function EditorPage() {
           </div>
           <button
             onClick={handleSave}
-            className="bg-gray-700 hover:bg-gray-600 px-4 py-1 rounded"
+            className="bg-blue-800 hover:bg-blue-600 px-4 py-1 rounded"
           >
             Save Project
           </button>

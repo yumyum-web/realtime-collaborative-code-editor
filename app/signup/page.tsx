@@ -2,6 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  createUserWithEmailAndPassword,
+  updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from "firebase/auth";
+import { auth } from "../firebase/config";
 
 export default function Signup() {
   const [form, setForm] = useState({
@@ -49,25 +56,45 @@ export default function Signup() {
       });
     }
 
-    const res = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: form.username,
-        email: form.email,
-        password: form.password,
-      }),
-    });
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        form.email,
+        form.password,
+      );
 
-    const data = await res.json();
-    if (res.ok) {
+      await updateProfile(userCredential.user, { displayName: form.username });
+
       setStatus({
         type: "success",
         message: "Signup successful! Redirecting...",
       });
+
       setTimeout(() => router.push("/login"), 2000);
-    } else {
-      setStatus({ type: "error", message: data.error || "Signup failed" });
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "An unknown error occurred.";
+      setStatus({ type: "error", message: errorMessage });
+    }
+  };
+
+  const handleGoogleSignup = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      localStorage.setItem("token", await user.getIdToken());
+      localStorage.setItem(
+        "user",
+        JSON.stringify({ username: user.displayName, email: user.email }),
+      );
+
+      router.push("/projects");
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "An unknown error occurred.";
+      setStatus({ type: "error", message: errorMessage });
     }
   };
 
@@ -99,12 +126,12 @@ export default function Signup() {
   );
 
   return (
-    <main className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
+    <main className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-gray-900 via-gray-800 to-black">
       <form
         onSubmit={handleSubmit}
-        className="bg-gray-800 p-8 rounded-xl shadow-xl w-full max-w-md space-y-4 text-gray-200"
+        className="bg-gray-900 p-8 rounded-2xl shadow-xl border border-gray-700 w-full max-w-md space-y-4 text-gray-200"
       >
-        <h2 className="text-2xl font-semibold text-center text-indigo-400">
+        <h2 className="text-3xl font-extrabold text-center bg-gradient-to-r from-blue-600 to-indigo-800 bg-clip-text text-transparent tracking-wide">
           Create New Account
         </h2>
 
@@ -125,15 +152,16 @@ export default function Signup() {
           name="username"
           placeholder="Username"
           onChange={handleChange}
-          className="block w-full p-3 rounded bg-gray-700 border border-gray-600 text-gray-100 focus:ring-2 focus:ring-indigo-400 outline-none"
+          className="block w-full p-3 rounded bg-gray-800 border border-gray-700 text-gray-100 focus:ring-2 focus:ring-blue-700 outline-none"
           required
         />
+
         <input
           type="email"
           name="email"
           placeholder="Email"
           onChange={handleChange}
-          className="block w-full p-3 rounded bg-gray-700 border border-gray-600 text-gray-100 focus:ring-2 focus:ring-indigo-400 outline-none"
+          className="block w-full p-3 rounded bg-gray-800 border border-gray-700 text-gray-100 focus:ring-2 focus:ring-blue-700 outline-none"
           required
         />
 
@@ -143,7 +171,7 @@ export default function Signup() {
             name="password"
             placeholder="Password"
             onChange={handleChange}
-            className="block w-full p-3 rounded bg-gray-700 border border-gray-600 text-gray-100 pr-10 focus:ring-2 focus:ring-indigo-400 outline-none"
+            className="block w-full p-3 rounded bg-gray-800 border border-gray-700 text-gray-100 pr-10 focus:ring-2 focus:ring-blue-700 outline-none"
             required
           />
           <button
@@ -175,7 +203,7 @@ export default function Signup() {
             name="confirmPassword"
             placeholder="Confirm Password"
             onChange={handleChange}
-            className="block w-full p-3 rounded bg-gray-700 border border-gray-600 text-gray-100 pr-10 focus:ring-2 focus:ring-indigo-400 outline-none"
+            className="block w-full p-3 rounded bg-gray-800 border border-gray-700 text-gray-100 pr-10 focus:ring-2 focus:ring-blue-700 outline-none"
             required
           />
           <button
@@ -189,16 +217,24 @@ export default function Signup() {
 
         <button
           type="submit"
-          className="w-full py-3 bg-indigo-500 text-white rounded font-semibold hover:bg-indigo-600 transition"
+          className="w-full py-3 bg-blue-800 text-white rounded-lg font-semibold hover:bg-blue-600 transition"
         >
           Sign Up
+        </button>
+
+        <button
+          type="button"
+          onClick={handleGoogleSignup}
+          className="w-full py-3 bg-gray-700 text-white rounded-lg font-semibold hover:bg-gray-400 transition"
+        >
+          Sign Up with Google
         </button>
 
         <p className="text-center text-gray-400 text-sm">
           Already have an account?{" "}
           <span
             onClick={() => router.push("/login")}
-            className="text-indigo-400 cursor-pointer hover:underline"
+            className="text-blue-700 cursor-pointer hover:underline"
           >
             Log in
           </span>
