@@ -7,39 +7,47 @@ interface Props {
 }
 
 export async function GET(req: NextRequest, { params }: Props) {
-  await connectDB();
-  const project = await Project.findById(params.id).lean();
+  try {
+    await connectDB();
 
-  if (!project) {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    const project = await Project.findById(params.id).lean();
+
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(project);
+  } catch (error) {
+    console.error("Failed to fetch project", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
-  return NextResponse.json(project);
 }
 
 export async function POST(req: NextRequest, { params }: Props) {
-  await connectDB();
-
-  const { structure } = await req.json();
-
-  if (!structure) {
-    return NextResponse.json(
-      { error: "Project structure is required" },
-      { status: 400 },
-    );
-  }
-
   try {
+    await connectDB();
+
+    const { structure } = await req.json();
+    if (!structure) {
+      return NextResponse.json(
+        { error: "Project structure is required" },
+        { status: 400 },
+      );
+    }
+
     const updated = await Project.findByIdAndUpdate(
       params.id,
       { structure },
       { new: true },
     );
-
     if (!updated) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ message: "Project updated" });
+    return NextResponse.json({ message: "Project updated", project: updated });
   } catch (error) {
     console.error("Failed to update project", error);
     return NextResponse.json(
