@@ -1,123 +1,204 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 export default function CreateProjectPage() {
-  const router = useRouter();
-
   const [title, setTitle] = useState("");
-  const [ownerEmail, setOwnerEmail] = useState("");
   const [collaborators, setCollaborators] = useState<string[]>([]);
   const [newCollaborator, setNewCollaborator] = useState("");
+  const [user, setUser] = useState<{ username: string; email: string } | null>(
+    null,
+  );
+  const [showPopup, setShowPopup] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const popupRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const user = JSON.parse(storedUser);
-      setOwnerEmail(user.email);
+    const token = localStorage.getItem("token");
+    const userData = localStorage.getItem("user");
+    if (!token || !userData) {
+      router.push("/");
+    } else {
+      setUser(JSON.parse(userData));
     }
+  }, [router]);
+
+  // Hide popup if click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        popupRef.current &&
+        !popupRef.current.contains(event.target as Node)
+      ) {
+        setShowPopup(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    router.push("/");
+  };
+
   const handleAddCollaborator = () => {
-    if (
-      newCollaborator.trim() &&
-      !collaborators.includes(newCollaborator.trim())
-    ) {
-      setCollaborators([...collaborators, newCollaborator.trim()]);
-      setNewCollaborator("");
-    }
+    if (!newCollaborator.trim()) return;
+    setCollaborators((prev) => [...prev, newCollaborator.trim()]);
+    setNewCollaborator("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!title.trim()) {
+      alert("Project title is required");
+      return;
+    }
 
-    const res = await fetch("/api/projects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, ownerEmail, collaborators }),
-    });
+    setLoading(true);
+    try {
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          ownerEmail: user?.email,
+          collaborators, // already an array
+        }),
+      });
 
-    if (res.ok) {
-      const data = await res.json();
-      router.push(`/editor/${data.projectId}`);
-    } else {
-      const errorData = await res.json();
-      alert(errorData.error || "Failed to create project");
+      if (!res.ok) throw new Error("Failed to create project");
+      router.push("/projects");
+    } catch (err) {
+      console.error(err);
+      alert("Error creating project");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen flex justify-center items-center bg-gradient-to-br from-gray-900 via-gray-800 to-black px-4">
-      <form
-        onSubmit={handleSubmit}
-        className="max-w-md w-full space-y-6 bg-gray-900 p-8 rounded-2xl shadow-xl border border-gray-700 text-gray-100"
-      >
-        <h1 className="text-3xl font-extrabold text-center bg-gradient-to-r from-blue-600 to-indigo-800 bg-clip-text text-transparent tracking-wide">
-          Create New Project
+    <div className="flex min-h-screen font-sans bg-gray-700 text-gray-200">
+      {/* Sidebar */}
+      <aside className="w-64 bg-gray-800 p-6 shadow-xl flex flex-col">
+        <h1 className="text-4xl font-serif font-extrabold mb-10 text-gray-200 tracking-tight">
+          RCCE
         </h1>
+        <nav className="space-y-4 flex-1">
+          <button
+            onClick={() => router.push("/projects")}
+            className="block w-full text-left px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-600 font-bold transition"
+          >
+            Projects
+          </button>
+          <button
+            onClick={() => router.push("/invitations")}
+            className="block w-full text-left px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-600 font-bold transition"
+          >
+            Invitations
+          </button>
+        </nav>
+      </aside>
 
-        <div>
-          <label className="block mb-1 font-medium text-gray-300">
-            Project Title
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-            placeholder="Enter project title"
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 text-gray-100"
-          />
-        </div>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col relative bg-gray-900">
+        {/* Topbar */}
+        <header className="bg-gray-800 shadow p-6 flex justify-between items-center">
+          <h2 className="text-3xl font-serif font-semibold text-gray-200 tracking-tight">
+            Create New Project
+          </h2>
 
-        <div>
-          <label className="block mb-1 font-medium text-gray-300">
-            Owner Email
-          </label>
-          <input
-            type="email"
-            value={ownerEmail}
-            readOnly
-            placeholder="Owner email"
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-400"
-          />
-        </div>
-
-        <div>
-          <label className="block mb-1 font-medium text-gray-300">
-            Collaborators (Emails)
-          </label>
-          <div className="flex gap-2 mb-2">
-            <input
-              type="email"
-              value={newCollaborator}
-              onChange={(e) => setNewCollaborator(e.target.value)}
-              placeholder="Enter collaborator email"
-              className="flex-grow bg-gray-800 border border-gray-700 rounded px-3 py-2 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 text-gray-100"
-            />
-            <button
-              type="button"
-              onClick={handleAddCollaborator}
-              className="bg-blue-800 text-gray-100 px-4 rounded-lg hover:bg-blue-600 transition"
+          {/* User Icon & Popup */}
+          <div className="relative" ref={popupRef}>
+            <div
+              className="w-11 h-11 bg-blue-800 text-white flex items-center justify-center rounded-full cursor-pointer text-xl font-bold"
+              onClick={() => setShowPopup((prev) => !prev)}
             >
-              Add
-            </button>
+              {user?.username?.charAt(0)?.toUpperCase() || "U"}
+            </div>
+            {showPopup && user && (
+              <div
+                className="absolute right-0 mt-2 w-56 bg-gray-800 shadow-xl rounded-lg p-4 text-sm z-50 border border-gray-700"
+                onMouseEnter={() => setShowPopup(true)}
+                onMouseLeave={() => setShowPopup(false)}
+              >
+                <p className="font-semibold text-gray-200">{user.username}</p>
+                <p className="font-semibold text-gray-400 text-sm">
+                  {user.email}
+                </p>
+                <button
+                  className="w-full bg-blue-800 text-gray-200 py-1.5 rounded hover:bg-blue-600 font-medium mt-2 transition"
+                  onClick={handleLogout}
+                >
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
-          <ul className="list-disc pl-5 text-gray-400">
-            {collaborators.map((email, idx) => (
-              <li key={idx}>{email}</li>
-            ))}
-          </ul>
-        </div>
+        </header>
 
-        <button
-          type="submit"
-          className="w-full bg-blue-800 text-gray-100 py-2 rounded-lg hover:bg-blue-600 transition"
-        >
-          Create Project
-        </button>
-      </form>
-    </main>
+        {/* Form */}
+        <main className="flex-1 flex justify-center items-center px-6 py-12">
+          <form
+            onSubmit={handleSubmit}
+            className="w-full max-w-lg bg-gray-800 shadow-lg rounded-lg p-8 space-y-6 border border-gray-700"
+          >
+            <div>
+              <label className="block text-gray-300 font-semibold mb-2">
+                Project Title
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-4 py-2 rounded bg-gray-900 border border-gray-600 text-gray-200 focus:ring-2 focus:ring-blue-800 outline-none"
+                placeholder="Enter project name"
+              />
+            </div>
+
+            {/* Collaborators Input + Button */}
+            <div>
+              <label className="block text-gray-300 font-semibold mb-2">
+                Add Collaborators
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newCollaborator}
+                  onChange={(e) => setNewCollaborator(e.target.value)}
+                  className="flex-1 px-4 py-2 rounded bg-gray-900 border border-gray-600 text-gray-200 focus:ring-2 focus:ring-blue-800 outline-none"
+                  placeholder="Enter collaborator email"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddCollaborator}
+                  className="px-4 py-2 bg-blue-800 hover:bg-blue-600 rounded font-bold text-gray-200 transition"
+                >
+                  Add
+                </button>
+              </div>
+
+              {/* Show added collaborators as plain text */}
+              {collaborators.length > 0 && (
+                <p className="mt-2 text-gray-400 text-sm">
+                  Added: {collaborators.join(", ")}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2 px-4 bg-blue-800 hover:bg-blue-600 text-gray-200 rounded font-bold transition disabled:opacity-50"
+            >
+              {loading ? "Creating..." : "Create Project"}
+            </button>
+          </form>
+        </main>
+      </div>
+    </div>
   );
 }

@@ -3,17 +3,25 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
+interface Invitation {
+  _id: string;
+  projectTitle: string;
+  ownerEmail: string;
+  createdAt: string;
+}
+
 export default function InvitationsPage() {
   const [user, setUser] = useState<{ username: string; email: string } | null>(
     null,
   );
   const [showPopup, setShowPopup] = useState(false);
-  const router = useRouter();
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const router = useRouter();
   const popupRef = useRef<HTMLDivElement>(null);
+  const [invitationCount, setInvitationCount] = useState(0);
 
+  // Fetch logged-in user
   useEffect(() => {
     const token = localStorage.getItem("token");
     const userData = localStorage.getItem("user");
@@ -24,6 +32,22 @@ export default function InvitationsPage() {
     }
   }, [router]);
 
+  // Fetch invitations
+  useEffect(() => {
+    if (!user?.email) return;
+
+    fetch(`/api/invitations?userEmail=${encodeURIComponent(user.email)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setInvitations(data);
+          setInvitationCount(data.length);
+        }
+      })
+      .catch((err) => console.error("Error fetching invitations:", err));
+  }, [user]);
+
+  // Hide popup if click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -43,30 +67,41 @@ export default function InvitationsPage() {
     router.push("/");
   };
 
-  const handleAcceptInvitation = async (invitationId: number) => {
+  const handleInvitationAction = async (
+    invitationId: string,
+    action: "accept" | "decline",
+  ) => {
     setLoading(true);
-    setError(null);
-    setSuccess(null);
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/invitations/accept`, {
+      const res = await fetch("/api/invitations", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ invitationId }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invitationId, action }),
       });
-      if (!response.ok) {
-        throw new Error("Failed to accept invitation");
-      }
-      setSuccess("Invitation accepted successfully.");
-      // Optionally, update UI to remove accepted invitation from list
-    } catch (err: any) {
-      setError(err.message || "An error occurred.");
+
+      if (!res.ok) throw new Error("Failed to update invitation");
+
+      // remove from UI
+      setInvitations((prev) =>
+        prev.filter((invitation) => invitation._id !== invitationId),
+      );
+      setInvitationCount((prev) => prev - 1);
+    } catch (err) {
+      console.error(err);
+      alert("Error handling invitation.");
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper: Calculate time left (24h expiration)
+  const getTimeLeft = (createdAt: string) => {
+    const created = new Date(createdAt).getTime();
+    const expires = created + 24 * 60 * 60 * 1000;
+    const diff = expires - Date.now();
+    if (diff <= 0) return "Expired";
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    return `${hours} hrs`;
   };
 
   return (
@@ -85,9 +120,15 @@ export default function InvitationsPage() {
           </button>
           <button
             onClick={() => router.push("/invitations")}
-            className="block w-full text-left px-3 py-2 rounded-lg bg-blue-800 hover:bg-blue-600 font-bold transition"
+            className="relative block w-full text-left px-3 py-2 rounded-lg bg-blue-800 hover:bg-blue-600 font-bold transition"
           >
             Invitations
+            {/* Show badge only if > 0 */}
+            {invitationCount > 0 && (
+              <span className="absolute top-1 right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                {invitationCount}
+              </span>
+            )}
           </button>
         </nav>
       </aside>
@@ -141,32 +182,44 @@ export default function InvitationsPage() {
               <div>Decline</div>
             </div>
 
-            {/* Sample Invitations */}
-            {[1, 2, 3].map((invitation) => (
-              <div
-                key={invitation}
-                className="grid grid-cols-5 items-center gap-4 bg-gray-800 p-4 mb-4 rounded-lg shadow-sm border border-gray-700 hover:shadow transition"
-              >
-                <div className="text-gray-200 font-medium">
-                  Invitation {invitation}
+            {invitations.length === 0 ? (
+              <p className="text-gray-500">No pending invitations.</p>
+            ) : (
+              invitations.map((invitation) => (
+                <div
+                  key={invitation._id}
+                  className="grid grid-cols-5 items-center gap-4 bg-gray-800 p-4 mb-4 rounded-lg shadow-sm border border-gray-700 hover:shadow transition"
+                >
+                  <div className="text-gray-200 font-medium">
+                    {invitation.projectTitle}
+                  </div>
+                  <div className="text-gray-400">{invitation.ownerEmail}</div>
+                  <div className="text-gray-500">
+                    {getTimeLeft(invitation.createdAt)}
+                  </div>
+                  <button
+                    className="w-8 h-8 bg-blue-800 text-gray-200 rounded hover:bg-blue-600 flex items-center justify-center text-sm font-bold transition disabled:opacity-50"
+                    title="Accept"
+                    disabled={loading}
+                    onClick={() =>
+                      handleInvitationAction(invitation._id, "accept")
+                    }
+                  >
+                    ✓
+                  </button>
+                  <button
+                    className="w-8 h-8 bg-blue-800 text-gray-200 rounded hover:bg-blue-600 flex items-center justify-center text-sm font-bold transition disabled:opacity-50"
+                    title="Decline"
+                    disabled={loading}
+                    onClick={() =>
+                      handleInvitationAction(invitation._id, "decline")
+                    }
+                  >
+                    ✕
+                  </button>
                 </div>
-                <div className="text-gray-400">User {invitation}</div>
-                <div className="text-gray-500">{24 - invitation} hrs</div>
-                <button
-                  className="w-8 h-8 bg-blue-800 text-gray-200 rounded hover:bg-blue-600 flex items-center justify-center text-sm font-bold transition"
-                  title="Accept"
-                  onClick={() => handleAcceptInvitation(invitation)}
-                >
-                  ✓
-                </button>
-                <button
-                  className="w-8 h-8 bg-blue-800 text-gray-200 rounded hover:bg-blue-600 flex items-center justify-center text-sm font-bold transition"
-                  title="Decline"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </main>
       </div>

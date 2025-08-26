@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { registerUser } from "@/app/lib/auth";
 
 export async function POST(req: Request) {
-  const { username, email, password } = await req.json();
   try {
+    const { username, email, password } = await req.json();
     const user = await registerUser(username, email, password);
+
     return NextResponse.json({ message: "User registered", user });
   } catch (err: unknown) {
     const errorMessage =
