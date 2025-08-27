@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "../../lib/mongoose";
-import Project from "../../models/project";
-import User from "../../models/User";
-import Invitation from "../../models/Invitation";
+import connectDB from "@/app/lib/mongoose";
+import Project from "@/app/models/project";
+import User from "@/app/models/User";
+import Invitation from "@/app/models/Invitation";
 import nodemailer from "nodemailer";
 
-// Email helper
+// helper: send email
 async function sendEmail(to: string, subject: string, text: string) {
   try {
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.warn("⚠️ Missing EMAIL_USER or EMAIL_PASS in .env");
+      console.warn("Missing EMAIL_USER or EMAIL_PASS");
       return;
     }
-
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -20,7 +19,6 @@ async function sendEmail(to: string, subject: string, text: string) {
         pass: process.env.EMAIL_PASS,
       },
     });
-
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to,
@@ -28,20 +26,19 @@ async function sendEmail(to: string, subject: string, text: string) {
       text,
     });
   } catch (err) {
-    console.error("Error sending email:", err);
+    console.error("Email error:", err);
   }
 }
 
-// POST: Create a new project
+// POST: create project
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
-
-    const { title, ownerEmail, collaborators } = await req.json();
+    const { title, description, ownerEmail, collaborators } = await req.json();
 
     if (!title || !ownerEmail) {
       return NextResponse.json(
-        { error: "Title and owner email are required" },
+        { error: "Title and owner email required" },
         { status: 400 },
       );
     }
@@ -61,78 +58,82 @@ export async function POST(req: NextRequest) {
             },
           ],
         },
-        {
-          name: "README.md",
-          type: "file",
-          content: "# New Project\nWelcome to your new project!",
-        },
+        { name: "README.md", type: "file", content: "# New Project\nWelcome!" },
       ],
     };
 
     const newProject = await Project.create({
       title,
-      owner: ownerEmail,
-      collaborators: [],
+      description: description || "",
+      members: [{ email: ownerEmail, role: "owner" }],
       structure: defaultStructure,
     });
 
+    // add to owner’s account
     await User.findOneAndUpdate(
       { email: ownerEmail },
       { $addToSet: { projects: newProject._id } },
       { upsert: true },
     );
 
-    // Send invitations if any
-    if (Array.isArray(collaborators) && collaborators.length > 0) {
+    // send invitations but DO NOT add members until accepted
+    if (Array.isArray(collaborators)) {
       for (const collabEmail of collaborators) {
         await Invitation.create({
           projectId: newProject._id,
           projectTitle: title,
           ownerEmail,
           collaboratorEmail: collabEmail,
+          role: "editor",
+          status: "pending",
         });
 
         await sendEmail(
           collabEmail,
-          `Invitation to Collaborate on "${title}"`,
-          `You have been invited by ${ownerEmail} to collaborate on the project "${title}". Please accept the invitation in the app to access it.`,
+          `Invitation to collaborate on "${title}"`,
+          `${ownerEmail} invited you to join "${title}". Please accept the invitation in the app.`,
         );
       }
     }
 
     return NextResponse.json({
-      message: "Project created successfully",
-      projectId: newProject._id,
+      message: "Project created",
+      project: {
+        ...newProject.toObject(),
+        owner: ownerEmail,
+        collaborators: [],
+      },
     });
-  } catch (error) {
-    console.error("Error in /api/projects POST:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+  } catch (err) {
+    console.error("Project POST error:", err);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 
-// GET: Fetch projects for user
+// GET: fetch projects where user is member
 export async function GET(req: NextRequest) {
   try {
     await connectDB();
-
     const { searchParams } = new URL(req.url);
     const userEmail = searchParams.get("userEmail");
-
     if (!userEmail) return NextResponse.json([], { status: 400 });
 
-    const projects = await Project.find({
-      $or: [{ owner: userEmail }, { collaborators: userEmail }],
-    });
+    const projects = await Project.find({ "members.email": userEmail }).lean();
 
-    return NextResponse.json(projects);
-  } catch (error) {
-    console.error("Error in /api/projects GET:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    const projectsWithOwner = projects.map((p) => ({
+      ...p,
+      owner:
+        p.members.find(
+          (m: { email: string; role: string }) => m.role === "owner",
+        )?.email || "",
+      collaborators: p.members
+        .filter((m: { email: string; role: string }) => m.role === "editor")
+        .map((m: { email: string }) => m.email),
+    }));
+
+    return NextResponse.json(projectsWithOwner);
+  } catch (err) {
+    console.error("Project GET error:", err);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

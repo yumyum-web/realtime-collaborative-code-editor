@@ -21,7 +21,7 @@ export default function InvitationsPage() {
   const popupRef = useRef<HTMLDivElement>(null);
   const [invitationCount, setInvitationCount] = useState(0);
 
-  // Fetch logged-in user
+  // Fetch logged in user
   useEffect(() => {
     const token = localStorage.getItem("token");
     const userData = localStorage.getItem("user");
@@ -94,7 +94,7 @@ export default function InvitationsPage() {
     }
   };
 
-  // Helper: Calculate time left (24h expiration)
+  //Calculate time left (24h expiration)
   const getTimeLeft = (createdAt: string) => {
     const created = new Date(createdAt).getTime();
     const expires = created + 24 * 60 * 60 * 1000;

@@ -14,6 +14,7 @@ export default function CreateProjectPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const popupRef = useRef<HTMLDivElement>(null);
+  const [description, setDescription] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -65,6 +66,7 @@ export default function CreateProjectPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title,
+          description,
           ownerEmail: user?.email,
           collaborators, // already an array
         }),
@@ -156,6 +158,18 @@ export default function CreateProjectPage() {
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full px-4 py-2 rounded bg-gray-900 border border-gray-600 text-gray-200 focus:ring-2 focus:ring-blue-800 outline-none"
                 placeholder="Enter project name"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-300 font-semibold mb-2">
+                Description
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full px-4 py-2 rounded bg-gray-900 border border-gray-600 text-gray-200 focus:ring-2 focus:ring-blue-800 outline-none"
+                placeholder="Enter project description"
+                rows={3}
               />
             </div>
 
