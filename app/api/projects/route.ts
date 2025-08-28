@@ -1,47 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/app/lib/mongoose";
-import Project from "@/app/models/project";
-import User from "@/app/models/User";
-import Invitation from "@/app/models/Invitation";
-import nodemailer from "nodemailer";
+import connectDB from "../../lib/mongoose";
+import Project from "../../models/project";
+import User from "../../models/User";
+import Invitation from "../../models/Invitation";
+import sendEmail from "@/app/lib/email";
 
-// helper: send email
-async function sendEmail(to: string, subject: string, text: string) {
-  try {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.warn("Missing EMAIL_USER or EMAIL_PASS");
-      return;
-    }
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to,
-      subject,
-      text,
-    });
-  } catch (err) {
-    console.error("Email error:", err);
-  }
-}
-
-// POST: create project
+// POST: Create a new project
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
-    const { title, description, ownerEmail, collaborators } = await req.json();
+
+    const { title, ownerEmail, collaborators } = await req.json();
 
     if (!title || !ownerEmail) {
       return NextResponse.json(
-        { error: "Title and owner email required" },
+        { error: "Title and owner email are required" },
         { status: 400 },
       );
     }
+
+    // Remove ownerEmail from collaborators if present
+    const filteredCollaborators: string[] = Array.isArray(collaborators)
+      ? collaborators.filter((email: string) => email && email !== ownerEmail)
+      : [];
 
     const defaultStructure = {
       name: "root",
@@ -54,59 +35,67 @@ export async function POST(req: NextRequest) {
             {
               name: "index.js",
               type: "file",
-              content: `console.log("Hello World");`,
+              content: `console.log(\"Hello World\");`,
             },
           ],
         },
-        { name: "README.md", type: "file", content: "# New Project\nWelcome!" },
+        {
+          name: "README.md",
+          type: "file",
+          content: "# New Project\nWelcome to your new project!",
+        },
       ],
     };
 
     const newProject = await Project.create({
       title,
-      description: description || "",
+      owner: ownerEmail,
+      collaborators: [],
       members: [{ email: ownerEmail, role: "owner" }],
       structure: defaultStructure,
     });
 
-    // add to owner’s account
     await User.findOneAndUpdate(
       { email: ownerEmail },
       { $addToSet: { projects: newProject._id } },
       { upsert: true },
     );
 
-    // send invitations but DO NOT add members until accepted
-    if (Array.isArray(collaborators)) {
-      for (const collabEmail of collaborators) {
-        await Invitation.create({
+    // Send invitations if any
+    if (filteredCollaborators.length > 0) {
+      for (const collabEmail of filteredCollaborators) {
+        const invitation = await Invitation.create({
           projectId: newProject._id,
           projectTitle: title,
           ownerEmail,
           collaboratorEmail: collabEmail,
-          role: "editor",
-          status: "pending",
         });
 
-        await sendEmail(
-          collabEmail,
-          `Invitation to collaborate on "${title}"`,
-          `${ownerEmail} invited you to join "${title}". Please accept the invitation in the app.`,
-        );
+        const appBaseUrl =
+          process.env.NEXT_PUBLIC_APP_URL ||
+          process.env.VERCEL_URL ||
+          "http://localhost:3000";
+        // Unique invitation link with invitation ID as token
+        const inviteUrl = `${appBaseUrl}/invitations/accept?token=${invitation._id}`;
+        await sendEmail({
+          to: collabEmail,
+          subject: `Invitation to Collaborate on "${title}"`,
+          text: `You have been invited by ${ownerEmail} to collaborate on the project "${title}". Click the link to accept: ${inviteUrl}`,
+          html: `<p>You have been invited by <strong>${ownerEmail}</strong> to collaborate on the project <strong>${title}</strong>.</p><p>Click <a href="${inviteUrl}">here</a> to accept the invitation.</p>`,
+        });
       }
     }
 
     return NextResponse.json({
-      message: "Project created",
-      project: {
-        ...newProject.toObject(),
-        owner: ownerEmail,
-        collaborators: [],
-      },
+      message: "Project created successfully",
+      projectId: newProject._id,
     });
-  } catch (err) {
-    console.error("Project POST error:", err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  } catch (error) {
+    console.error("Error in /api/projects POST:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
