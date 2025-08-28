@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/app/lib/mongoose";
 import Project from "@/app/models/project";
 import Invitation from "@/app/models/Invitation";
+import sendEmail from "@/app/lib/email";
 
 export async function POST(
   req: NextRequest,
@@ -58,6 +59,19 @@ export async function POST(
       ownerEmail: owner,
       collaboratorEmail: email,
       status: "pending",
+    });
+
+    // Send invitation email
+    const appBaseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.VERCEL_URL ||
+      "http://localhost:3000";
+    const inviteUrl = `${appBaseUrl}/invitations/accept?token=${invitation._id}`;
+    await sendEmail({
+      to: email,
+      subject: `Invitation to Collaborate on "${project.title}"`,
+      text: `You have been invited by ${owner} to collaborate on the project "${project.title}". Click the link to accept: ${inviteUrl}`,
+      html: `<p>You have been invited by <strong>${owner}</strong> to collaborate on the project <strong>${project.title}</strong>.</p><p>Click <a href="${inviteUrl}">here</a> to accept the invitation.</p>`,
     });
 
     return NextResponse.json(invitation, { status: 201 });
