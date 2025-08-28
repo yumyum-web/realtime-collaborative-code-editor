@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
       title,
       owner: ownerEmail,
       collaborators: [],
+      members: [{ email: ownerEmail, role: "owner" }],
       structure: defaultStructure,
     });
 
@@ -98,26 +99,30 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET: Fetch projects for user
+// GET: fetch projects where user is member
 export async function GET(req: NextRequest) {
   try {
     await connectDB();
-
     const { searchParams } = new URL(req.url);
     const userEmail = searchParams.get("userEmail");
-
     if (!userEmail) return NextResponse.json([], { status: 400 });
 
-    const projects = await Project.find({
-      $or: [{ owner: userEmail }, { collaborators: userEmail }],
-    });
+    const projects = await Project.find({ "members.email": userEmail }).lean();
 
-    return NextResponse.json(projects);
-  } catch (error) {
-    console.error("Error in /api/projects GET:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    const projectsWithOwner = projects.map((p) => ({
+      ...p,
+      owner:
+        p.members.find(
+          (m: { email: string; role: string }) => m.role === "owner",
+        )?.email || "",
+      collaborators: p.members
+        .filter((m: { email: string; role: string }) => m.role === "editor")
+        .map((m: { email: string }) => m.email),
+    }));
+
+    return NextResponse.json(projectsWithOwner);
+  } catch (err) {
+    console.error("Project GET error:", err);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

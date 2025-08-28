@@ -36,13 +36,15 @@ export async function POST(req: NextRequest) {
     }
     if (invitation.status !== "pending") {
       return NextResponse.json(
-        { error: "Invitation already handled" },
+        { error: "Invitation already accepted" },
         { status: 400 },
       );
     }
     if (invitation.collaboratorEmail !== email) {
       return NextResponse.json(
-        { error: "This invitation is not for your email" },
+        {
+          error: `This invitation is not for you, login with ${invitation.collaboratorEmail}`,
+        },
         { status: 403 },
       );
     }
@@ -59,6 +61,18 @@ export async function POST(req: NextRequest) {
         { status: 404 },
       );
     }
+
+    // // Also add user as editor member on project if not already present
+    // const proj = await Project.findById(invitation.projectId);
+    // if (proj) {
+    //   const already = proj.members.some(
+    //     (m: { email: string; role: string }) => m.email === email,
+    //   );
+    //   if (!already) {
+    //     proj.members.push({ email, role: "editor" } as any);
+    //     await proj.save();
+    //   }
+    // }
 
     // Mark invitation as accepted
     invitation.status = "accepted";

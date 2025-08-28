@@ -32,8 +32,8 @@ export default function AcceptInvitationPage() {
     })
       .then(async (res) => {
         if (res.ok) {
-          setStatus("Invitation accepted! Redirecting to your invitations...");
-          setTimeout(() => router.push("/invitations"), 2000);
+          setStatus("Invitation accepted! Redirecting to your projects...");
+          setTimeout(() => router.push("/projects"), 2000);
         } else {
           const data = await res.json();
           setStatus(data.error || "Failed to accept invitation.");
