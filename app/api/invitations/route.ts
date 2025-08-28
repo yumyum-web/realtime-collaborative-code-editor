@@ -1,81 +1,68 @@
-// app/api/invitations/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/app/lib/mongoose";
 import Invitation from "@/app/models/Invitation";
 import Project from "@/app/models/project";
 import User from "@/app/models/User";
 
-// ✅ GET invitations for a specific user
+// GET invitations for a user
 export async function GET(req: NextRequest) {
   try {
     await connectDB();
-
     const { searchParams } = new URL(req.url);
     const userEmail = searchParams.get("userEmail");
-
-    if (!userEmail) {
+    if (!userEmail)
       return NextResponse.json(
-        { error: "Missing user email" },
+        { error: "userEmail required" },
         { status: 400 },
       );
-    }
 
     const invitations = await Invitation.find({
       collaboratorEmail: userEmail,
       status: "pending",
-    }).populate("projectId");
+    }).lean();
 
     return NextResponse.json(invitations);
-  } catch (error) {
-    console.error("Error in /api/invitations GET:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+  } catch (err) {
+    console.error("Invitations GET error:", err);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 
-// ✅ POST: Accept or decline invitation
+// POST accept/decline
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
-
-    const { invitationId, action } = await req.json(); // action = "accept" or "decline"
+    const { invitationId, action } = await req.json();
+    if (!invitationId || !["accept", "decline"].includes(action)) {
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+    }
 
     const invitation = await Invitation.findById(invitationId);
-    if (!invitation) {
-      return NextResponse.json(
-        { error: "Invitation not found" },
-        { status: 404 },
-      );
-    }
+    if (!invitation)
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     invitation.status = action === "accept" ? "accepted" : "declined";
     await invitation.save();
 
     if (action === "accept") {
-      // ✅ Add project to user
+      // ensure user exists
       await User.findOneAndUpdate(
         { email: invitation.collaboratorEmail },
         { $addToSet: { projects: invitation.projectId } },
         { upsert: true },
       );
 
-      // ✅ Add collaborator to project
+      // add to project.members
       await Project.findByIdAndUpdate(invitation.projectId, {
-        $addToSet: { collaborators: invitation.collaboratorEmail },
+        $addToSet: {
+          members: { email: invitation.collaboratorEmail, role: "editor" },
+        },
       });
     }
 
-    return NextResponse.json({
-      message: `Invitation ${action}ed successfully`,
-    });
-  } catch (error) {
-    console.error("Error in /api/invitations POST:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ message: `Invitation ${action}ed` });
+  } catch (err) {
+    console.error("Invitations POST error:", err);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

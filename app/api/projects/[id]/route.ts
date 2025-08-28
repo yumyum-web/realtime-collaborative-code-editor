@@ -1,58 +1,85 @@
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "../../../lib/mongoose";
-import Project from "../../../models/project";
+import connectDB from "@/app/lib/mongoose";
+import Project from "@/app/models/project";
 
-interface Props {
-  params: { id: string };
+// Type definitions
+interface Member {
+  email: string;
+  role: "owner" | "editor";
 }
 
-export async function GET(req: NextRequest, { params }: Props) {
-  try {
-    await connectDB();
-
-    const project = await Project.findById(params.id).lean();
-
-    if (!project) {
-      return NextResponse.json({ error: "Project not found" }, { status: 404 });
-    }
-
-    return NextResponse.json(project);
-  } catch (error) {
-    console.error("Failed to fetch project", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
+interface ProjectDoc {
+  _id: string;
+  title: string;
+  description: string;
+  members: Member[];
+  structure: unknown;
+  createdAt: string;
+  updatedAt: string;
+  [key: string]: unknown;
 }
 
-export async function POST(req: NextRequest, { params }: Props) {
-  try {
-    await connectDB();
+// GET /api/projects/[id] - fetch single project
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  await connectDB();
 
-    const { structure } = await req.json();
-    if (!structure) {
-      return NextResponse.json(
-        { error: "Project structure is required" },
-        { status: 400 },
-      );
-    }
-
-    const updated = await Project.findByIdAndUpdate(
-      params.id,
-      { structure },
-      { new: true },
-    );
-    if (!updated) {
-      return NextResponse.json({ error: "Project not found" }, { status: 404 });
-    }
-
-    return NextResponse.json({ message: "Project updated", project: updated });
-  } catch (error) {
-    console.error("Failed to update project", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+  const project = (await Project.findById(
+    params.id,
+  ).lean()) as ProjectDoc | null;
+  if (!project) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
+
+  return NextResponse.json({
+    ...project,
+    owner: project.members.find((m: Member) => m.role === "owner")?.email || "",
+    collaborators: project.members
+      .filter((m: Member) => m.role === "editor")
+      .map((m: Member) => m.email),
+  });
+}
+
+// PUT /api/projects/[id] - update project (title, description, structure)
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  await connectDB();
+  const { title, description, structure } = await req.json();
+
+  const project = (await Project.findByIdAndUpdate(
+    params.id,
+    { title, description, structure },
+    { new: true },
+  ).lean()) as ProjectDoc | null;
+
+  if (!project) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    ...project,
+    owner: project.members.find((m: Member) => m.role === "owner")?.email || "",
+    collaborators: project.members
+      .filter((m: Member) => m.role === "editor")
+      .map((m: Member) => m.email),
+  });
+}
+
+// DELETE /api/projects/[id] - delete project
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  await connectDB();
+
+  const project = await Project.findByIdAndDelete(params.id);
+  if (!project) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ message: "Project deleted" });
 }

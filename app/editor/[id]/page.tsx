@@ -231,7 +231,7 @@ export default function EditorPage() {
     if (!projectId) return alert("No project ID!");
     const updatedStructure = reconstructTree(fileTree)[0];
     const res = await fetch(`/api/projects/${projectId}`, {
-      method: "POST",
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ structure: updatedStructure }),
     });
