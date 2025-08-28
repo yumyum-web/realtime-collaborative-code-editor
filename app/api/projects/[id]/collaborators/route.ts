@@ -58,9 +58,16 @@ export async function POST(
       ownerEmail: owner,
       collaboratorEmail: email,
       status: "pending",
-    });
-
-    return NextResponse.json(invitation, { status: 201 });
+    return NextResponse.json({
+      ...project.toObject(),
+      owner:
+        project.members.find(
+          (m: { email: string; role: string }) => m.role === "owner",
+        )?.email || "",
+      collaborators: project.members
+        .filter((m: { email: string; role: string }) => m.role === "editor")
+        .map((m: { email: string; role: string }) => m.email),
+    }, { status: 201 });
   } catch (err) {
     console.error("Error sending invitation:", err);
     return NextResponse.json(
