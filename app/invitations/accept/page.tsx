@@ -47,7 +47,29 @@ export default function AcceptInvitationPage() {
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-gray-200">
       <h1 className="text-3xl font-bold mb-4">Accept Invitation</h1>
       <div className="bg-gray-800 p-6 rounded shadow-lg">
-        {loading ? <p>Processing...</p> : <p>{status}</p>}
+        {loading ? (
+          <p>Processing...</p>
+        ) : (
+          <>
+            <p>{status}</p>
+            {(status.toLowerCase().includes("not for you") ||
+              status.toLowerCase().includes("error") ||
+              status.toLowerCase().includes("invalid") ||
+              status === "403") && (
+              <div className="flex justify-center">
+                <button
+                  className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
+                  onClick={() => {
+                    localStorage.removeItem("user");
+                    router.push("/login");
+                  }}
+                >
+                  Go to Login page
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
