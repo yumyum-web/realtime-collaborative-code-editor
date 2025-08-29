@@ -2,84 +2,65 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/app/lib/mongoose";
 import Project from "@/app/models/project";
 
-// Type definitions
-interface Member {
-  email: string;
-  role: "owner" | "editor";
+interface RouteContext {
+  params: {
+    id: string;
+  };
 }
 
-interface ProjectDoc {
-  _id: string;
-  title: string;
-  description: string;
-  members: Member[];
-  structure: unknown;
-  createdAt: string;
-  updatedAt: string;
-  [key: string]: unknown;
-}
-
-// GET /api/projects/[id] - fetch single project
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: { id: string } },
-) {
+export async function GET(_req: NextRequest, context: RouteContext) {
   await connectDB();
+  const { id } = context.params;
+  const project = await Project.findById(id).lean();
+  if (!project) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+  return NextResponse.json(project);
+}
 
-  const project = (await Project.findById(
-    params.id,
-  ).lean()) as ProjectDoc | null;
+type UpdateProjectBody = {
+  title?: string;
+  description?: string;
+  structure?: FileEntity;
+};
+
+type FileEntity = {
+  name: string;
+  type: "file" | "folder";
+  children?: FileEntity[];
+  content?: string | null;
+};
+
+export async function PUT(req: NextRequest, context: RouteContext) {
+  await connectDB();
+  const { id } = context.params;
+  const body: UpdateProjectBody = await req.json();
+
+  const update: UpdateProjectBody = {};
+  if (body.title !== undefined) update.title = body.title;
+  if (body.description !== undefined) update.description = body.description;
+  if (body.structure !== undefined) update.structure = body.structure;
+
+  const project = await Project.findByIdAndUpdate(id, update, { new: true }).lean();
+  if (!project) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+  return NextResponse.json(project);
+}
+
+export async function POST(req: NextRequest, context: RouteContext) {
+  await connectDB();
+  const { id } = context.params;
+  const { senderEmail, senderUsername, message } = await req.json();
+
+  const project = await Project.findById(id);
   if (!project) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
-  return NextResponse.json({
-    ...project,
-    owner: project.members.find((m: Member) => m.role === "owner")?.email || "",
-    collaborators: project.members
-      .filter((m: Member) => m.role === "editor")
-      .map((m: Member) => m.email),
-  });
-}
+  const chatMsg = { senderEmail, senderUsername, message, timestamp: new Date() };
+  project.chats.push(chatMsg);
+  await project.save();
 
-// PUT /api/projects/[id] - update project (title, description, structure)
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: { id: string } },
-) {
-  await connectDB();
-  const { title, description, structure } = await req.json();
-
-  const project = (await Project.findByIdAndUpdate(
-    params.id,
-    { title, description, structure },
-    { new: true },
-  ).lean()) as ProjectDoc | null;
-
-  if (!project) {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
-  }
-
-  return NextResponse.json({
-    ...project,
-    owner: project.members.find((m: Member) => m.role === "owner")?.email || "",
-    collaborators: project.members
-      .filter((m: Member) => m.role === "editor")
-      .map((m: Member) => m.email),
-  });
-}
-
-// DELETE /api/projects/[id] - delete project
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: { id: string } },
-) {
-  await connectDB();
-
-  const project = await Project.findByIdAndDelete(params.id);
-  if (!project) {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
-  }
-
-  return NextResponse.json({ message: "Project deleted" });
+  return NextResponse.json(chatMsg);
 }

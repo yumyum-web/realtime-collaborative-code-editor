@@ -8,7 +8,7 @@ const connectDB = async () => {
 
   try {
     await mongoose.connect(process.env.MONGO_URI!, {
-      dbName: "codeEditor", // <-- ensures database is codeEditor
+      dbName: "codeEditor", 
     });
     console.log("MongoDB connected to codeEditor");
   } catch (error) {
