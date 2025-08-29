@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "../../../lib/mongoose";
 import Invitation from "../../../models/Invitation";
 import User from "../../../models/User";
-import Project from "../../../models/project";
 
 // POST /api/invitations/accept?token=INVITATION_ID
 export async function POST(req: NextRequest) {
@@ -61,18 +60,6 @@ export async function POST(req: NextRequest) {
         { status: 404 },
       );
     }
-
-    // // Also add user as editor member on project if not already present
-    // const proj = await Project.findById(invitation.projectId);
-    // if (proj) {
-    //   const already = proj.members.some(
-    //     (m: { email: string; role: string }) => m.email === email,
-    //   );
-    //   if (!already) {
-    //     proj.members.push({ email, role: "editor" } as any);
-    //     await proj.save();
-    //   }
-    // }
 
     // Mark invitation as accepted
     invitation.status = "accepted";

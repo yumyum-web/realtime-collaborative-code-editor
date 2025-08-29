@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
-    const { title, ownerEmail, collaborators } = await req.json();
+    const { title, description, ownerEmail, collaborators } = await req.json();
 
     if (!title || !ownerEmail) {
       return NextResponse.json(
@@ -49,9 +49,10 @@ export async function POST(req: NextRequest) {
 
     const newProject = await Project.create({
       title,
+      description: description || "", 
       owner: ownerEmail,
       collaborators: [],
-      members: [{ email: ownerEmail, role: "owner" }],
+      members: [{ email: ownerEmail, username: ownerEmail.split('@')[0], role: "owner" }],
       structure: defaultStructure,
     });
 
