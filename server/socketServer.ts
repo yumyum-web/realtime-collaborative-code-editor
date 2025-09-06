@@ -34,15 +34,15 @@ io.on("connection", (socket: ClientSocket) => {
     }
   });
 
-  socket.on("editor-changes", (payload: any) => {
+  socket.on("editor-changes", (payload: { file: string; content: string }) => {
     if (socket.room) socket.to(socket.room).emit("remote-changes", payload);
   });
 
-  socket.on("node-added", (payload: any) => {
+  socket.on("node-added", (payload: { type: "file" | "folder"; parentPath: string; name: string }) => {
     if (socket.room) socket.to(socket.room).emit("node-added", payload);
   });
 
-  socket.on("node-deleted", (payload: any) => {
+  socket.on("node-deleted", (payload: { path: string }) => {
     if (payload.path === "root") return;
     if (socket.room) socket.to(socket.room).emit("node-deleted", payload);
   });
