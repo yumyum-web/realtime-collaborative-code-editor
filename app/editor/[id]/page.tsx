@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Editor, { OnMount } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
 import * as Y from "yjs";
@@ -59,8 +59,9 @@ export default function EditorPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    (window as any).MonacoEnvironment = (window as any).MonacoEnvironment || {};
-    (window as any).MonacoEnvironment.getWorker = function (moduleId: any, label: string) {
+  type MonacoEnv = { MonacoEnvironment?: { getWorker?: (moduleId: string, label: string) => Worker } };
+  (window as MonacoEnv).MonacoEnvironment = (window as MonacoEnv).MonacoEnvironment || {};
+  ((window as MonacoEnv).MonacoEnvironment as { getWorker?: (moduleId: string, label: string) => Worker }).getWorker = function (moduleId: string, label: string) {
       if (label === "json") {
         return new Worker(new URL("monaco-editor/esm/vs/language/json/json.worker", import.meta.url), { type: "module" });
       }
@@ -100,13 +101,13 @@ export default function EditorPage() {
 
     s.emit("join-doc", projectId);
 
-    s.on("chat-history", (msgs: any[]) => {
+    s.on("chat-history", (msgs: ChatMessage[]) => {
       setChatMessages(
         msgs.map((m) => ({
-          senderEmail: m.senderEmail ?? m.user ?? "unknown",
-          senderUsername: m.senderUsername ?? m.user ?? undefined,
+          senderEmail: m.senderEmail,
+          senderUsername: m.senderUsername,
           message: m.message,
-          timestamp: Number(m.timestamp) || Date.now(),
+          timestamp: m.timestamp,
         })),
       );
     });
@@ -163,6 +164,56 @@ export default function EditorPage() {
       })
       .catch(console.error);
   }, [projectId]);
+
+  const addRemoteCursorStyles = useCallback((states: { clientId: number; user?: { name?: string; email?: string; color?: string } }[]) => {
+    const styleId = "remote-cursors-styles";
+    let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
+    if (!styleEl) {
+      styleEl = document.createElement("style");
+      styleEl.id = styleId;
+      document.head.appendChild(styleEl);
+    }
+    const rules: string[] = [];
+    states.forEach((s) => {
+      if (!s.user) return;
+      const cid = s.clientId;
+      const color = s.user.color ?? colorFromString(s.user.email ?? s.user.name ?? "unknown");
+      rules.push(`.monaco-editor .remoteCursor_${cid} { background: ${hexToRgba(color, 0.12)}; border-left: 2px solid ${color}; }`);
+    });
+    styleEl.innerHTML = rules.join("\n");
+  }, [])
+
+  // ---------- remote cursor decorations ----------
+  const decorationsRef = useRef<string[]>([]);
+  const updateRemoteCursorDecorations = useCallback((states: { clientId: number; user?: { name?: string; email?: string; color?: string }; cursor?: { line: number; column: number } }[]) => {
+    if (!editorRef.current) return;
+    const editor = editorRef.current;
+    const myClientId = providerRef.current?.awareness.clientID;
+    const decs: monaco.editor.IModelDeltaDecoration[] = [];
+
+    states.forEach((s) => {
+      if (!s.cursor || s.clientId === myClientId) return;
+      const line = s.cursor.line ?? 1;
+      const col = s.cursor.column ?? 1;
+
+      decs.push({
+        range: new monaco.Range(line, col, line, col),
+        options: {
+          className: undefined,
+          isWholeLine: false,
+          stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+          hoverMessage: { value: `**${s.user?.name ?? s.user?.email ?? "user"}**` },
+          glyphMarginClassName: undefined,
+          inlineClassName: `remoteCursor_${s.clientId}`,
+        },
+      });
+    });
+
+    const newDecorIds = editor.deltaDecorations(decorationsRef.current, decs);
+    decorationsRef.current = newDecorIds;
+
+    addRemoteCursorStyles(states);
+  }, [addRemoteCursorStyles]);
 
   // ---------- when activeFile changes: create Yjs provider + MonacoBinding for that file ----------
   useEffect(() => {
@@ -223,18 +274,23 @@ export default function EditorPage() {
       });
 
       const onAwarenessChange = () => {
-        const states = Array.from(provider.awareness.getStates().entries()).map(([clientId, state]: any) => ({
-          clientId: Number(clientId),
-          user: state?.user,
-          cursor: state?.cursor,
-        }));
+        const states = Array.from(provider.awareness.getStates().entries()).map(
+          (entry) => {
+            const [clientId, state] = entry as [number, { user?: { name?: string; email?: string; color?: string }; cursor?: { line: number; column: number } }];
+            return {
+              clientId: Number(clientId),
+              user: state?.user,
+              cursor: state?.cursor,
+            };
+          }
+        );
         setPresence(states);
         updateRemoteCursorDecorations(states);
       };
 
       provider.awareness.on("change", onAwarenessChange);
 
-      const cursorListener = editorRef.current.onDidChangeCursorPosition((e) => {
+      const cursorListener = editorRef.current.onDidChangeCursorPosition((e: monaco.editor.ICursorPositionChangedEvent) => {
         provider.awareness.setLocalStateField("cursor", { line: e.position.lineNumber, column: e.position.column });
       });
 
@@ -257,58 +313,7 @@ export default function EditorPage() {
         if (cleanup) cleanup();
       });
     };
-  }, [activeFile, filesContent, user, projectId]);
-
-  // ---------- remote cursor decorations ----------
-  const decorationsRef = useRef<string[]>([]);
-  function updateRemoteCursorDecorations(states: { clientId: number; user?: any; cursor?: any }[]) {
-    if (!editorRef.current) return;
-    const editor = editorRef.current;
-    const myClientId = providerRef.current?.awareness.clientID;
-    const decs: monaco.editor.IModelDeltaDecoration[] = [];
-
-    states.forEach((s) => {
-      if (!s.cursor || s.clientId === myClientId) return;
-      const color = s.user?.color ?? colorFromString(s.user?.email ?? s.user?.name ?? "unknown");
-      const line = s.cursor.line ?? 1;
-      const col = s.cursor.column ?? 1;
-
-      decs.push({
-        range: new monaco.Range(line, col, line, col),
-        options: {
-          className: undefined,
-          isWholeLine: false,
-          stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
-          hoverMessage: { value: `**${s.user?.name ?? s.user?.email ?? "user"}**` },
-          glyphMarginClassName: undefined,
-          inlineClassName: `remoteCursor_${s.clientId}`,
-        },
-      });
-    });
-
-    const newDecorIds = editor.deltaDecorations(decorationsRef.current, decs);
-    decorationsRef.current = newDecorIds;
-
-    addRemoteCursorStyles(states);
-  }
-
-  function addRemoteCursorStyles(states: { clientId: number; user?: any }[]) {
-    const styleId = "remote-cursors-styles";
-    let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
-    if (!styleEl) {
-      styleEl = document.createElement("style");
-      styleEl.id = styleId;
-      document.head.appendChild(styleEl);
-    }
-    const rules: string[] = [];
-    states.forEach((s) => {
-      if (!s.user) return;
-      const cid = s.clientId;
-      const color = s.user.color ?? colorFromString(s.user.email ?? s.user.name ?? "unknown");
-      rules.push(`.monaco-editor .remoteCursor_${cid} { background: ${hexToRgba(color, 0.12)}; border-left: 2px solid ${color}; }`);
-    });
-    styleEl.innerHTML = rules.join("\n");
-  }
+  }, [activeFile, filesContent, user, projectId, updateRemoteCursorDecorations]);
 
   // ---------- helpers: tree add/delete ----------
   function addNode(tree: FileNode[], payload: NodeAddedPayload, onFileInit?: (full: string) => void) {
@@ -415,7 +420,7 @@ export default function EditorPage() {
   // send chat
   async function sendChat() {
     if (!newMessage.trim() || !user) return;
-    const payload = { senderEmail: user.email, senderUsername: user.username ?? user.email, message: newMessage.trim() };
+    const payload: ChatMessage = { senderEmail: user.email, senderUsername: user.username ?? user.email, message: newMessage.trim(), timestamp: Date.now() };
     fetch(`/api/projects/${projectId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).catch(console.error);
     socketRef.current?.emit("chat-message", payload);
     setNewMessage("");
@@ -450,7 +455,8 @@ export default function EditorPage() {
               onClick={() => {
                 setExpandedFolders((p) => {
                   const n = new Set(p);
-                  n.has(path) ? n.delete(path) : n.add(path);
+                  if (n.has(path)) n.delete(path);
+                  else n.add(path);
                   return n;
                 });
               }}
