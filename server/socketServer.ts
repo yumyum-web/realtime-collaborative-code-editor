@@ -46,9 +46,8 @@ io.on("connection", (socket: ClientSocket) => {
     }
   });
 
-  socket.on("editor-changes", (payload: { file: string; content: string }) => {
-    if (socket.room) socket.to(socket.room).emit("remote-changes", payload);
-  });
+  // Editor content sync removed from Socket.IO: Yjs handles per-character syncing.
+  // Socket remains responsible for file tree events and chat.
 
   socket.on(
     "node-added",

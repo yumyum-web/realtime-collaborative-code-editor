@@ -84,10 +84,14 @@ export default function Signup() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
+      // Fallback if displayName is null
+      const username =
+        user.displayName ?? user.email?.split("@")[0] ?? "Anonymous";
+
       localStorage.setItem("token", await user.getIdToken());
       localStorage.setItem(
         "user",
-        JSON.stringify({ username: user.displayName, email: user.email }),
+        JSON.stringify({ username, email: user.email }),
       );
 
       router.push("/projects");

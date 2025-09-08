@@ -2,11 +2,11 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Editor, { OnMount } from "@monaco-editor/react";
-import * as monaco from "monaco-editor";
+import type * as Monaco from "monaco-editor";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
-import { MonacoBinding } from "y-monaco";
-import io, { Socket } from "socket.io-client";
+import io from "socket.io-client";
+import type { Socket } from "socket.io-client";
 import { useParams } from "next/navigation";
 import { Resizable } from "re-resizable";
 import {
@@ -43,19 +43,15 @@ type NodeDeletedPayload = { path: string };
 export default function EditorPage() {
   const { id: projectId } = useParams() as { id: string };
 
-  // editor / model refs
-  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
-  const modelRef = useRef<monaco.editor.ITextModel | null>(null);
-
-  // yjs + provider refs
+  const monacoRef = useRef<typeof import("monaco-editor") | null>(null);
+  const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
+  const modelRef = useRef<Monaco.editor.ITextModel | null>(null);
   const ydocRef = useRef<Y.Doc | null>(null);
   const providerRef = useRef<WebsocketProvider | null>(null);
-  const monacoBindingRef = useRef<MonacoBinding | null>(null);
+  const monacoBindingRef = useRef<any | null>(null);
 
-  // socket.io
   const socketRef = useRef<typeof Socket | null>(null);
 
-  // UI state
   const [fileTree, setFileTree] = useState<FileNode[]>([]);
   const [filesContent, setFilesContent] = useState<Record<string, string>>({});
   const [activeFile, setActiveFile] = useState<string>("");
@@ -77,10 +73,9 @@ export default function EditorPage() {
     null,
   );
 
-  // ---------- Monaco worker setup ----------
+  // ---------- Monaco worker ----------
   useEffect(() => {
     if (typeof window === "undefined") return;
-
     type MonacoEnv = {
       MonacoEnvironment?: {
         getWorker?: (moduleId: string, label: string) => Worker;
@@ -88,12 +83,11 @@ export default function EditorPage() {
     };
     (window as MonacoEnv).MonacoEnvironment =
       (window as MonacoEnv).MonacoEnvironment || {};
-    (
-      (window as MonacoEnv).MonacoEnvironment as {
-        getWorker?: (moduleId: string, label: string) => Worker;
-      }
-    ).getWorker = function (moduleId: string, label: string) {
-      if (label === "json") {
+    ((window as MonacoEnv).MonacoEnvironment as any).getWorker = function (
+      moduleId: string,
+      label: string,
+    ) {
+      if (label === "json")
         return new Worker(
           new URL(
             "monaco-editor/esm/vs/language/json/json.worker",
@@ -101,8 +95,7 @@ export default function EditorPage() {
           ),
           { type: "module" },
         );
-      }
-      if (label === "css" || label === "scss" || label === "less") {
+      if (label === "css" || label === "scss" || label === "less")
         return new Worker(
           new URL(
             "monaco-editor/esm/vs/language/css/css.worker",
@@ -110,8 +103,7 @@ export default function EditorPage() {
           ),
           { type: "module" },
         );
-      }
-      if (label === "html" || label === "handlebars" || label === "razor") {
+      if (label === "html" || label === "handlebars" || label === "razor")
         return new Worker(
           new URL(
             "monaco-editor/esm/vs/language/html/html.worker",
@@ -119,8 +111,7 @@ export default function EditorPage() {
           ),
           { type: "module" },
         );
-      }
-      if (label === "typescript" || label === "javascript") {
+      if (label === "typescript" || label === "javascript")
         return new Worker(
           new URL(
             "monaco-editor/esm/vs/language/typescript/ts.worker",
@@ -128,7 +119,6 @@ export default function EditorPage() {
           ),
           { type: "module" },
         );
-      }
       return new Worker(
         new URL("monaco-editor/esm/vs/editor/editor.worker", import.meta.url),
         { type: "module" },
@@ -149,59 +139,35 @@ export default function EditorPage() {
       } catch {
         setUser({ email: "anonymous@local" });
       }
-    } else {
-      setUser({ email: "anonymous@local" });
-    }
+    } else setUser({ email: "anonymous@local" });
   }, []);
 
-  // ---------- socket.io client (chat + node events) ----------
+  // ---------- socket.io (chat + tree only) ----------
   useEffect(() => {
     if (!projectId) return;
     const s = io("http://localhost:3001");
     socketRef.current = s;
-
     s.emit("join-doc", projectId);
 
-    s.on("chat-history", (msgs: ChatMessage[]) => {
-      setChatMessages(
-        msgs.map((m) => ({
-          senderEmail: m.senderEmail,
-          senderUsername: m.senderUsername,
-          message: m.message,
-          timestamp: m.timestamp,
-        })),
-      );
-    });
-
-    s.on("chat-message", (m: ChatMessage) => {
-      setChatMessages((p) => [...p, m]);
-    });
-
+    s.on("chat-history", (msgs: ChatMessage[]) => setChatMessages(msgs));
+    s.on("chat-message", (m: ChatMessage) => setChatMessages((p) => [...p, m]));
     s.on("node-added", (payload: NodeAddedPayload) => {
       setFileTree((prev) =>
-        addNode(prev, payload, (fullPath) =>
-          setFilesContent((p) => ({ ...p, [fullPath]: "" })),
+        addNode(prev, payload, (full) =>
+          setFilesContent((p) => ({ ...p, [full]: "" })),
         ),
       );
       setExpandedFolders((p) => new Set(p).add(payload.parentPath));
     });
-
     s.on("node-deleted", (payload: NodeDeletedPayload) => {
       if (payload.path === "root") return;
       setFileTree((prev) => deleteNode(prev, payload.path));
       setFilesContent((prev) => {
-        const copy = { ...prev };
-        delete copy[payload.path];
-        return copy;
+        const c = { ...prev };
+        delete c[payload.path];
+        return c;
       });
     });
-
-    s.on(
-      "remote-changes",
-      ({ file, content }: { file: string; content: string }) => {
-        setFilesContent((p) => ({ ...p, [file]: content }));
-      },
-    );
 
     return () => {
       s.disconnect();
@@ -209,7 +175,7 @@ export default function EditorPage() {
     };
   }, [projectId]);
 
-  // ---------- load project structure ----------
+  // ---------- load project ----------
   useEffect(() => {
     if (!projectId) return;
     fetch(`/api/projects/${projectId}`)
@@ -220,7 +186,7 @@ export default function EditorPage() {
         const flat: Record<string, string> = {};
         function walk(node: FileNode, path = "") {
           const cur = path ? `${path}/${node.name}` : node.name;
-          if (node.type === "file") flat[cur] = (node.content as string) ?? "";
+          if (node.type === "file") flat[cur] = node.content ?? "";
           else node.children?.forEach((c) => walk(c, cur));
         }
         walk(root);
@@ -233,37 +199,23 @@ export default function EditorPage() {
       .catch(console.error);
   }, [projectId]);
 
-  const addRemoteCursorStyles = useCallback(
-    (
-      states: {
-        clientId: number;
-        user?: { name?: string; email?: string; color?: string };
-      }[],
-    ) => {
-      const styleId = "remote-cursors-styles";
-      let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
-      if (!styleEl) {
-        styleEl = document.createElement("style");
-        styleEl.id = styleId;
-        document.head.appendChild(styleEl);
-      }
-      const rules: string[] = [];
-      states.forEach((s) => {
-        if (!s.user) return;
-        const cid = s.clientId;
-        const color =
-          s.user.color ??
-          colorFromString(s.user.email ?? s.user.name ?? "unknown");
-        rules.push(
-          `.monaco-editor .remoteCursor_${cid} { background: ${hexToRgba(color, 0.12)}; border-left: 2px solid ${color}; }`,
-        );
-      });
-      styleEl.innerHTML = rules.join("\n");
-    },
-    [],
-  );
+  // ---------- utils ----------
+  function colorFromString(s: string) {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i);
+    const hex = ((h >>> 0) & 0xffffff).toString(16).padStart(6, "0");
+    return `#${hex}`;
+  }
+  function hexToRgba(hex: string, alpha = 0.2) {
+    const h = hex.replace("#", "");
+    const bigint = parseInt(h, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
 
-  // ---------- remote cursor decorations ----------
+  // ---------- remote cursors ----------
   const decorationsRef = useRef<string[]>([]);
   const updateRemoteCursorDecorations = useCallback(
     (
@@ -273,70 +225,88 @@ export default function EditorPage() {
         cursor?: { line: number; column: number };
       }[],
     ) => {
-      if (!editorRef.current) return;
+      if (!editorRef.current || !monacoRef.current) return;
+      const m = monacoRef.current;
       const editor = editorRef.current;
-      const myClientId = providerRef.current?.awareness.clientID;
-      const decs: monaco.editor.IModelDeltaDecoration[] = [];
-
+      const myClientId = providerRef.current?.awareness?.clientID;
+      const decs: Monaco.editor.IModelDeltaDecoration[] = [];
       states.forEach((s) => {
         if (!s.cursor || s.clientId === myClientId) return;
         const line = s.cursor.line ?? 1;
         const col = s.cursor.column ?? 1;
-
         decs.push({
-          range: new monaco.Range(line, col, line, col),
+          range: new m.Range(line, col, line, col),
           options: {
             className: undefined,
             isWholeLine: false,
             stickiness:
-              monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+              m.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
             hoverMessage: {
               value: `**${s.user?.name ?? s.user?.email ?? "user"}**`,
             },
-            glyphMarginClassName: undefined,
             inlineClassName: `remoteCursor_${s.clientId}`,
           },
         });
       });
+      decorationsRef.current = editor.deltaDecorations(
+        decorationsRef.current,
+        decs,
+      );
 
-      const newDecorIds = editor.deltaDecorations(decorationsRef.current, decs);
-      decorationsRef.current = newDecorIds;
-
-      addRemoteCursorStyles(states);
+      // CSS for remote cursors
+      const styleId = "remote-cursors-styles";
+      let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
+      if (!styleEl) {
+        styleEl = document.createElement("style");
+        styleEl.id = styleId;
+        document.head.appendChild(styleEl);
+      }
+      styleEl.innerHTML = states
+        .map((s) => {
+          if (!s.user) return "";
+          const color =
+            s.user.color ??
+            colorFromString(s.user.email ?? s.user.name ?? "unknown");
+          return `.monaco-editor .remoteCursor_${s.clientId} { background: ${hexToRgba(color, 0.12)}; border-left: 2px solid ${color}; }`;
+        })
+        .join("\n");
     },
-    [addRemoteCursorStyles],
+    [],
   );
 
-  // ---------- when activeFile changes: create Yjs provider + MonacoBinding for that file ----------
+  // ---------- Yjs + Monaco binding ----------
   useEffect(() => {
-    if (!activeFile || !user || !editorRef.current) return;
+    if (!activeFile || !user || !editorRef.current || !monacoRef.current)
+      return;
+
+    let cleanup: (() => void) | null = null;
+    let destroyed = false;
 
     async function setupYjsForFile() {
+      // destroy previous objects
       if (monacoBindingRef.current) {
         try {
-          monacoBindingRef.current.destroy();
+          monacoBindingRef.current.destroy?.();
         } catch {}
         monacoBindingRef.current = null;
       }
       if (providerRef.current) {
         try {
-          providerRef.current.destroy();
+          providerRef.current.destroy?.();
         } catch {}
         providerRef.current = null;
       }
       if (ydocRef.current) {
         try {
-          ydocRef.current.destroy();
+          ydocRef.current.destroy?.();
         } catch {}
         ydocRef.current = null;
       }
 
       const ydoc = new Y.Doc();
       ydocRef.current = ydoc;
-
       const safeFile = activeFile.replace(/[\/\\]/g, "--").replace(/\./g, "-");
       const docName = `${projectId}-${safeFile}`;
-
       const provider = new WebsocketProvider(
         "ws://localhost:1234",
         docName,
@@ -344,100 +314,107 @@ export default function EditorPage() {
       );
       providerRef.current = provider;
 
-      const uri = monaco.Uri.parse(`inmemory:///${projectId}/${safeFile}`);
-      let model = monaco.editor.getModel(uri);
-      if (!model) {
-        model = monaco.editor.createModel(
+      const m = monacoRef.current!;
+      const uri = m.Uri.parse(`inmemory:///${projectId}/${safeFile}`);
+      let model = m.editor.getModel(uri);
+      if (!model)
+        model = m.editor.createModel(
           filesContent[activeFile] ?? "",
           "javascript",
           uri,
         );
-      }
       modelRef.current = model;
       if (editorRef.current) {
         editorRef.current.setModel(model);
       }
 
       const ytext = ydoc.getText("monaco");
-
-      // Sanity check for editorRef.current before binding
-      if (!editorRef.current) return;
-
+      const { MonacoBinding } = await import("y-monaco");
       const binding = new MonacoBinding(
         ytext,
         model,
-        new Set([editorRef.current]),
+        new Set([editorRef.current!].filter(Boolean)),
         provider.awareness,
       );
       monacoBindingRef.current = binding;
 
-      const color = user ? colorFromString(user.email) : "#888";
-      provider.awareness.setLocalStateField("user", {
-        name: user?.username ?? user?.email ?? "unknown",
-        email: user?.email ?? "unknown",
-        color,
-      });
+      // Awareness setup
+      const awareness = provider.awareness;
+      function randomColor() {
+        const colors = ["#ff6b6b", "#6bc1ff", "#51d88a", "#fbbf24", "#9b5de5"];
+        return colors[Math.floor(Math.random() * colors.length)];
+      }
+      if (user) {
+        awareness.setLocalStateField("user", {
+          name: user.username ?? user.email ?? "unknown",
+          email: user.email,
+          color: randomColor(),
+          cursor: null,
+        });
+      }
 
       const onAwarenessChange = () => {
-        const states = Array.from(provider.awareness.getStates().entries()).map(
-          (entry) => {
-            const [clientId, state] = entry as [
-              number,
-              {
-                user?: { name?: string; email?: string; color?: string };
-                cursor?: { line: number; column: number };
-              },
-            ];
-            return {
-              clientId: Number(clientId),
-              user: state?.user,
-              cursor: state?.cursor,
-            };
-          },
+        const states = Array.from(awareness.getStates().entries()).map(
+          ([clientId, state]: any) => ({
+            clientId: Number(clientId),
+            user: state?.user,
+            cursor: state?.cursor,
+          }),
         );
         setPresence(states);
         updateRemoteCursorDecorations(states);
       };
+      awareness.on("change", onAwarenessChange);
 
-      provider.awareness.on("change", onAwarenessChange);
-
-      const cursorListener = editorRef.current.onDidChangeCursorPosition(
-        (e: monaco.editor.ICursorPositionChangedEvent) => {
-          provider.awareness.setLocalStateField("cursor", {
+      const cursorListener = editorRef.current?.onDidChangeCursorPosition(
+        (e) => {
+          awareness.setLocalStateField("cursor", {
             line: e.position.lineNumber,
             column: e.position.column,
           });
         },
       );
 
+      const modelListener = model.onDidChangeContent(() => {
+        try {
+          const text = model.getValue();
+          setFilesContent((p) => ({ ...p, [activeFile]: text }));
+        } catch {}
+      });
+
       onAwarenessChange();
 
-      return () => {
+      cleanup = () => {
+        if (destroyed) return;
+        destroyed = true;
         try {
-          cursorListener.dispose();
+          modelListener.dispose();
         } catch {}
         try {
-          provider.awareness.off("change", onAwarenessChange);
+          cursorListener?.dispose();
+        } catch {}
+        try {
+          awareness.off("change", onAwarenessChange);
+        } catch {}
+        try {
+          binding.destroy?.();
+        } catch {}
+        try {
+          provider.destroy?.();
+        } catch {}
+        try {
+          ydoc.destroy?.();
         } catch {}
       };
     }
 
-    const cleanupAsync = setupYjsForFile();
-
+    setupYjsForFile();
     return () => {
-      cleanupAsync.then((cleanup) => {
-        if (cleanup) cleanup();
-      });
+      if (cleanup) cleanup();
     };
-  }, [
-    activeFile,
-    filesContent,
-    user,
-    projectId,
-    updateRemoteCursorDecorations,
-  ]);
+  }, [activeFile, user, projectId, updateRemoteCursorDecorations]);
 
-  // ---------- helpers: tree add/delete ----------
+  // ---------- file tree helpers ----------
   function addNode(
     tree: FileNode[],
     payload: NodeAddedPayload,
@@ -445,7 +422,6 @@ export default function EditorPage() {
   ) {
     const { type, parentPath, name } = payload;
     const newTree = JSON.parse(JSON.stringify(tree)) as FileNode[];
-
     function walk(nodes: FileNode[], curPath: string): boolean {
       for (const node of nodes) {
         const nodePath = curPath ? `${curPath}/${node.name}` : node.name;
@@ -461,7 +437,6 @@ export default function EditorPage() {
       }
       return false;
     }
-
     walk(newTree, "");
     return newTree;
   }
@@ -479,42 +454,17 @@ export default function EditorPage() {
     return walk(newTree, "");
   }
 
-  // ---------- UI actions ----------
-  function promptAdd(type: "file" | "folder", parentPath: string) {
-    const name = prompt(`Enter ${type} name`);
-    if (!name) return;
-    setFileTree((p) =>
-      addNode(p, { type, parentPath, name }, (full) =>
-        setFilesContent((s) => ({ ...s, [full]: "" })),
-      ),
-    );
-    setExpandedFolders((p) => new Set(p).add(parentPath));
-    socketRef.current?.emit("node-added", { type, parentPath, name });
-  }
-
-  function handleDelete(path: string) {
-    if (path === "root") return alert("Root cannot be deleted.");
-    if (!confirm(`Delete ${path}?`)) return;
-    setFileTree((p) => deleteNode(p, path));
-    socketRef.current?.emit("node-deleted", { path });
-    setFilesContent((prev) => {
-      const copy = { ...prev };
-      delete copy[path];
-      return copy;
-    });
-  }
-
-  // Save project structure to API
-  async function handleSaveProject() {
+  function handleSaveProject() {
     if (!projectId) return;
     const structure = reconstructTree(fileTree)[0];
-    const res = await fetch(`/api/projects/${projectId}`, {
+    fetch(`/api/projects/${projectId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ structure }),
+    }).then((res) => {
+      if (res.ok) alert("Project saved");
+      else alert("Save failed");
     });
-    if (res.ok) alert("Project saved");
-    else alert("Save failed");
   }
 
   function reconstructTree(nodes: FileNode[], base = ""): FileNode[] {
@@ -530,70 +480,31 @@ export default function EditorPage() {
     });
   }
 
-  // editor onMount
-  const handleMount: OnMount = (editor) => {
-    editorRef.current = editor;
-    if (activeFile) {
-      const safe = activeFile.replace(/[\/\\]/g, "--").replace(/\./g, "-");
-      const uri = monaco.Uri.parse(`inmemory:///${projectId}/${safe}`);
-      let model = monaco.editor.getModel(uri);
-      if (!model)
-        model = monaco.editor.createModel(
-          filesContent[activeFile] ?? "",
-          "javascript",
-          uri,
-        );
-      modelRef.current = model;
-      editor.setModel(model);
-    }
-  };
-
-  // editor change (non-yjs fallback)
-  function onEditorChange(val?: string) {
-    if (val == null) return;
-    if (!activeFile) return;
-    setFilesContent((p) => ({ ...p, [activeFile]: val }));
-    socketRef.current?.emit("editor-changes", {
-      file: activeFile,
-      content: val,
+  function handleDelete(path: string) {
+    if (path === "root") return alert("Root cannot be deleted.");
+    if (!confirm(`Delete ${path}?`)) return;
+    setFileTree((p) => deleteNode(p, path));
+    socketRef.current?.emit("node-deleted", { path });
+    setFilesContent((prev) => {
+      const copy = { ...prev };
+      delete copy[path];
+      return copy;
     });
   }
 
-  // send chat
-  async function sendChat() {
-    if (!newMessage.trim() || !user) return;
-    const payload: ChatMessage = {
-      senderEmail: user.email,
-      senderUsername: user.username ?? user.email,
-      message: newMessage.trim(),
-      timestamp: Date.now(),
-    };
-    fetch(`/api/projects/${projectId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }).catch(console.error);
-    socketRef.current?.emit("chat-message", payload);
-    setNewMessage("");
+  function promptAdd(type: "file" | "folder", parentPath: string) {
+    const name = prompt(`Enter ${type} name`);
+    if (!name) return;
+    setFileTree((p) =>
+      addNode(p, { type, parentPath, name }, (full) =>
+        setFilesContent((s) => ({ ...s, [full]: "" })),
+      ),
+    );
+    setExpandedFolders((p) => new Set(p).add(parentPath));
+    socketRef.current?.emit("node-added", { type, parentPath, name });
   }
 
-  // ---------- small util functions ----------
-  function colorFromString(s: string) {
-    let h = 0;
-    for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i);
-    const hex = ((h >>> 0) & 0xffffff).toString(16).padStart(6, "0");
-    return `#${hex}`;
-  }
-  function hexToRgba(hex: string, alpha = 0.2) {
-    const h = hex.replace("#", "");
-    const bigint = parseInt(h, 16);
-    const r = (bigint >> 16) & 255;
-    const g = (bigint >> 8) & 255;
-    const b = bigint & 255;
-    return `rgba(${r},${g},${b},${alpha})`;
-  }
-
-  // ---------- render tree ----------
+  // ---------- render file tree ----------
   function renderTree(nodes: FileNode[], base = "") {
     return nodes.map((node) => {
       const path = base ? `${base}/${node.name}` : node.name;
@@ -604,18 +515,14 @@ export default function EditorPage() {
             <div
               className="cursor-pointer flex items-center gap-2 px-2 py-1 hover:bg-gray-700 rounded select-none"
               onClick={() => {
-                setExpandedFolders((p) => {
-                  const n = new Set(p);
-                  if (n.has(path)) n.delete(path);
-                  else n.add(path);
-                  return n;
-                });
+                const n = new Set(expandedFolders);
+                n.has(path) ? n.delete(path) : n.add(path);
+                setExpandedFolders(n);
               }}
             >
               {isExpanded ? <VscChevronDown /> : <VscChevronRight />}
               {isExpanded ? <VscFolderOpened /> : <VscFolder />}
               <span className="truncate">{node.name}</span>
-
               <div className="ml-auto flex gap-1">
                 <button
                   className="text-gray-400 hover:text-gray-200"
@@ -648,7 +555,6 @@ export default function EditorPage() {
                 )}
               </div>
             </div>
-
             {isExpanded && node.children && (
               <div className="pl-6 border-l border-gray-700 ml-2">
                 {renderTree(node.children, path)}
@@ -660,11 +566,7 @@ export default function EditorPage() {
       return (
         <div
           key={path}
-          className={`cursor-pointer flex items-center gap-2 px-2 py-1 rounded text-sm select-none ${
-            activeFile === path
-              ? "bg-gray-700 text-white"
-              : "hover:bg-gray-700 text-gray-300"
-          }`}
+          className={`cursor-pointer flex items-center gap-2 px-2 py-1 rounded text-sm select-none ${activeFile === path ? "bg-gray-700 text-white" : "hover:bg-gray-700 text-gray-300"}`}
           onClick={() => setActiveFile(path)}
         >
           <VscFile />
@@ -683,10 +585,44 @@ export default function EditorPage() {
     });
   }
 
+  // ---------- editor mount ----------
+  const handleMount: OnMount = (editor, monaco) => {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+    if (!activeFile) return;
+    const safe = activeFile.replace(/[\/\\]/g, "--").replace(/\./g, "-");
+    const uri = monaco.Uri.parse(`inmemory:///${projectId}/${safe}`);
+    let model = monaco.editor.getModel(uri);
+    if (!model)
+      model = monaco.editor.createModel(
+        filesContent[activeFile] ?? "",
+        "javascript",
+        uri,
+      );
+    modelRef.current = model;
+    editor.setModel(model);
+  };
+
+  function sendChat() {
+    if (!newMessage.trim() || !user) return;
+    const payload: ChatMessage = {
+      senderEmail: user.email,
+      senderUsername: user.username ?? user.email,
+      message: newMessage.trim(),
+      timestamp: Date.now(),
+    };
+    fetch(`/api/projects/${projectId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).catch(console.error);
+    socketRef.current?.emit("chat-message", payload);
+    setNewMessage("");
+  }
+
   // ---------- JSX ----------
   return (
     <div className="flex h-screen bg-gray-900 text-gray-200">
-      {/* left sidebar */}
       <aside
         className={`w-64 bg-gray-800 p-4 overflow-y-auto text-sm border-r border-gray-700 ${chatOpen ? "hidden md:block" : ""}`}
       >
@@ -734,7 +670,7 @@ export default function EditorPage() {
                   <div className="text-xs text-gray-400">
                     {p.cursor
                       ? `Line ${p.cursor.line}, Col ${p.cursor.column}`
-                      : (p.user?.email ?? "")}
+                      : ""}
                   </div>
                 </div>
               </div>
@@ -746,7 +682,6 @@ export default function EditorPage() {
         </div>
       </aside>
 
-      {/* editor area */}
       <div
         className={`flex-1 flex flex-col ${chatOpen ? "md:w-2/3" : "w-full"}`}
       >
@@ -763,21 +698,17 @@ export default function EditorPage() {
             </button>
           </div>
         </div>
-
         <div className="flex-1">
           <Editor
             height="100%"
             theme="vs-dark"
             defaultLanguage="javascript"
-            value={filesContent[activeFile] ?? ""}
             onMount={handleMount}
-            onChange={(v) => onEditorChange(v ?? "")}
             options={{ minimap: { enabled: false }, automaticLayout: true }}
           />
         </div>
       </div>
 
-      {/* chat panel (resizable on the right) */}
       {chatOpen && (
         <Resizable
           defaultSize={{ width: 320 }}
@@ -818,7 +749,6 @@ export default function EditorPage() {
                 </div>
               ))}
             </div>
-
             <div className="flex gap-2">
               <input
                 className="flex-1 p-2 rounded bg-gray-700 text-white"
