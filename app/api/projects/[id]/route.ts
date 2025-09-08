@@ -50,6 +50,36 @@ export async function PUT(req: NextRequest, context: RouteContext) {
   return NextResponse.json(project);
 }
 
+//owner can delete the project
+
+export async function DELETE(req: NextRequest, context: RouteContext) {
+  await connectDB();
+  const { id } = context.params;
+
+  // Optionally verify the user making the request
+  const userEmail = req.headers.get("x-user-email");
+  if (!userEmail) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const project = await Project.findById(id);
+  if (!project) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
+  // Only owner can delete
+  const owner = project.members.find(
+    (m: { email: string; role: string }) => m.role === "owner",
+  );
+  if (owner?.email !== userEmail) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  await Project.findByIdAndDelete(id);
+
+  return NextResponse.json({ message: "Project deleted successfully" });
+}
+
 export async function POST(req: NextRequest, context: RouteContext) {
   await connectDB();
   const { id } = context.params;
