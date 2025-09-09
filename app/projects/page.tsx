@@ -16,6 +16,15 @@ export default function ProjectsPage() {
   const [user, setUser] = useState<{ username: string; email: string } | null>(
     null,
   );
+  interface Invitation {
+    _id: string;
+    collaboratorEmail: string;
+    // Add other fields if needed
+  }
+
+  const [pendingInvitations, setPendingInvitations] = useState<Invitation[]>(
+    [],
+  );
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [showUserPopup, setShowUserPopup] = useState(false);
@@ -84,11 +93,25 @@ export default function ProjectsPage() {
   );
 
   // Modal helpers
-  const openMoreModal = (project: Project) => {
+  const openMoreModal = async (project: Project) => {
     setSelectedProject(project);
     // setEditMode(user?.email === project.owner); // owner can edit
     setEditMode(false);
     setShowModal(true);
+
+    try {
+      const res = await fetch(`/api/projects/${project._id}/invitations`);
+      if (res.ok) {
+        const invitations = await res.json();
+        setPendingInvitations(invitations);
+      } else {
+        console.error("Failed to fetch invitations");
+        setPendingInvitations([]);
+      }
+    } catch (error) {
+      console.error("Error fetching invitations:", error);
+      setPendingInvitations([]);
+    }
   };
 
   const closeModal = () => {
@@ -189,6 +212,21 @@ export default function ProjectsPage() {
         prev && prev._id === updated._id ? { ...prev, ...updated } : prev,
       );
       setNewCollaborator("");
+
+      // Re-fetch pending invitations for the selected project
+      try {
+        const inviteRes = await fetch(
+          `/api/projects/${selectedProject._id}/invitations`,
+        );
+        if (inviteRes.ok) {
+          const invitations = await inviteRes.json();
+          setPendingInvitations(invitations);
+        } else {
+          setPendingInvitations([]);
+        }
+      } catch {
+        setPendingInvitations([]);
+      }
     } catch (e) {
       console.error(e);
       alert("Failed to add collaborator");
@@ -513,6 +551,26 @@ export default function ProjectsPage() {
                   </ul>
                 )}
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm mb-1">Pending Invitations</label>
+              {pendingInvitations.length === 0 ? (
+                <p className="text-sm text-gray-400">No pending invitations.</p>
+              ) : (
+                <ul className="divide-y divide-gray-700 rounded border border-gray-700">
+                  {pendingInvitations.map((invitation) => (
+                    <li
+                      key={invitation._id}
+                      className="flex items-center justify-between px-3 py-2"
+                    >
+                      <span className="text-sm">
+                        {invitation.collaboratorEmail}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div className="mt-6 flex items-center justify-end gap-3">
