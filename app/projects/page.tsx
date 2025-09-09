@@ -120,11 +120,13 @@ export default function ProjectsPage() {
         alert(err.error || "Failed to update project");
         return;
       }
-      const updated: Project = await res.json();
+      const updated = await res.json();
       setProjects((prev) =>
-        prev.map((p) => (p._id === updated._id ? updated : p)),
+        prev.map((p) => (p._id === updated._id ? { ...p, ...updated } : p)),
       );
-      setSelectedProject(updated);
+      setSelectedProject((prev) =>
+        prev && prev._id === updated._id ? { ...prev, ...updated } : prev,
+      );
       setEditMode(false);
     } catch (e) {
       console.error(e);
@@ -179,11 +181,13 @@ export default function ProjectsPage() {
         alert(err.error || "Failed to add collaborator");
         return;
       }
-      const updated: Project = await res.json();
+      const updated = await res.json();
       setProjects((prev) =>
-        prev.map((p) => (p._id === updated._id ? updated : p)),
+        prev.map((p) => (p._id === updated._id ? { ...p, ...updated } : p)),
       );
-      setSelectedProject(updated);
+      setSelectedProject((prev) =>
+        prev && prev._id === updated._id ? { ...prev, ...updated } : prev,
+      );
       setNewCollaborator("");
     } catch (e) {
       console.error(e);
@@ -212,11 +216,13 @@ export default function ProjectsPage() {
         alert(err.error || "Failed to remove collaborator");
         return;
       }
-      const updated: Project = await res.json();
+      const updated = await res.json();
       setProjects((prev) =>
-        prev.map((p) => (p._id === updated._id ? updated : p)),
+        prev.map((p) => (p._id === updated._id ? { ...p, ...updated } : p)),
       );
-      setSelectedProject(updated);
+      setSelectedProject((prev) =>
+        prev && prev._id === updated._id ? { ...prev, ...updated } : prev,
+      );
     } catch (e) {
       console.error(e);
       alert("Failed to remove collaborator");
@@ -244,11 +250,13 @@ export default function ProjectsPage() {
         alert(err.error || "Failed to promote owner");
         return;
       }
-      const updated: Project = await res.json();
+      const updated = await res.json();
       setProjects((prev) =>
-        prev.map((p) => (p._id === updated._id ? updated : p)),
+        prev.map((p) => (p._id === updated._id ? { ...p, ...updated } : p)),
       );
-      setSelectedProject(updated);
+      setSelectedProject((prev) =>
+        prev && prev._id === updated._id ? { ...prev, ...updated } : prev,
+      );
       setEditMode(true); // new owner can edit
       alert("Ownership transferred.");
     } catch (e) {

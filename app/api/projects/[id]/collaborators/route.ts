@@ -6,18 +6,21 @@ import sendEmail from "@/app/lib/email";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
     const { email } = await req.json();
     const userEmail = req.headers.get("x-user-email");
-    if (!email)
+    if (!email) {
       return NextResponse.json({ error: "Email required" }, { status: 400 });
+    }
 
-    const project = await Project.findById(params.id);
-    if (!project)
+    const { id } = await context.params; // fixed
+    const project = await Project.findById(id);
+    if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
 
     // Only owner can invite
     const owner = project.members.find(
@@ -86,14 +89,17 @@ export async function POST(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
     const { email } = await req.json();
-    const project = await Project.findById(params.id);
-    if (!project)
+
+    const { id } = await context.params; // fixed
+    const project = await Project.findById(id);
+    if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
 
     project.members = project.members.filter(
       (m: { email: string; role: string }) => m.email !== email,
