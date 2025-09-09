@@ -2,28 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/app/lib/mongoose";
 import Project from "@/app/models/project";
 
-interface RouteContext {
-  params: {
-    id: string;
-  };
-}
-
-export async function GET(_req: NextRequest, context: RouteContext) {
-  await connectDB();
-  const { id } = context.params;
-  const project = await Project.findById(id).lean();
-  if (!project) {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
-  }
-  return NextResponse.json(project);
-}
-
-type UpdateProjectBody = {
-  title?: string;
-  description?: string;
-  structure?: FileEntity;
-};
-
 type FileEntity = {
   name: string;
   type: "file" | "folder";
@@ -31,9 +9,33 @@ type FileEntity = {
   content?: string | null;
 };
 
-export async function PUT(req: NextRequest, context: RouteContext) {
+type UpdateProjectBody = {
+  title?: string;
+  description?: string;
+  structure?: FileEntity;
+};
+
+// GET project by ID
+export async function GET(
+  _req: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
   await connectDB();
-  const { id } = context.params;
+  const { id } = await context.params; // fixed
+  const project = await Project.findById(id).lean();
+  if (!project) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+  return NextResponse.json(project);
+}
+
+// Update project
+export async function PUT(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  await connectDB();
+  const { id } = await context.params; // fixed
   const body: UpdateProjectBody = await req.json();
 
   const update: UpdateProjectBody = {};
@@ -50,13 +52,14 @@ export async function PUT(req: NextRequest, context: RouteContext) {
   return NextResponse.json(project);
 }
 
-//owner can delete the project
-
-export async function DELETE(req: NextRequest, context: RouteContext) {
+// Delete project (only owner)
+export async function DELETE(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
   await connectDB();
-  const { id } = context.params;
+  const { id } = await context.params; // fixed
 
-  // Optionally verify the user making the request
   const userEmail = req.headers.get("x-user-email");
   if (!userEmail) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -67,7 +70,6 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
-  // Only owner can delete
   const owner = project.members.find(
     (m: { email: string; role: string }) => m.role === "owner",
   );
@@ -76,13 +78,16 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
   }
 
   await Project.findByIdAndDelete(id);
-
   return NextResponse.json({ message: "Project deleted successfully" });
 }
 
-export async function POST(req: NextRequest, context: RouteContext) {
+// Add chat message
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
   await connectDB();
-  const { id } = context.params;
+  const { id } = await context.params; // fixed
   const { senderEmail, senderUsername, message } = await req.json();
 
   const project = await Project.findById(id);
@@ -96,6 +101,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     message,
     timestamp: new Date(),
   };
+
   project.chats.push(chatMsg);
   await project.save();
 
