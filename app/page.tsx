@@ -64,7 +64,7 @@ const WelcomePage = () => {
               </Button>
             </Link>
             <Link href="/login">
-              <Button className="bg-gradient-primary hover:shadow-primar">
+              <Button className="bg-gradient-primary hover:shadow-primary">
                 Get Started
               </Button>
             </Link>
