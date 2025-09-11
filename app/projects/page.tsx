@@ -2,6 +2,37 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
+import { Textarea } from "@/app/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/app/components/ui/dialog";
+import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
+import { Badge } from "@/app/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/app/components/ui/card";
+import { Separator } from "@/app/components/ui/separator";
+import {
+  Search,
+  Plus,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Crown,
+  Users,
+  Calendar,
+  LogOut,
+} from "lucide-react";
+import Image from "next/image";
+import Logo from "@/app/assets/logo.png";
 
 interface Project {
   _id: string;
@@ -12,16 +43,16 @@ interface Project {
   createdAt?: string;
 }
 
+interface Invitation {
+  _id: string;
+  collaboratorEmail: string;
+}
+
 export default function ProjectsPage() {
+  const router = useRouter();
   const [user, setUser] = useState<{ username: string; email: string } | null>(
     null,
   );
-  interface Invitation {
-    _id: string;
-    collaboratorEmail: string;
-    // Add other fields if needed
-  }
-
   const [pendingInvitations, setPendingInvitations] = useState<Invitation[]>(
     [],
   );
@@ -34,7 +65,6 @@ export default function ProjectsPage() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [newCollaborator, setNewCollaborator] = useState("");
-  const router = useRouter();
   const userPopupRef = useRef<HTMLDivElement>(null);
 
   // Auth bootstrap
@@ -95,7 +125,6 @@ export default function ProjectsPage() {
   // Modal helpers
   const openMoreModal = async (project: Project) => {
     setSelectedProject(project);
-    // setEditMode(user?.email === project.owner); // owner can edit
     setEditMode(false);
     setShowModal(true);
 
@@ -213,7 +242,7 @@ export default function ProjectsPage() {
       );
       setNewCollaborator("");
 
-      // Re-fetch pending invitations for the selected project
+      // Re-fetch pending invitations
       try {
         const inviteRes = await fetch(
           `/api/projects/${selectedProject._id}/invitations`,
@@ -295,7 +324,7 @@ export default function ProjectsPage() {
       setSelectedProject((prev) =>
         prev && prev._id === updated._id ? { ...prev, ...updated } : prev,
       );
-      setEditMode(true); // new owner can edit
+      setEditMode(true);
       alert("Ownership transferred.");
     } catch (e) {
       console.error(e);
@@ -304,173 +333,220 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div className="flex min-h-screen font-sans bg-gray-700 text-gray-200">
+    <div className="min-h-screen bg-background">
       {/* Sidebar */}
-      <aside className="w-64 bg-gray-800 p-6 shadow-xl flex flex-col">
-        <h1 className="text-4xl font-serif font-extrabold mb-10 text-gray-200 tracking-tight">
-          RCCE
-        </h1>
-        <nav className="space-y-4 flex-1">
-          <button
+      <aside className="fixed left-0 top-0 h-full w-64 bg-sidebar border-r border-border p-6 flex flex-col">
+        <div className="mb-8 flex items-center gap-4">
+          <Image src={Logo} alt="Logo" className="h-10 w-10" />
+          <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            CollabCode
+          </h1>
+        </div>
+
+        <nav className="space-y-2 flex-1">
+          <Button
+            variant="default"
+            className="w-full justify-start text-lg"
             onClick={() => router.push("/projects")}
-            className="block w-full text-left px-3 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 font-bold transition"
           >
             Projects
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full  bg-accent/10 justify-between text-lg"
             onClick={() => router.push("/invitations")}
-            className="relative block w-full text-left px-3 py-2 rounded-lg hover:bg-gray-600 font-bold transition"
           >
             Invitations
             {invitationCount > 0 && (
-              <span className="absolute right-3 top-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+              <Badge variant="destructive" className="ml-2 text-lg">
                 {invitationCount}
-              </span>
+              </Badge>
             )}
-          </button>
+          </Button>
         </nav>
       </aside>
 
-      {/* Main Area */}
-      <div className="flex-1 flex flex-col relative bg-gray-900">
-        {/* Topbar */}
-        <header className="bg-gray-800 shadow p-6 flex justify-between items-center">
-          <h2 className="text-3xl font-serif font-semibold text-gray-200 tracking-tight">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col ml-64">
+        {/* Header */}
+        <header className="bg-card border-b border-border shadow-sm p-6 flex justify-between items-center">
+          <h2 className="text-3xl font-serif font-semibold tracking-tight">
             Projects
           </h2>
+
           <div className="relative" ref={userPopupRef}>
-            <div
-              className="w-11 h-11 bg-blue-800 text-white flex items-center justify-center rounded-full cursor-pointer text-xl font-bold"
-              onClick={() => setShowUserPopup((p) => !p)}
+            <Avatar
+              className="cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all"
+              onClick={() => setShowUserPopup(!showUserPopup)}
             >
-              {user?.username?.charAt(0)?.toUpperCase() || "U"}
-            </div>
+              <AvatarFallback className="bg-primary text-primary-foreground">
+                {user?.username?.charAt(0)?.toUpperCase() || "U"}
+              </AvatarFallback>
+            </Avatar>
+
             {showUserPopup && user && (
-              <div
-                className="absolute right-0 mt-2 w-56 bg-gray-800 shadow-xl rounded-lg p-4 text-sm z-50 border border-gray-700"
-                onMouseEnter={() => setShowUserPopup(true)}
-                onMouseLeave={() => setShowUserPopup(false)}
-              >
-                <p className="font-semibold text-gray-200">{user.username}</p>
-                <p className="font-semibold text-gray-400 text-sm">
-                  {user.email}
-                </p>
-                <button
-                  className="w-full bg-red-600 text-white py-1.5 rounded hover:bg-red-700 font-medium mt-2 transition"
-                  onClick={handleLogout}
-                >
-                  Logout
-                </button>
-              </div>
+              <Card className="absolute right-0 mt-2 w-56 z-50">
+                <CardContent className="p-4">
+                  <p className="font-medium text-foreground">{user.username}</p>
+                  <p className="text-sm text-muted-foreground">{user.email}</p>
+                  <Separator className="my-3" />
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-destructive border-destructive/20 hover:bg-destructive hover:text-destructive-foreground transition"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Logout
+                  </Button>
+                </CardContent>
+              </Card>
             )}
           </div>
         </header>
 
         {/* Content */}
-        <main className="flex-1 px-8 py-6">
-          <div className="mb-6 flex items-center gap-3 justify-between">
-            <div className="flex items-center gap-3 w-full">
-              <input
+        <main className="p-6">
+          {/* Search and New Project */}
+          <div className="mb-6 flex items-center gap-4 justify-between">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search projects..."
-                className="p-3 border border-gray-700 rounded-lg w-1/2 bg-gray-800 text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-600 transition shadow-sm"
+                className="pl-10"
               />
-              <button className="px-5 py-3 bg-blue-800 text-gray-200 rounded-lg hover:bg-blue-700 font-semibold transition">
-                Search
-              </button>
             </div>
-            <button
-              onClick={() => router.push("/projects/create")}
-              className="px-10 py-3 bg-blue-800 text-gray-200 rounded-lg hover:bg-blue-700 font-semibold transition whitespace-nowrap"
-            >
-              + New Project
-            </button>
+
+            <Button onClick={() => router.push("/projects/create")}>
+              <Plus className="h-5 w-5 mr-2" />
+              New Project
+            </Button>
           </div>
 
-          {/* Grid */}
+          {/* Projects Grid */}
           {loading ? (
-            <p className="text-gray-500">Loading projects...</p>
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
           ) : filtered.length === 0 ? (
-            <p className="text-gray-500">No projects found. Create one!</p>
+            <div className="text-center py-12">
+              <p className="text-muted-foreground mb-4">
+                No projects found. Create your first project!
+              </p>
+              <Button onClick={() => router.push("/projects/create")}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Project
+              </Button>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filtered.map((project) => (
-                <div
+                <Card
                   key={project._id}
-                  className="bg-gray-800 p-4 shadow-lg rounded-lg space-y-2 border border-gray-700 hover:shadow-xl transition"
+                  className="group hover:shadow-glow-lg hover:bg-accent/10 transition-all duration-200 hover:-translate-y-1 hover:scale-105 hover:border-primary border border-border"
                 >
-                  <h3 className="font-bold text-xl text-gray-200">
-                    {project.title}
-                  </h3>
-                  <p className="text-sm text-gray-400">
-                    Owner: {project.owner}
-                  </p>
-                  {project.createdAt && (
-                    <p className="text-xs text-gray-500">
-                      Created:{" "}
-                      {new Date(project.createdAt).toLocaleDateString()}
-                    </p>
-                  )}
-                  <div className="pt-2 flex items-center">
-                    <button
-                      className="bg-blue-800 text-gray-200 rounded-lg px-4 py-1 hover:bg-blue-700 font-medium transition"
-                      onClick={() =>
-                        window.open(`/editor/${project._id}`, "_blank")
-                      }
-                    >
-                      Open
-                    </button>
-                    <button
-                      className="ml-4 text-gray-400 underline hover:text-gray-300 font-medium transition"
-                      onClick={() => openMoreModal(project)}
-                    >
-                      More
-                    </button>
-                  </div>
-                </div>
+                  <CardHeader>
+                    <CardTitle className="flex items-start justify-between">
+                      <span className="text-xl font-semibold group-hover:text-primary transition-colors">
+                        {project.title}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => openMoreModal(project)}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </CardTitle>
+                  </CardHeader>
+
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Crown className="h-3 w-3" />
+                      <span>{project.owner}</span>
+                    </div>
+
+                    {project.collaborators &&
+                      project.collaborators.length > 0 && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Users className="h-3 w-3" />
+                          <span>
+                            {project.collaborators.length} collaborator
+                            {project.collaborators.length !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+                      )}
+
+                    {project.createdAt && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        <span>
+                          {new Date(project.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        className="flex-1"
+                        onClick={() =>
+                          window.open(`/editor/${project._id}`, "_blank")
+                        }
+                      >
+                        Open
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="hover:bg-blue-500 hover:text-white transition-colors"
+                        onClick={() => openMoreModal(project)}
+                      >
+                        More
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
         </main>
       </div>
 
-      {/* Modal */}
+      {/* Project Details Modal */}
       {showModal && selectedProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={closeModal} />
-          <div className="relative bg-gray-800 text-gray-200 w-full max-w-2xl rounded-xl p-6 shadow-2xl border border-gray-700">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold">
+        <Dialog open={showModal} onOpenChange={setShowModal}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center justify-between">
                 {editMode ? "Edit Project" : "Project Details"}
-              </h3>
-              <button
-                className="text-gray-400 hover:text-gray-200"
-                onClick={closeModal}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
+              </DialogTitle>
+            </DialogHeader>
 
-            <div className="space-y-3">
-              <p className="text-sm">
-                <span className="font-semibold">Owner:</span>{" "}
-                {selectedProject.owner}
-              </p>
-              <p className="text-sm">
-                <span className="font-semibold">Created:</span>{" "}
-                {selectedProject.createdAt
-                  ? new Date(selectedProject.createdAt).toLocaleString()
-                  : "N/A"}
-              </p>
+            <div className="space-y-6">
+              {/* Project Info */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Crown className="h-4 w-4" />
+                  <span>Owner: {selectedProject.owner}</span>
+                </div>
+                {selectedProject.createdAt && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Calendar className="h-4 w-4" />
+                    <span>
+                      Created:{" "}
+                      {new Date(selectedProject.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+              </div>
 
-              <div>
-                <label className="block text-sm mb-1">Title</label>
-                <input
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
-                  value={selectedProject?.title || ""}
+              {/* Title */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Title</label>
+                <Input
+                  value={selectedProject.title}
                   disabled={!isOwner}
                   onChange={(e) =>
                     setSelectedProject({
@@ -481,11 +557,11 @@ export default function ProjectsPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm mb-1">Description</label>
-                <textarea
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600 min-h-[90px]"
-                  value={selectedProject?.description || ""}
+              {/* Description */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Description</label>
+                <Textarea
+                  value={selectedProject.description || ""}
                   disabled={!isOwner}
                   onChange={(e) =>
                     setSelectedProject({
@@ -493,131 +569,128 @@ export default function ProjectsPage() {
                       description: e.target.value,
                     })
                   }
+                  rows={3}
                 />
               </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-sm">Collaborators</label>
+              {/* Collaborators */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Collaborators</label>
                   {isOwner && (
                     <div className="flex items-center gap-2">
-                      <input
+                      <Input
                         value={newCollaborator}
                         onChange={(e) => setNewCollaborator(e.target.value)}
                         placeholder="email@example.com"
-                        className="p-2 bg-gray-700 rounded border border-gray-600"
+                        className="w-48"
                       />
-                      <button
-                        className="bg-blue-700 hover:bg-blue-600 px-3 py-1 rounded text-sm"
-                        onClick={addCollaborator}
-                        type="button"
-                      >
+                      <Button size="sm" onClick={addCollaborator}>
                         Add
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
 
-                {(selectedProject.collaborators || []).length === 0 ? (
-                  <p className="text-sm text-gray-400">No collaborators yet.</p>
+                {selectedProject.collaborators?.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No collaborators yet.
+                  </p>
                 ) : (
-                  <ul className="divide-y divide-gray-700 rounded border border-gray-700">
-                    {(selectedProject.collaborators || []).map((email) => (
-                      <li
-                        key={email}
-                        className="flex items-center justify-between px-3 py-2"
-                      >
-                        <span className="text-sm">{email}</span>
-                        {isOwner && (
-                          <div className="flex items-center gap-2">
-                            <button
-                              className="text-yellow-400 hover:text-yellow-300 text-sm underline"
-                              onClick={() => promoteToOwner(email)}
-                              title="Make this collaborator the owner"
-                            >
-                              Make Owner
-                            </button>
-                            <button
-                              className="text-red-400 hover:text-red-300 text-sm underline"
-                              onClick={() => removeCollaborator(email)}
-                              title="Remove collaborator"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </li>
+                  <div className="space-y-2">
+                    {selectedProject.collaborators?.map((email) => (
+                      <Card key={email} className="p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">{email}</span>
+                          {isOwner && (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => promoteToOwner(email)}
+                              >
+                                <Crown className="h-3 w-3 mr-1" />
+                                Make Owner
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => removeCollaborator(email)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </Card>
                     ))}
-                  </ul>
+                  </div>
+                )}
+              </div>
+
+              {/* Pending Invitations */}
+              <div className="space-y-4">
+                <label className="text-sm font-medium">
+                  Pending Invitations
+                </label>
+                {pendingInvitations.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No pending invitations.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {pendingInvitations.map((invitation) => (
+                      <Card key={invitation._id} className="p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">
+                            {invitation.collaboratorEmail}
+                          </span>
+                          <Badge variant="secondary">Pending</Badge>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm mb-1">Pending Invitations</label>
-              {pendingInvitations.length === 0 ? (
-                <p className="text-sm text-gray-400">No pending invitations.</p>
-              ) : (
-                <ul className="divide-y divide-gray-700 rounded border border-gray-700">
-                  {pendingInvitations.map((invitation) => (
-                    <li
-                      key={invitation._id}
-                      className="flex items-center justify-between px-3 py-2"
-                    >
-                      <span className="text-sm">
-                        {invitation.collaboratorEmail}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <div className="mt-6 flex items-center justify-end gap-3">
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3 pt-4">
               {isOwner && (
                 <>
                   {editMode ? (
                     <>
-                      <button
-                        className="bg-green-600 hover:bg-green-500 px-4 py-2 rounded"
-                        onClick={saveProject}
-                      >
-                        Save
-                      </button>
-                      <button
-                        className="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded"
+                      <Button onClick={saveProject}>Save Changes</Button>
+                      <Button
+                        variant="outline"
                         onClick={() => setEditMode(false)}
                       >
-                        Cancel Edit{" "}
-                      </button>
+                        Cancel
+                      </Button>
                     </>
                   ) : (
                     <>
-                      <button
-                        className="bg-yellow-600 hover:bg-yellow-500 px-4 py-2 rounded"
+                      <Button
+                        variant="outline"
                         onClick={() => setEditMode(true)}
                       >
+                        <Edit className="h-4 w-4 mr-2" />
                         Edit
-                      </button>
-                      <button
-                        className="bg-red-600 hover:bg-red-500 px-4 py-2 rounded"
-                        onClick={deleteProject}
-                      >
+                      </Button>
+                      <Button variant="destructive" onClick={deleteProject}>
+                        <Trash2 className="h-4 w-4 mr-2" />
                         Delete
-                      </button>
+                      </Button>
                     </>
                   )}
                 </>
               )}
-              <button
-                className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded"
-                onClick={closeModal}
-              >
+              <Button variant="ghost" onClick={closeModal}>
                 Close
-              </button>
+              </Button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

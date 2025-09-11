@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import Image from "next/image";
 import heroImage from "@/app/assets/hero-collaborative-coding.jpg";
+import LogoTitle from "@/app/components/LogoTitle";
 
 const WelcomePage = () => {
   const features = [
@@ -50,10 +51,7 @@ const WelcomePage = () => {
         {/* Header */}
         <header className="px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-              <Code className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold">RCCE</span>
+            <LogoTitle />
           </div>
 
           <div className="flex items-center gap-4">
