@@ -5,13 +5,13 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev --turbopack",
-    "dev:all": "concurrently 'next dev --turbopack' 'tsx server/socketServer.ts' 'tsx server/yjsServer.ts'",
+    "dev:all": "concurrently 'next dev --turbopack' 'tsx server/socketServer.ts' 'y-websocket-server'",
     "format:check": "prettier --check .",
     "format:write": "prettier --write .",
     "lint": "next lint",
     "prepare": "husky",
     "start": "next start",
-    "start:all": "concurrently 'next start' 'tsx server/socketServer.ts' 'tsx server/yjsServer.ts'",
+    "start:all": "concurrently 'next start' 'tsx server/socketServer.ts' 'y-websocket-server'",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
