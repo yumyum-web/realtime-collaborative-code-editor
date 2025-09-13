@@ -335,7 +335,7 @@ export default function ProjectsPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-sidebar border-r border-border p-6 flex flex-col">
+      <aside className="fixed left-0 top-0 h-full w-64 bg-sidebar border-r border-border p-6 flex flex-col shadow-lg">
         <div className="mb-8 flex items-center gap-4">
           <Image src={Logo} alt="Logo" className="h-10 w-10" />
           <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
@@ -346,14 +346,14 @@ export default function ProjectsPage() {
         <nav className="space-y-2 flex-1">
           <Button
             variant="default"
-            className="w-full justify-start text-lg"
+            className="w-full justify-start text-lg hover:bg-primary hover:text-primary-foreground transition-all"
             onClick={() => router.push("/projects")}
           >
             Projects
           </Button>
           <Button
             variant="ghost"
-            className="w-full  bg-accent/10 justify-between text-lg"
+            className="w-full bg-accent/10 justify-between text-lg hover:bg-accent hover:text-accent-foreground transition-all"
             onClick={() => router.push("/invitations")}
           >
             Invitations
@@ -369,7 +369,7 @@ export default function ProjectsPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col ml-64">
         {/* Header */}
-        <header className="bg-card border-b border-border shadow-sm p-6 flex justify-between items-center">
+        <header className="bg-card border-b border-border shadow-md p-6 flex justify-between items-center">
           <h2 className="text-3xl font-serif font-semibold tracking-tight">
             Projects
           </h2>
@@ -385,7 +385,7 @@ export default function ProjectsPage() {
             </Avatar>
 
             {showUserPopup && user && (
-              <Card className="absolute right-0 mt-2 w-56 z-50">
+              <Card className="absolute right-0 mt-2 w-56 z-50 border border-primary shadow-lg">
                 <CardContent className="p-4">
                   <p className="font-medium text-foreground">{user.username}</p>
                   <p className="text-sm text-muted-foreground">{user.email}</p>
@@ -415,11 +415,14 @@ export default function ProjectsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search projects..."
-                className="pl-10"
+                className="pl-10 border border-primary focus:ring-primary focus:border-primary"
               />
             </div>
 
-            <Button onClick={() => router.push("/projects/create")}>
+            <Button
+              onClick={() => router.push("/projects/create")}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground transition-all"
+            >
               <Plus className="h-5 w-5 mr-2" />
               New Project
             </Button>
@@ -435,7 +438,10 @@ export default function ProjectsPage() {
               <p className="text-muted-foreground mb-4">
                 No projects found. Create your first project!
               </p>
-              <Button onClick={() => router.push("/projects/create")}>
+              <Button
+                onClick={() => router.push("/projects/create")}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground transition-all"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Project
               </Button>
@@ -445,7 +451,7 @@ export default function ProjectsPage() {
               {filtered.map((project) => (
                 <Card
                   key={project._id}
-                  className="group hover:shadow-glow-lg hover:bg-accent/10 transition-all duration-200 hover:-translate-y-1 hover:scale-105 hover:border-primary border border-border"
+                  className="group hover:shadow-glow-lg hover:bg-accent/10 transition-all duration-200 hover:-translate-y-1 hover:scale-105 hover:border-primary border border-border rounded-lg"
                 >
                   <CardHeader>
                     <CardTitle className="flex items-start justify-between">
@@ -465,14 +471,14 @@ export default function ProjectsPage() {
 
                   <CardContent className="space-y-4">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Crown className="h-3 w-3" />
+                      <Crown className="h-3 w-3 text-primary" />
                       <span>{project.owner}</span>
                     </div>
 
                     {project.collaborators &&
                       project.collaborators.length > 0 && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Users className="h-3 w-3" />
+                          <Users className="h-3 w-3 text-primary" />
                           <span>
                             {project.collaborators.length} collaborator
                             {project.collaborators.length !== 1 ? "s" : ""}
@@ -482,7 +488,7 @@ export default function ProjectsPage() {
 
                     {project.createdAt && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Calendar className="h-3 w-3" />
+                        <Calendar className="h-3 w-3 text-primary" />
                         <span>
                           {new Date(project.createdAt).toLocaleDateString()}
                         </span>
@@ -491,7 +497,7 @@ export default function ProjectsPage() {
 
                     <div className="flex gap-2 pt-2">
                       <Button
-                        className="flex-1"
+                        className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground transition-all"
                         onClick={() =>
                           window.open(`/editor/${project._id}`, "_blank")
                         }
@@ -500,7 +506,7 @@ export default function ProjectsPage() {
                       </Button>
                       <Button
                         variant="outline"
-                        className="hover:bg-blue-500 hover:text-white transition-colors"
+                        className="hover:bg-blue-500 hover:text-white transition-colors border-primary"
                         onClick={() => openMoreModal(project)}
                       >
                         More
@@ -517,9 +523,9 @@ export default function ProjectsPage() {
       {/* Project Details Modal */}
       {showModal && selectedProject && (
         <Dialog open={showModal} onOpenChange={setShowModal}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl border border-primary shadow-lg">
             <DialogHeader>
-              <DialogTitle className="flex items-center justify-between">
+              <DialogTitle className="flex items-center justify-between text-primary">
                 {editMode ? "Edit Project" : "Project Details"}
               </DialogTitle>
             </DialogHeader>
@@ -528,12 +534,12 @@ export default function ProjectsPage() {
               {/* Project Info */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Crown className="h-4 w-4" />
+                  <Crown className="h-4 w-4 text-primary" />
                   <span>Owner: {selectedProject.owner}</span>
                 </div>
                 {selectedProject.createdAt && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
+                    <Calendar className="h-4 w-4 text-primary" />
                     <span>
                       Created:{" "}
                       {new Date(selectedProject.createdAt).toLocaleString()}
@@ -554,6 +560,7 @@ export default function ProjectsPage() {
                       title: e.target.value,
                     })
                   }
+                  className="border border-primary focus:ring-primary focus:border-primary"
                 />
               </div>
 
@@ -570,6 +577,7 @@ export default function ProjectsPage() {
                     })
                   }
                   rows={3}
+                  className="border border-primary focus:ring-primary focus:border-primary"
                 />
               </div>
 
@@ -583,9 +591,13 @@ export default function ProjectsPage() {
                         value={newCollaborator}
                         onChange={(e) => setNewCollaborator(e.target.value)}
                         placeholder="email@example.com"
-                        className="w-48"
+                        className="w-48 border border-primary focus:ring-primary focus:border-primary"
                       />
-                      <Button size="sm" onClick={addCollaborator}>
+                      <Button
+                        size="sm"
+                        onClick={addCollaborator}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground transition-all"
+                      >
                         Add
                       </Button>
                     </div>
@@ -599,7 +611,10 @@ export default function ProjectsPage() {
                 ) : (
                   <div className="space-y-2">
                     {selectedProject.collaborators?.map((email) => (
-                      <Card key={email} className="p-3">
+                      <Card
+                        key={email}
+                        className="p-3 border border-primary rounded-lg"
+                      >
                         <div className="flex items-center justify-between">
                           <span className="text-sm">{email}</span>
                           {isOwner && (
@@ -608,6 +623,7 @@ export default function ProjectsPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => promoteToOwner(email)}
+                                className="border-primary hover:bg-primary hover:text-primary-foreground"
                               >
                                 <Crown className="h-3 w-3 mr-1" />
                                 Make Owner
@@ -616,6 +632,7 @@ export default function ProjectsPage() {
                                 variant="destructive"
                                 size="sm"
                                 onClick={() => removeCollaborator(email)}
+                                className="hover:bg-red-600 hover:text-white"
                               >
                                 <Trash2 className="h-3 w-3" />
                               </Button>
@@ -640,7 +657,10 @@ export default function ProjectsPage() {
                 ) : (
                   <div className="space-y-2">
                     {pendingInvitations.map((invitation) => (
-                      <Card key={invitation._id} className="p-3">
+                      <Card
+                        key={invitation._id}
+                        className="p-3 border border-primary rounded-lg"
+                      >
                         <div className="flex items-center justify-between">
                           <span className="text-sm">
                             {invitation.collaboratorEmail}
@@ -660,10 +680,16 @@ export default function ProjectsPage() {
                 <>
                   {editMode ? (
                     <>
-                      <Button onClick={saveProject}>Save Changes</Button>
+                      <Button
+                        onClick={saveProject}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground transition-all"
+                      >
+                        Save Changes
+                      </Button>
                       <Button
                         variant="outline"
                         onClick={() => setEditMode(false)}
+                        className="border-primary hover:bg-primary hover:text-primary-foreground"
                       >
                         Cancel
                       </Button>
@@ -673,11 +699,16 @@ export default function ProjectsPage() {
                       <Button
                         variant="outline"
                         onClick={() => setEditMode(true)}
+                        className="border-primary hover:bg-primary hover:text-primary-foreground"
                       >
                         <Edit className="h-4 w-4 mr-2" />
                         Edit
                       </Button>
-                      <Button variant="destructive" onClick={deleteProject}>
+                      <Button
+                        variant="destructive"
+                        onClick={deleteProject}
+                        className="hover:bg-red-600 hover:text-white"
+                      >
                         <Trash2 className="h-4 w-4 mr-2" />
                         Delete
                       </Button>
@@ -685,7 +716,11 @@ export default function ProjectsPage() {
                   )}
                 </>
               )}
-              <Button variant="ghost" onClick={closeModal}>
+              <Button
+                variant="ghost"
+                onClick={closeModal}
+                className="hover:bg-muted hover:text-muted-foreground"
+              >
                 Close
               </Button>
             </div>
