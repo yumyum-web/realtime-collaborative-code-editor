@@ -32,7 +32,7 @@ Alternatively, you can run individual servers:
 - `npm run dev` - Next.js only
 - `npm start` - Next.js production only
 - `tsx server/socketServer.ts` - Websocket server only
-- `y-websocket` - Yjs WebSocket server only
+- `y-websocket-server` - Yjs WebSocket server only
 
 Then,
 
