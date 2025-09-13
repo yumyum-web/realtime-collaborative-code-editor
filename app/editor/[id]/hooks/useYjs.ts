@@ -186,8 +186,8 @@ export function useYjs(
         if (text !== filesContent[activeFile]) {
           updateFileContent(activeFile, text);
         }
-      } catch {
-        console.error();
+      } catch (e) {
+        console.error("Failed to update file content", e);
       }
     });
 
