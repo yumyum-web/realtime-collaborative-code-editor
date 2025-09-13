@@ -10,8 +10,8 @@ export function useMonacoSetup() {
       };
     };
 
-    const monacoEnv = ((window as MonacoEnv).MonacoEnvironment =
-      (window as MonacoEnv).MonacoEnvironment || {});
+    const monacoEnv = (window as MonacoEnv).MonacoEnvironment || {};
+    (window as MonacoEnv).MonacoEnvironment = monacoEnv;
 
     monacoEnv.getWorker = function (_moduleId: string, label: string) {
       if (label === "json")
