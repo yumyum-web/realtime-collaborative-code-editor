@@ -2,17 +2,39 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+First, install dependencies:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
+
+To run the development servers (Next.js, Socket.IO, and Yjs WebSocket servers):
+
+```bash
+npm run dev:all
+```
+
+This will start all three servers concurrently:
+
+- Next.js development server on http://localhost:3000
+- Socket.IO server on http://localhost:3001 (or port defined in SOCKET_PORT env var)
+- Yjs WebSocket server on ws://localhost:1234 (or port defined in YJS_PORT env var)
+
+For production, first build the Next.js app:
+
+```bash
+npm run build
+npm run start:all
+```
+
+Alternatively, you can run individual servers:
+
+- `npm run dev` - Next.js only
+- `npm start` - Next.js production only
+- `tsx server/socketServer.ts` - Websocket server only
+- `y-websocket-server` - Yjs WebSocket server only
+
+Then,
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
