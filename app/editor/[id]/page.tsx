@@ -106,7 +106,7 @@ export default function EditorPage() {
 
   const handleSaveProject = useCallback(() => {
     if (!projectId) return;
-    const structure = reconstructTree(fileTree)[0];
+    const structure = reconstructTree(fileTree, "", filesContent)[0];
     fetch(`/api/projects/${projectId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -117,7 +117,7 @@ export default function EditorPage() {
         else alert("Save failed");
       })
       .catch(() => alert("Save failed"));
-  }, [projectId, fileTree]);
+  }, [projectId, fileTree, filesContent]);
 
   const handleAddNode = useCallback(
     (type: "file" | "folder", parentPath: string) => {
