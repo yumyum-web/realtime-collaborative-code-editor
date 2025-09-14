@@ -68,7 +68,7 @@ export function reconstructTree(
     return {
       name: n.name,
       type: "file",
-      content: n.content || filesContent[path] || "",
+      content: filesContent[path] || "",
     };
   });
 }
