@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import Editor, { OnMount } from "@monaco-editor/react";
 import { useParams } from "next/navigation";
 import { VscComment } from "react-icons/vsc";
+import * as monaco from "monaco-editor";
 
 import type {
   ChatMessage,
@@ -27,7 +28,6 @@ export default function EditorPage() {
   const { id: projectId } = useParams() as { id: string };
 
   useMonacoSetup();
-
   const user = useUser();
 
   const {
@@ -52,7 +52,6 @@ export default function EditorPage() {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
     new Set(),
   );
-
   const [chatOpen, setChatOpen] = useState(false);
 
   const { presence, setEditor, setMonaco } = useYjs(
@@ -62,6 +61,10 @@ export default function EditorPage() {
     filesContent,
     updateFileContent,
   );
+
+  // 🔑 NEW refs to keep editor & monaco instances
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<typeof import("monaco-editor") | null>(null);
 
   useEffect(() => {
     if (fileTree.length > 0 && !activeFile) {
@@ -161,24 +164,34 @@ export default function EditorPage() {
     [projectId, emitChatMessage],
   );
 
-  const handleMount: OnMount = useCallback(
-    (editor, monaco) => {
-      setEditor(editor);
-      setMonaco(monaco);
-      if (!activeFile) return;
-      const safe = activeFile.replace(/[\/\\]/g, "--").replace(/\./g, "-");
-      const uri = monaco.Uri.parse(`inmemory:///${projectId}/${safe}`);
-      let model = monaco.editor.getModel(uri);
-      if (!model)
-        model = monaco.editor.createModel(
-          filesContent[activeFile] ?? "",
-          "javascript",
-          uri,
-        );
-      editor.setModel(model);
-    },
-    [activeFile, projectId, filesContent, setEditor, setMonaco],
-  );
+  // 🔑 Simplified: just save the refs
+  const handleMount: OnMount = (editor, monaco) => {
+    setEditor(editor);
+    setMonaco(monaco);
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+  };
+
+  // 🔑 NEW effect to update Monaco model when content changes
+  useEffect(() => {
+    if (!editorRef.current || !monacoRef.current || !activeFile) return;
+
+    const monaco = monacoRef.current;
+    const safe = activeFile.replace(/[\/\\]/g, "--").replace(/\./g, "-");
+    const uri = monaco.Uri.parse(`inmemory:///${projectId}/${safe}`);
+    let model = monaco.editor.getModel(uri);
+
+    if (!model) {
+      model = monaco.editor.createModel(
+        filesContent[activeFile] ?? "",
+        "javascript",
+        uri,
+      );
+    } else if (model.getValue() !== (filesContent[activeFile] ?? "")) {
+      model.setValue(filesContent[activeFile] ?? "");
+    }
+    editorRef.current.setModel(model);
+  }, [activeFile, filesContent, projectId]);
 
   return (
     <div className="flex h-screen bg-gray-900 text-gray-200">
