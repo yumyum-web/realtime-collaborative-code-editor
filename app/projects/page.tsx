@@ -31,8 +31,7 @@ import {
   Calendar,
   LogOut,
 } from "lucide-react";
-import Image from "next/image";
-import Logo from "@/app/assets/logo.png";
+
 import LogoTitle from "../components/LogoTitle";
 
 interface Project {
