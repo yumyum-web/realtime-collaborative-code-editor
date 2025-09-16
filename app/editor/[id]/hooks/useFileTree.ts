@@ -30,10 +30,6 @@ export function useFileTree(projectId: string) {
       .catch(console.error);
   }, [projectId]);
 
-  const updateFileContent = (path: string, content: string) => {
-    setFilesContent((prev) => ({ ...prev, [path]: content }));
-  };
-
   const getFirstFile = () => findFirstFile(fileTree);
 
   return {
@@ -41,7 +37,6 @@ export function useFileTree(projectId: string) {
     setFileTree,
     filesContent,
     setFilesContent,
-    updateFileContent,
     projectTitle,
     getFirstFile,
   };

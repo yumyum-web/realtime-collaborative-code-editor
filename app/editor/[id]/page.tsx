@@ -43,7 +43,6 @@ export default function EditorPage() {
     setFileTree,
     filesContent,
     setFilesContent,
-    updateFileContent,
     projectTitle,
     getFirstFile,
   } = useFileTree(projectId);
@@ -60,7 +59,6 @@ export default function EditorPage() {
     user,
     projectId,
     filesContent,
-    updateFileContent,
   );
 
   useEffect(() => {

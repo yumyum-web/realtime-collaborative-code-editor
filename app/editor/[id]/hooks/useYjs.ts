@@ -11,7 +11,6 @@ export function useYjs(
   user: User | null,
   projectId: string,
   filesContent: Record<string, string>,
-  updateFileContent: (path: string, content: string) => void,
 ) {
   const [monaco, setMonaco] = useState<typeof import("monaco-editor") | null>(
     null,
@@ -180,21 +179,7 @@ export function useYjs(
       });
     });
 
-    const modelListener = model.onDidChangeContent(() => {
-      try {
-        const text = model.getValue();
-        if (text !== filesContent[activeFile]) {
-          updateFileContent(activeFile, text);
-        }
-      } catch (e) {
-        console.error("Failed to update file content", e);
-      }
-    });
-
     return () => {
-      try {
-        modelListener.dispose();
-      } catch {}
       try {
         cursorListener?.dispose();
       } catch {}
@@ -208,7 +193,6 @@ export function useYjs(
     projectId,
     updateRemoteCursorDecorations,
     filesContent,
-    updateFileContent,
     provider,
     editor,
     model,
