@@ -16,7 +16,7 @@ import { useSocket } from "./hooks/useSocket";
 import { useFileTree } from "./hooks/useFileTree";
 import { useYjs } from "./hooks/useYjs";
 
-import { useMonacoSetup } from "./utils/monacoSetup";
+import { useMonaco } from "./hooks/useMonaco";
 import { addNode, deleteNode, reconstructTree } from "./utils/fileTreeHelpers";
 
 import { FileTree } from "./components/FileTree";
@@ -26,7 +26,7 @@ import { PresenceList } from "./components/PresenceList";
 export default function EditorPage() {
   const { id: projectId } = useParams() as { id: string };
 
-  useMonacoSetup();
+  useMonaco();
 
   const user = useUser();
 

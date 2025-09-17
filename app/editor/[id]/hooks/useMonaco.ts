@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-export function useMonacoSetup() {
+export function useMonaco() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
