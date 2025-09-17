@@ -2,7 +2,6 @@ export type FileNode = {
   name: string;
   type: "file" | "folder";
   children?: FileNode[];
-  content?: string | null;
 };
 
 export type ChatMessage = {

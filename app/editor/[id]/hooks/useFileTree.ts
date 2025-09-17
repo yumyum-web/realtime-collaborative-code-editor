@@ -13,11 +13,11 @@ export function useFileTree(projectId: string) {
     fetch(`/api/projects/${projectId}`)
       .then((r) => r.json())
       .then((data) => {
-        const root: FileNode = data.structure ?? data;
+        const root = data.structure ?? data;
         setProjectTitle(data.title ?? "Untitled");
 
         const flat: Record<string, string> = {};
-        function walk(node: FileNode, path = "") {
+        function walk(node: FileNode & { content?: string }, path = "") {
           const cur = path ? `${path}/${node.name}` : node.name;
           if (node.type === "file") flat[cur] = node.content ?? "";
           else node.children?.forEach((c) => walk(c, cur));

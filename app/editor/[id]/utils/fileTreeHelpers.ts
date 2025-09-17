@@ -14,7 +14,7 @@ export function addNode(
       if (nodePath === parentPath) {
         if (!node.children) node.children = [];
         if (type === "file") {
-          node.children.push({ name, type: "file", content: "" });
+          node.children.push({ name, type: "file" });
           onFileInit?.(`${nodePath}/${name}`);
         } else {
           node.children.push({ name, type: "folder", children: [] });
