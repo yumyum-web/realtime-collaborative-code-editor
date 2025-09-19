@@ -163,19 +163,8 @@ export default function EditorPage() {
     (editor, monaco) => {
       setEditor(editor);
       setMonaco(monaco);
-      if (!activeFile) return;
-      const safe = activeFile.replace(/[\/\\]/g, "--").replace(/\./g, "-");
-      const uri = monaco.Uri.parse(`inmemory:///${projectId}/${safe}`);
-      let model = monaco.editor.getModel(uri);
-      if (!model)
-        model = monaco.editor.createModel(
-          filesContent[activeFile] ?? "",
-          "javascript",
-          uri,
-        );
-      editor.setModel(model);
     },
-    [activeFile, projectId, filesContent, setEditor, setMonaco],
+    [setEditor, setMonaco],
   );
 
   return (

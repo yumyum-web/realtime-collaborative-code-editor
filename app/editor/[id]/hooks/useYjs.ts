@@ -89,10 +89,10 @@ export function useYjs(
   useEffect(() => {
     if (!ydoc) return;
     const safeFile = activeFile.replace(/[\/\\]/g, "--").replace(/\./g, "-");
-    const docName = `${projectId}-${safeFile}`;
+    const roomName = `${projectId}-${safeFile}`;
     const provider = new WebsocketProvider(
       "ws://localhost:1234",
-      docName,
+      roomName,
       ydoc,
     );
     setProvider(provider);
@@ -106,20 +106,14 @@ export function useYjs(
   useEffect(() => {
     if (!activeFile || !monaco) return;
 
-    const safeFile = activeFile.replace(/[\/\\]/g, "--").replace(/\./g, "-");
-
-    const uri = monaco.Uri.parse(`inmemory:///${projectId}/${safeFile}`);
+    const uri = monaco.Uri.parse(`inmemory:///${projectId}/${activeFile}`);
     let model = monaco.editor.getModel(uri);
     if (!model) {
-      model = monaco.editor.createModel(
-        filesContent[activeFile] ?? "",
-        "javascript",
-        uri,
-      );
+      model = monaco.editor.createModel("", undefined, uri);
     }
 
     setModel(model);
-  }, [activeFile, monaco, projectId, filesContent]);
+  }, [activeFile, monaco, projectId]);
 
   // Update editor with the new model
   useEffect(() => {
@@ -133,6 +127,35 @@ export function useYjs(
     import("y-monaco").then(({ MonacoBinding }) => {
       if (!ydoc || !model || !provider) return;
       const ytext = ydoc.getText("monaco");
+      const ymap = ydoc.getMap("metadata");
+
+      const initializeContent = () => {
+        const isInitialized = ymap.get("initialized");
+        const hasContent = ytext.length > 0;
+
+        if (
+          !isInitialized &&
+          !hasContent &&
+          activeFile &&
+          filesContent[activeFile]
+        ) {
+          ytext.insert(0, filesContent[activeFile]);
+          ymap.set("initialized", true);
+        }
+      };
+
+      if (provider.synced) {
+        // If already synced, initialize immediately
+        initializeContent();
+      } else {
+        // Wait for initial sync to complete
+        const onSync = () => {
+          initializeContent();
+          provider.off("synced", onSync);
+        };
+        provider.on("synced", onSync);
+      }
+
       binding = new MonacoBinding(
         ytext,
         model,
@@ -144,11 +167,11 @@ export function useYjs(
     return () => {
       binding?.destroy?.();
     };
-  }, [model, provider, ydoc, editor]);
+  }, [model, provider, ydoc, editor, activeFile, filesContent]);
 
   // Awareness setup
   useEffect(() => {
-    if (!provider || !editor || !model) return;
+    if (!provider || !editor) return;
     const awareness = provider.awareness;
     if (user) {
       awareness.setLocalStateField("user", {
@@ -187,16 +210,7 @@ export function useYjs(
         awareness.off("change", onAwarenessChange);
       } catch {}
     };
-  }, [
-    activeFile,
-    user,
-    projectId,
-    updateRemoteCursorDecorations,
-    filesContent,
-    provider,
-    editor,
-    model,
-  ]);
+  }, [user, updateRemoteCursorDecorations, provider, editor]);
 
   return {
     presence,
