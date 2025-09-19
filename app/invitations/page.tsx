@@ -3,10 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
-import {
-  Card,
-  CardContent,
-} from "@/app/components/ui/card";
+import { Card, CardContent } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import {
   User,
@@ -214,8 +211,8 @@ export default function InvitationsPage() {
               </div>
               <h3 className="text-xl font-semibold mb-2">No Invitations</h3>
               <p className="text-muted-foreground max-w-sm">
-                When someone invites you to collaborate on a project, you&apos;ll see
-                their invitations here.
+                When someone invites you to collaborate on a project,
+                you&apos;ll see their invitations here.
               </p>
             </div>
           ) : (
