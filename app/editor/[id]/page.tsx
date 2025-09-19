@@ -41,8 +41,8 @@ export default function EditorPage() {
   const {
     fileTree,
     setFileTree,
-    filesContent,
-    setFilesContent,
+    initialFiles,
+    filesRef,
     projectTitle,
     getFirstFile,
   } = useFileTree(projectId);
@@ -58,7 +58,8 @@ export default function EditorPage() {
     activeFile,
     user,
     projectId,
-    filesContent,
+    initialFiles,
+    filesRef.current,
   );
 
   useEffect(() => {
@@ -75,22 +76,19 @@ export default function EditorPage() {
     if (!socket) return;
 
     const handleNodeAdded = (payload: NodeAddedPayload) => {
-      setFileTree((prev) =>
-        addNode(prev, payload, (full) =>
-          setFilesContent((p) => ({ ...p, [full]: "" })),
-        ),
-      );
+      setFileTree((prev) => addNode(prev, payload));
+      if (payload.type === "file") {
+        setActiveFile((f) => f || `${payload.parentPath}/${payload.name}`);
+        filesRef.current[`${payload.parentPath}/${payload.name}`] = "";
+      }
       setExpandedFolders((p) => new Set(p).add(payload.parentPath));
     };
 
     const handleNodeDeleted = (payload: NodeDeletedPayload) => {
       if (payload.path === "root") return;
       setFileTree((prev) => deleteNode(prev, payload));
-      setFilesContent((prev) => {
-        const c = { ...prev };
-        delete c[payload.path];
-        return c;
-      });
+      delete filesRef.current[payload.path];
+      setActiveFile((f) => (f === payload.path ? "" : f));
     };
 
     socket.on("node-added", handleNodeAdded);
@@ -100,11 +98,12 @@ export default function EditorPage() {
       socket.off("node-added", handleNodeAdded);
       socket.off("node-deleted", handleNodeDeleted);
     };
-  }, [socket, setFileTree, setFilesContent]);
+  }, [socket, setFileTree, filesRef]);
 
   const handleSaveProject = useCallback(() => {
     if (!projectId) return;
-    const structure = reconstructTree(fileTree, "", filesContent)[0];
+
+    const structure = reconstructTree(fileTree, "", filesRef.current)[0];
     fetch(`/api/projects/${projectId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -115,21 +114,21 @@ export default function EditorPage() {
         else alert("Save failed");
       })
       .catch(() => alert("Save failed"));
-  }, [projectId, fileTree, filesContent]);
+  }, [projectId, fileTree, filesRef]);
 
   const handleAddNode = useCallback(
     (type: "file" | "folder", parentPath: string) => {
       const name = prompt(`Enter ${type} name`);
       if (!name) return;
-      setFileTree((p) =>
-        addNode(p, { type, parentPath, name }, (full) =>
-          setFilesContent((s) => ({ ...s, [full]: "" })),
-        ),
-      );
+      setFileTree((p) => addNode(p, { type, parentPath, name }));
+      if (type === "file") {
+        setActiveFile((f) => f || `${parentPath}/${name}`);
+        filesRef.current[`${parentPath}/${name}`] = "";
+      }
       setExpandedFolders((p) => new Set(p).add(parentPath));
       emitNodeAdded({ type, parentPath, name });
     },
-    [setFileTree, setFilesContent, emitNodeAdded],
+    [setFileTree, filesRef, emitNodeAdded],
   );
 
   const handleDeleteNode = useCallback(
@@ -138,13 +137,9 @@ export default function EditorPage() {
       if (!confirm(`Delete ${path}?`)) return;
       setFileTree((p) => deleteNode(p, { path }));
       emitNodeDeleted({ path });
-      setFilesContent((prev) => {
-        const copy = { ...prev };
-        delete copy[path];
-        return copy;
-      });
+      delete filesRef.current[path];
     },
-    [setFileTree, emitNodeDeleted, setFilesContent],
+    [setFileTree, emitNodeDeleted, filesRef],
   );
 
   const handleSendChatMessage = useCallback(

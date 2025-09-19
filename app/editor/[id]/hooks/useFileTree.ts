@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FileNode } from "../types";
 import { findFirstFile } from "../utils/fileTreeHelpers";
 
 export function useFileTree(projectId: string) {
   const [fileTree, setFileTree] = useState<FileNode[]>([]);
-  const [filesContent, setFilesContent] = useState<Record<string, string>>({});
+  const [initialFiles, setInitialFiles] = useState<Record<string, string>>({});
+  const filesRef = useRef<Record<string, string>>({});
   const [projectTitle, setProjectTitle] = useState("Loading...");
 
   useEffect(() => {
@@ -24,7 +25,8 @@ export function useFileTree(projectId: string) {
         }
         walk(root);
 
-        setFilesContent(flat);
+        setInitialFiles(flat);
+        filesRef.current = flat;
         setFileTree([root]);
       })
       .catch(console.error);
@@ -35,8 +37,8 @@ export function useFileTree(projectId: string) {
   return {
     fileTree,
     setFileTree,
-    filesContent,
-    setFilesContent,
+    initialFiles,
+    filesRef,
     projectTitle,
     getFirstFile,
   };

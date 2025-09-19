@@ -3,7 +3,6 @@ import type { FileNode, NodeAddedPayload, NodeDeletedPayload } from "../types";
 export function addNode(
   tree: FileNode[],
   payload: NodeAddedPayload,
-  onFileInit?: (full: string) => void,
 ): FileNode[] {
   const { type, parentPath, name } = payload;
   const newTree = JSON.parse(JSON.stringify(tree)) as FileNode[];
@@ -15,7 +14,6 @@ export function addNode(
         if (!node.children) node.children = [];
         if (type === "file") {
           node.children.push({ name, type: "file" });
-          onFileInit?.(`${nodePath}/${name}`);
         } else {
           node.children.push({ name, type: "folder", children: [] });
         }

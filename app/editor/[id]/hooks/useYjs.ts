@@ -10,7 +10,8 @@ export function useYjs(
   activeFile: string,
   user: User | null,
   projectId: string,
-  filesContent: Record<string, string>,
+  initialFiles: Record<string, string>,
+  files: Record<string, string>,
 ) {
   const [monaco, setMonaco] = useState<typeof import("monaco-editor") | null>(
     null,
@@ -124,23 +125,30 @@ export function useYjs(
   // Setup monaco binding
   useEffect(() => {
     let binding: MonacoBinding | undefined;
+    let ytext: Y.Text | undefined;
+    let ymap: Y.Map<boolean> | undefined;
+
+    const observeYText = () => {
+      files[activeFile] = ytext!.toString();
+    };
+
     import("y-monaco").then(({ MonacoBinding }) => {
       if (!ydoc || !model || !provider) return;
-      const ytext = ydoc.getText("monaco");
-      const ymap = ydoc.getMap("metadata");
+      ytext = ydoc.getText("monaco");
+      ymap = ydoc.getMap("metadata");
 
       const initializeContent = () => {
-        const isInitialized = ymap.get("initialized");
-        const hasContent = ytext.length > 0;
+        const isInitialized = ymap!.get("initialized");
+        const hasContent = ytext!.length > 0;
 
         if (
           !isInitialized &&
           !hasContent &&
           activeFile &&
-          filesContent[activeFile]
+          initialFiles[activeFile]
         ) {
-          ytext.insert(0, filesContent[activeFile]);
-          ymap.set("initialized", true);
+          ytext!.insert(0, initialFiles[activeFile]);
+          ymap!.set("initialized", true);
         }
       };
 
@@ -156,6 +164,8 @@ export function useYjs(
         provider.on("synced", onSync);
       }
 
+      ytext.observe(observeYText);
+
       binding = new MonacoBinding(
         ytext,
         model,
@@ -166,8 +176,9 @@ export function useYjs(
 
     return () => {
       binding?.destroy?.();
+      ytext?.unobserve(observeYText);
     };
-  }, [model, provider, ydoc, editor, activeFile, filesContent]);
+  }, [model, provider, ydoc, editor, activeFile, initialFiles, files]);
 
   // Awareness setup
   useEffect(() => {
