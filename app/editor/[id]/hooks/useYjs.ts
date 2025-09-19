@@ -141,13 +141,8 @@ export function useYjs(
         const isInitialized = ymap!.get("initialized");
         const hasContent = ytext!.length > 0;
 
-        if (
-          !isInitialized &&
-          !hasContent &&
-          activeFile &&
-          initialFiles[activeFile]
-        ) {
-          ytext!.insert(0, initialFiles[activeFile]);
+        if (!isInitialized && !hasContent && activeFile && files[activeFile]) {
+          ytext!.insert(0, files[activeFile]);
           ymap!.set("initialized", true);
         }
       };
