@@ -5,7 +5,7 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev --turbopack",
-    "dev:all": "concurrently 'next dev --turbopack' 'tsx server/socketServer.ts' 'y-websocket-server'",
+    "dev:all": "concurrently \"next dev --turbopack\" \"tsx server/socketServer.ts\" \"y-websocket-server\"",
     "format:check": "prettier --check .",
     "format:write": "prettier --write .",
     "lint": "next lint",
