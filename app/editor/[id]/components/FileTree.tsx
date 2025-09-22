@@ -43,7 +43,11 @@ export function FileTree({
               className="flex items-center gap-1 px-2 py-1 hover:bg-accent rounded cursor-pointer"
               onClick={() => {
                 const s = new Set(expandedFolders);
-                s.has(path) ? s.delete(path) : s.add(path);
+                if (s.has(path)) {
+                  s.delete(path);
+                } else {
+                  s.add(path);
+                }
                 setExpandedFolders(s);
               }}
             >
