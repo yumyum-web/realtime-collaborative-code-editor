@@ -63,18 +63,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Add user to project's members
-    await Project.findByIdAndUpdate(
-      invitation.projectId,
-      {
-        $addToSet: {
-          members: {
-            email,
-            username: email.split("@")[0],
-            role: "editor",
-          },
+    await Project.findByIdAndUpdate(invitation.projectId, {
+      $addToSet: {
+        members: {
+          email,
+          username: email.split("@")[0],
+          role: "editor",
         },
       },
-    );
+    });
 
     // Mark invitation as accepted
     invitation.status = "accepted";
