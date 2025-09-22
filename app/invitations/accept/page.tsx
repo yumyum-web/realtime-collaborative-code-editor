@@ -16,15 +16,16 @@ export default function AcceptInvitationPage() {
   // Helper function to mask emails in a text string
   const maskEmailInText = (text: string): string => {
     // Regex to match emails (simple pattern for local@domain)
-    const emailRegex = /\b([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/g;
+    const emailRegex =
+      /\b([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/g;
     return text.replace(emailRegex, (match, localPart, domain) => {
-      if (domain === 'gmail.com' && localPart.length > 5) {
+      if (domain === "gmail.com" && localPart.length > 5) {
         const visiblePart = localPart.slice(0, -5);
-        const maskedPart = '*'.repeat(5);
-        return visiblePart + maskedPart + '@' + domain;
-      } else if (domain === 'gmail.com') {
+        const maskedPart = "*".repeat(5);
+        return visiblePart + maskedPart + "@" + domain;
+      } else if (domain === "gmail.com") {
         // If local part is 5 or fewer chars, mask it fully
-        return '*'.repeat(localPart.length) + '@' + domain;
+        return "*".repeat(localPart.length) + "@" + domain;
       }
       // For non-gmail domains, return as-is (or customize if needed)
       return match;
