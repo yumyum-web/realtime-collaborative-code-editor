@@ -5,15 +5,31 @@ import { useRouter, useSearchParams } from "next/navigation";
 import LogoTitle from "@/app/components/LogoTitle";
 import { Card } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
-import Success from "@/app/assets/accepted.png";
-import Failure from "@/app/assets/failed.png";
-import Image from "next/image";
+import { CheckCircle, XCircle } from "lucide-react";
 
 export default function AcceptInvitationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<string>("Checking...");
   const [loading, setLoading] = useState(true);
+
+  // Helper function to mask emails in a text string
+  const maskEmailInText = (text: string): string => {
+    // Regex to match emails (simple pattern for local@domain)
+    const emailRegex = /\b([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/g;
+    return text.replace(emailRegex, (match, localPart, domain) => {
+      if (domain === 'gmail.com' && localPart.length > 5) {
+        const visiblePart = localPart.slice(0, -5);
+        const maskedPart = '*'.repeat(5);
+        return visiblePart + maskedPart + '@' + domain;
+      } else if (domain === 'gmail.com') {
+        // If local part is 5 or fewer chars, mask it fully
+        return '*'.repeat(localPart.length) + '@' + domain;
+      }
+      // For non-gmail domains, return as-is (or customize if needed)
+      return match;
+    });
+  };
 
   useEffect(() => {
     const token = searchParams.get("token");
@@ -42,7 +58,9 @@ export default function AcceptInvitationPage() {
           setTimeout(() => router.push("/projects"), 2000);
         } else {
           const data = await res.json();
-          setStatus(data.error || "Failed to accept invitation.");
+          const rawError = data.error || "Failed to accept invitation.";
+          // Mask any emails in the error message
+          setStatus(maskEmailInText(rawError));
         }
       })
       .catch(() => setStatus("Failed to accept invitation."))
@@ -60,20 +78,20 @@ export default function AcceptInvitationPage() {
       ></div>
       <div className="flex flex-col items-center justify-center z-10 w-full max-w-md mt-8">
         <Card className="w-full p-8 flex flex-col items-center">
-          <h1 className="text-3xl font-bold mb-[-12]">Accept Invitation</h1>
+          <h1 className="text-3xl font-bold mb-[-8]">Accept Invitation</h1>
           <div className="p-6 rounded shadow-lg w-full flex flex-col items-center">
             {loading ? (
               <p>Processing...</p>
             ) : (
               <>
                 {status.toLowerCase().includes("accepted") && (
-                  <Image src={Success} alt="Accepted" className="h-55 w-85" />
+                  <CheckCircle className="h-20 w-20 text-green-500 mb-4" />
                 )}
                 {(status.toLowerCase().includes("not for you") ||
                   status.toLowerCase().includes("error") ||
                   status.toLowerCase().includes("invalid") ||
                   status === "403") && (
-                  <Image src={Failure} alt="Failed" className="h-55 w-85" />
+                  <XCircle className="h-20 w-20 text-red-500 mb-4" />
                 )}
                 <p className="text-center">{status}</p>
                 {(status.toLowerCase().includes("not for you") ||
