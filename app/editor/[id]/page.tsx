@@ -10,26 +10,23 @@ import type {
   NodeAddedPayload,
   NodeDeletedPayload,
 } from "./types";
-
 import { useUser } from "./hooks/useUser";
 import { useSocket } from "./hooks/useSocket";
 import { useFileTree } from "./hooks/useFileTree";
 import { useYjs } from "./hooks/useYjs";
-
 import { useMonaco } from "./hooks/useMonaco";
 import { addNode, deleteNode, reconstructTree } from "./utils/fileTreeHelpers";
 
 import { FileTree } from "./components/FileTree";
 import { ChatPanel } from "./components/ChatPanel";
 import { PresenceList } from "./components/PresenceList";
+import { Button } from "@/app/components/ui/button";
 
 export default function EditorPage() {
   const { id: projectId } = useParams() as { id: string };
 
   useMonaco();
-
   const user = useUser();
-
   const {
     socket,
     chatMessages,
@@ -37,7 +34,6 @@ export default function EditorPage() {
     emitNodeDeleted,
     emitChatMessage,
   } = useSocket(projectId);
-
   const {
     fileTree,
     setFileTree,
@@ -47,11 +43,10 @@ export default function EditorPage() {
     getFirstFile,
   } = useFileTree(projectId);
 
-  const [activeFile, setActiveFile] = useState<string>("");
+  const [activeFile, setActiveFile] = useState("");
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
     new Set(),
   );
-
   const [chatOpen, setChatOpen] = useState(false);
 
   const { presence, setEditor, setMonaco } = useYjs(
@@ -62,11 +57,12 @@ export default function EditorPage() {
     filesRef.current,
   );
 
+  /* ----------------- File-tree & sockets ------------------ */
   useEffect(() => {
     if (fileTree.length > 0 && !activeFile) {
-      const firstFile = getFirstFile();
-      if (firstFile) {
-        setActiveFile(firstFile);
+      const first = getFirstFile();
+      if (first) {
+        setActiveFile(first);
         setExpandedFolders(new Set([fileTree[0].name]));
       }
     }
@@ -74,7 +70,6 @@ export default function EditorPage() {
 
   useEffect(() => {
     if (!socket) return;
-
     const handleNodeAdded = (payload: NodeAddedPayload) => {
       setFileTree((prev) => addNode(prev, payload));
       if (payload.type === "file") {
@@ -83,36 +78,29 @@ export default function EditorPage() {
       }
       setExpandedFolders((p) => new Set(p).add(payload.parentPath));
     };
-
     const handleNodeDeleted = (payload: NodeDeletedPayload) => {
       if (payload.path === "root") return;
       setFileTree((prev) => deleteNode(prev, payload));
       delete filesRef.current[payload.path];
       setActiveFile((f) => (f === payload.path ? "" : f));
     };
-
     socket.on("node-added", handleNodeAdded);
     socket.on("node-deleted", handleNodeDeleted);
-
     return () => {
       socket.off("node-added", handleNodeAdded);
       socket.off("node-deleted", handleNodeDeleted);
     };
   }, [socket, setFileTree, filesRef]);
 
+  /* ----------------- Actions ------------------ */
   const handleSaveProject = useCallback(() => {
-    if (!projectId) return;
-
     const structure = reconstructTree(fileTree, "", filesRef.current)[0];
     fetch(`/api/projects/${projectId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ structure }),
     })
-      .then((res) => {
-        if (res.ok) alert("Project saved");
-        else alert("Save failed");
-      })
+      .then((r) => (r.ok ? alert("Project saved") : alert("Save failed")))
       .catch(() => alert("Save failed"));
   }, [projectId, fileTree, filesRef]);
 
@@ -162,16 +150,16 @@ export default function EditorPage() {
     [setEditor, setMonaco],
   );
 
+  /* ----------------- Layout ------------------ */
   return (
-    <div className="flex h-screen bg-gray-900 text-gray-200">
+    <div className="flex h-screen bg-background text-foreground">
+      {/* Sidebar */}
       <aside
-        className={`w-64 bg-gray-800 p-4 overflow-y-auto text-sm border-r border-gray-700 ${
+        className={`w-64 bg-muted/40 border-r border-border p-4 overflow-y-auto ${
           chatOpen ? "hidden md:block" : ""
         }`}
       >
-        <h2 className="text-xl font-bold mb-4 border-b border-gray-700 pb-2">
-          {projectTitle}
-        </h2>
+        <h2 className="text-lg font-semibold mb-4">{projectTitle}</h2>
         <FileTree
           fileTree={fileTree}
           setFileTree={setFileTree}
@@ -182,45 +170,45 @@ export default function EditorPage() {
           onAddNode={handleAddNode}
           onDeleteNode={handleDeleteNode}
         />
+
         <div className="mt-4 flex gap-2">
-          <button
-            className="flex-1 bg-blue-800 hover:bg-blue-700 py-1 rounded"
+          <Button
+            variant="outline"
+            className="flex-1"
             onClick={() => handleAddNode("folder", "root")}
           >
             + Folder
-          </button>
-          <button
-            className="flex-1 bg-blue-800 hover:bg-blue-700 py-1 rounded"
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-1"
             onClick={() => handleAddNode("file", "root")}
           >
             + File
-          </button>
+          </Button>
         </div>
-        <button
-          className="mt-4 w-full flex items-center gap-2 px-2 py-1 bg-green-700 hover:bg-green-600 rounded"
+
+        <Button
+          variant="secondary"
+          className="mt-4 w-full flex items-center gap-2"
           onClick={() => setChatOpen((s) => !s)}
         >
           <VscComment /> Chat
-        </button>
+        </Button>
+
         <PresenceList presence={presence} />
       </aside>
 
-      <div
+      {/* Editor */}
+      <main
         className={`flex-1 flex flex-col ${chatOpen ? "md:w-2/3" : "w-full"}`}
       >
-        <div className="flex justify-between items-center bg-gray-800 px-4 py-2 border-b border-gray-700">
+        <header className="flex justify-between items-center border-b border-border px-4 py-2 bg-muted/30">
           <div>
             Editing: <strong>{activeFile || "No file selected"}</strong>
           </div>
-          <div className="flex gap-2">
-            <button
-              className="bg-blue-800 hover:bg-blue-600 px-4 py-1 rounded"
-              onClick={handleSaveProject}
-            >
-              Save Project
-            </button>
-          </div>
-        </div>
+          <Button onClick={handleSaveProject}>Save Project</Button>
+        </header>
         <div className="flex-1">
           <Editor
             height="100%"
@@ -230,8 +218,9 @@ export default function EditorPage() {
             options={{ minimap: { enabled: false }, automaticLayout: true }}
           />
         </div>
-      </div>
+      </main>
 
+      {/* Chat Drawer */}
       {chatOpen && (
         <ChatPanel
           chatMessages={chatMessages}
