@@ -8,6 +8,7 @@ import { Textarea } from "@/app/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/app/components/ui/dialog";
@@ -125,7 +126,7 @@ export default function ProjectsPage() {
   // Modal helpers
   const openMoreModal = async (project: Project) => {
     setSelectedProject(project);
-    setEditMode(false);
+    setEditMode(user?.email === project.owner);
     setShowModal(true);
 
     try {
@@ -528,6 +529,10 @@ export default function ProjectsPage() {
               <DialogTitle className="flex items-center justify-between text-primary">
                 {editMode ? "Edit Project" : "Project Details"}
               </DialogTitle>
+              <DialogDescription>
+                Here you can view and edit project details, collaborators, and
+                pending invitations.
+              </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-6">
