@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "../../../lib/mongoose";
 import Invitation from "../../../models/Invitation";
 import User from "../../../models/User";
+import Project from "../../../models/project";
 
 // POST /api/invitations/accept?token=INVITATION_ID
 export async function POST(req: NextRequest) {
@@ -60,6 +61,17 @@ export async function POST(req: NextRequest) {
         { status: 404 },
       );
     }
+
+    // Add user to project's members
+    await Project.findByIdAndUpdate(invitation.projectId, {
+      $addToSet: {
+        members: {
+          email,
+          username: email.split("@")[0],
+          role: "editor",
+        },
+      },
+    });
 
     // Mark invitation as accepted
     invitation.status = "accepted";
