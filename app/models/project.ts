@@ -13,12 +13,28 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
+export interface GitCommit {
+  hash: string;
+  message: string;
+  author: string;
+  date: Date;
+  filesChanged: string[];
+}
+
+export interface GitBranch {
+  name: string;
+  current: boolean;
+}
+
 export interface ProjectDocument extends Document {
   title: string;
   description?: string;
   members: Member[];
   structure: Record<string, unknown>;
   chats: ChatMessage[];
+  gitRepoPath?: string; // Path to the Git repository on the server
+  gitCommits: GitCommit[]; // List of commits
+  gitBranches: GitBranch[]; // List of branches
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +45,25 @@ const ChatSchema = new Schema<ChatMessage>(
     senderUsername: { type: String, required: true },
     message: { type: String, required: true },
     timestamp: { type: Date, default: Date.now },
+  },
+  { _id: false },
+);
+
+const GitCommitSchema = new Schema<GitCommit>(
+  {
+    hash: { type: String, required: true },
+    message: { type: String, required: true },
+    author: { type: String, required: true },
+    date: { type: Date, required: true },
+    filesChanged: { type: [String], default: [] },
+  },
+  { _id: false },
+);
+
+const GitBranchSchema = new Schema<GitBranch>(
+  {
+    name: { type: String, required: true },
+    current: { type: Boolean, default: false },
   },
   { _id: false },
 );
@@ -49,6 +84,9 @@ const ProjectSchema = new Schema<ProjectDocument>(
     members: { type: [MemberSchema], required: true },
     structure: { type: Schema.Types.Mixed, default: {} },
     chats: { type: [ChatSchema], default: [] },
+    gitRepoPath: { type: String },
+    gitCommits: { type: [GitCommitSchema], default: [] },
+    gitBranches: { type: [GitBranchSchema], default: [] },
   },
   { timestamps: true },
 );

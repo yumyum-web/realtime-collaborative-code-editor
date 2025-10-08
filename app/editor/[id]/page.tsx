@@ -53,6 +53,7 @@ export default function EditorPage() {
   );
 
   const [chatOpen, setChatOpen] = useState(false);
+  const [gitStatus, setGitStatus] = useState<any>(null);
 
   const { presence, setEditor, setMonaco } = useYjs(
     activeFile,
@@ -61,6 +62,48 @@ export default function EditorPage() {
     initialFiles,
     filesRef.current,
   );
+
+  const handleInitGit = useCallback(async () => {
+    if (!user?.email) return;
+    try {
+      const res = await fetch(`/api/projects/${projectId}/git`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userEmail: user.email }),
+      });
+      if (res.ok) {
+        alert("Git initialized");
+        handleGetGitStatus();
+      } else {
+        alert("Failed to initialize Git");
+      }
+    } catch (error) {
+      console.error("Error initializing Git:", error);
+      alert("Error initializing Git");
+    }
+  }, [projectId, user?.email]);
+
+  const handleGetGitStatus = useCallback(async () => {
+    if (!user?.email) return;
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/git?userEmail=${user.email}`,
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setGitStatus(data);
+      } else {
+        setGitStatus(null);
+      }
+    } catch (error) {
+      console.error("Error getting Git status:", error);
+      setGitStatus(null);
+    }
+  }, [projectId, user?.email]);
+
+  useEffect(() => {
+    handleGetGitStatus();
+  }, [handleGetGitStatus]);
 
   useEffect(() => {
     if (fileTree.length > 0 && !activeFile) {
@@ -100,21 +143,40 @@ export default function EditorPage() {
     };
   }, [socket, setFileTree, filesRef]);
 
-  const handleSaveProject = useCallback(() => {
+  const handleSaveProject = useCallback(async () => {
     if (!projectId) return;
 
     const structure = reconstructTree(fileTree, "", filesRef.current)[0];
-    fetch(`/api/projects/${projectId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ structure }),
-    })
-      .then((res) => {
-        if (res.ok) alert("Project saved");
-        else alert("Save failed");
-      })
-      .catch(() => alert("Save failed"));
-  }, [projectId, fileTree, filesRef]);
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ structure }),
+      });
+      if (!res.ok) {
+        alert("Save failed");
+        return;
+      }
+
+      // If Git is initialized, sync files to repo and commit
+      if (gitStatus) {
+        await fetch(`/api/projects/${projectId}/git/commit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userEmail: user?.email,
+            message: "Save project",
+            files: filesRef.current,
+          }),
+        });
+      }
+
+      alert("Project saved");
+    } catch (error) {
+      console.error("Save error:", error);
+      alert("Save failed");
+    }
+  }, [projectId, fileTree, filesRef, gitStatus, user?.email]);
 
   const handleAddNode = useCallback(
     (type: "file" | "folder", parentPath: string) => {
@@ -213,6 +275,12 @@ export default function EditorPage() {
             Editing: <strong>{activeFile || "No file selected"}</strong>
           </div>
           <div className="flex gap-2">
+            <button
+              className="bg-purple-800 hover:bg-purple-600 px-4 py-1 rounded"
+              onClick={handleInitGit}
+            >
+              Init Git
+            </button>
             <button
               className="bg-blue-800 hover:bg-blue-600 px-4 py-1 rounded"
               onClick={handleSaveProject}
