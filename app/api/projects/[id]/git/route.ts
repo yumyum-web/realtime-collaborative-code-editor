@@ -5,23 +5,47 @@ import simpleGit, { SimpleGit } from "simple-git";
 import path from "path";
 import fs from "fs";
 
+interface ProjectMember {
+  email: string;
+  role: string;
+}
+
+interface ProjectDocument {
+  _id: string;
+  title: string;
+  members: ProjectMember[];
+  gitRepoPath?: string;
+  gitCommits: Array<{
+    hash: string;
+    message: string;
+    author: string;
+    date: string;
+    filesChanged: string[];
+  }>;
+  gitBranches: Array<{ name: string; current: boolean }>;
+  save: () => Promise<ProjectDocument>;
+}
+
 // Initialize Git for a project
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
     const { userEmail } = await req.json();
+    const params = await context.params;
     const projectId = params.id;
 
-    const project = await Project.findById(projectId);
+    const project = (await Project.findById(
+      projectId,
+    )) as ProjectDocument | null;
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
     // Check if user is a member
-    const isMember = project.members.some((m: any) => m.email === userEmail);
+    const isMember = project.members.some((m) => m.email === userEmail);
     if (!isMember) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
@@ -141,14 +165,17 @@ export async function POST(
 // Commit changes
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
     const { userEmail, message, files } = await req.json();
+    const params = await context.params;
     const projectId = params.id;
 
-    const project = await Project.findById(projectId);
+    const project = (await Project.findById(
+      projectId,
+    )) as ProjectDocument | null;
     if (!project || !project.gitRepoPath) {
       return NextResponse.json(
         { error: "Git not initialized" },
@@ -156,7 +183,7 @@ export async function PUT(
       );
     }
 
-    const isMember = project.members.some((m: any) => m.email === userEmail);
+    const isMember = project.members.some((m) => m.email === userEmail);
     if (!isMember) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
@@ -194,7 +221,7 @@ export async function PUT(
       hash: commit.hash,
       message: commit.message,
       author: commit.author_name,
-      date: new Date(commit.date),
+      date: commit.date,
       filesChanged: [], // TODO: get changed files
     }));
     await project.save();
@@ -212,25 +239,35 @@ export async function PUT(
 // Get Git status
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
     const { searchParams } = new URL(req.url);
     const userEmail = searchParams.get("userEmail");
+    const params = await context.params;
     const projectId = params.id;
 
-    const project = await Project.findById(projectId);
-    if (!project || !project.gitRepoPath) {
-      return NextResponse.json(
-        { error: "Git not initialized" },
-        { status: 404 },
-      );
+    const project = (await Project.findById(
+      projectId,
+    )) as ProjectDocument | null;
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    const isMember = project.members.some((m: any) => m.email === userEmail);
+    const isMember = project.members.some((m) => m.email === userEmail);
     if (!isMember) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    // If Git is not initialized, return a flag indicating that
+    if (!project.gitRepoPath) {
+      return NextResponse.json({
+        initialized: false,
+        status: null,
+        commits: [],
+        branches: [],
+      });
     }
 
     let git: SimpleGit;
@@ -256,6 +293,7 @@ export async function GET(
     }
 
     return NextResponse.json({
+      initialized: true,
       status,
       commits: project.gitCommits,
       branches: project.gitBranches,

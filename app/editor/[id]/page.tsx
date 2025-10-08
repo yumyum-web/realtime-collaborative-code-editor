@@ -2,14 +2,33 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Editor, { OnMount } from "@monaco-editor/react";
+import { VscComment, VscGitCommit, VscHistory } from "react-icons/vsc";
 import { useParams } from "next/navigation";
-import { VscComment } from "react-icons/vsc";
 
 import type {
   ChatMessage,
   NodeAddedPayload,
   NodeDeletedPayload,
 } from "./types";
+
+interface GitCommit {
+  hash: string;
+  message: string;
+  author: string;
+  date: string;
+  filesChanged: string[];
+}
+
+interface GitStatus {
+  initialized: boolean;
+  status: {
+    modified: string[];
+    created: string[];
+    deleted: string[];
+  } | null;
+  commits: GitCommit[];
+  branches: Array<{ name: string; current: boolean }>;
+}
 
 import { useUser } from "./hooks/useUser";
 import { useSocket } from "./hooks/useSocket";
@@ -53,7 +72,8 @@ export default function EditorPage() {
   );
 
   const [chatOpen, setChatOpen] = useState(false);
-  const [gitStatus, setGitStatus] = useState<any>(null);
+  const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
+  const [showGitPanel, setShowGitPanel] = useState(false);
 
   const { presence, setEditor, setMonaco } = useYjs(
     activeFile,
@@ -62,6 +82,25 @@ export default function EditorPage() {
     initialFiles,
     filesRef.current,
   );
+
+  const handleGetGitStatus = useCallback(async () => {
+    if (!user?.email) return;
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/git?userEmail=${user.email}`,
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setGitStatus(data);
+        console.log("Git status:", data);
+      } else {
+        setGitStatus(null);
+      }
+    } catch (error) {
+      console.error("Error getting Git status:", error);
+      setGitStatus(null);
+    }
+  }, [projectId, user?.email]);
 
   const handleInitGit = useCallback(async () => {
     if (!user?.email) return;
@@ -81,25 +120,7 @@ export default function EditorPage() {
       console.error("Error initializing Git:", error);
       alert("Error initializing Git");
     }
-  }, [projectId, user?.email]);
-
-  const handleGetGitStatus = useCallback(async () => {
-    if (!user?.email) return;
-    try {
-      const res = await fetch(
-        `/api/projects/${projectId}/git?userEmail=${user.email}`,
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setGitStatus(data);
-      } else {
-        setGitStatus(null);
-      }
-    } catch (error) {
-      console.error("Error getting Git status:", error);
-      setGitStatus(null);
-    }
-  }, [projectId, user?.email]);
+  }, [projectId, user?.email, handleGetGitStatus]);
 
   useEffect(() => {
     handleGetGitStatus();
@@ -264,6 +285,14 @@ export default function EditorPage() {
         >
           <VscComment /> Chat
         </button>
+        {gitStatus && (
+          <button
+            className="mt-2 w-full flex items-center gap-2 px-2 py-1 bg-orange-700 hover:bg-orange-600 rounded"
+            onClick={() => setShowGitPanel((s) => !s)}
+          >
+            <VscHistory /> Git History
+          </button>
+        )}
         <PresenceList presence={presence} />
       </aside>
 
@@ -307,6 +336,99 @@ export default function EditorPage() {
           onSendMessage={handleSendChatMessage}
           onClose={() => setChatOpen(false)}
         />
+      )}
+
+      {showGitPanel && gitStatus && (
+        <aside className="w-80 bg-gray-800 border-l border-gray-700 p-4 overflow-y-auto">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+              <VscGitCommit /> Git History
+            </h3>
+            <button
+              className="text-gray-400 hover:text-white"
+              onClick={() => setShowGitPanel(false)}
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-sm font-semibold mb-2 text-gray-400">
+                Repository Status
+              </h4>
+              <div className="text-xs space-y-1">
+                <p>
+                  Branch:{" "}
+                  <span className="text-green-400">
+                    {gitStatus?.branches?.find((b) => b.current)?.name ||
+                      "master"}
+                  </span>
+                </p>
+                {gitStatus?.status?.modified &&
+                  gitStatus.status.modified.length > 0 && (
+                    <p className="text-yellow-400">
+                      Modified: {gitStatus.status.modified.length} files
+                    </p>
+                  )}
+                {gitStatus?.status?.created &&
+                  gitStatus.status.created.length > 0 && (
+                    <p className="text-green-400">
+                      New: {gitStatus.status.created.length} files
+                    </p>
+                  )}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold mb-2 text-gray-400">
+                Commit History
+              </h4>
+              {gitStatus?.commits && gitStatus.commits.length > 0 ? (
+                <div className="space-y-3">
+                  {gitStatus.commits.map((commit: GitCommit) => (
+                    <div
+                      key={commit.hash}
+                      className="bg-gray-900 p-3 rounded border border-gray-700"
+                    >
+                      <div className="flex items-start gap-2">
+                        <VscGitCommit className="text-green-500 mt-1" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white truncate">
+                            {commit.message}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {commit.author}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(commit.date).toLocaleString()}
+                          </p>
+                          <p className="text-xs text-gray-600 font-mono mt-1">
+                            {commit.hash.substring(0, 7)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : gitStatus?.initialized === false ? (
+                <div className="text-center py-8">
+                  <p className="text-sm text-gray-400 mb-4">
+                    Git is not initialized for this project
+                  </p>
+                  <button
+                    onClick={handleInitGit}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Initialize Git
+                  </button>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No commits yet</p>
+              )}
+            </div>
+          </div>
+        </aside>
       )}
     </div>
   );
