@@ -74,6 +74,8 @@ export default function EditorPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
   const [showGitPanel, setShowGitPanel] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const { presence, setEditor, setMonaco } = useYjs(
     activeFile,
@@ -82,6 +84,28 @@ export default function EditorPage() {
     initialFiles,
     filesRef.current,
   );
+
+  // Responsive handling
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 768);
+      // Auto-hide chat on very small screens
+      if (width < 1024 && chatOpen) {
+        setChatOpen(false);
+      }
+      // Auto-collapse sidebar on small screens
+      if (width < 640) {
+        setSidebarCollapsed(true);
+      } else {
+        setSidebarCollapsed(false);
+      }
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [chatOpen]);
 
   const handleGetGitStatus = useCallback(async () => {
     if (!user?.email) return;
@@ -246,188 +270,294 @@ export default function EditorPage() {
   );
 
   return (
-    <div className="flex h-screen bg-gray-900 text-gray-200">
+    <div className="flex h-screen bg-gray-900 text-gray-200 overflow-hidden">
+      {/* Sidebar - File Tree */}
       <aside
-        className={`w-64 bg-gray-800 p-4 overflow-y-auto text-sm border-r border-gray-700 ${
-          chatOpen ? "hidden md:block" : ""
+        className={`${
+          sidebarCollapsed ? "w-12" : "w-64"
+        } bg-gray-800 border-r border-gray-700 flex flex-col transition-all duration-300 ease-in-out ${
+          isMobile && chatOpen ? "hidden" : ""
         }`}
       >
-        <h2 className="text-xl font-bold mb-4 border-b border-gray-700 pb-2">
-          {projectTitle}
-        </h2>
-        <FileTree
-          fileTree={fileTree}
-          setFileTree={setFileTree}
-          activeFile={activeFile}
-          setActiveFile={setActiveFile}
-          expandedFolders={expandedFolders}
-          setExpandedFolders={setExpandedFolders}
-          onAddNode={handleAddNode}
-          onDeleteNode={handleDeleteNode}
-        />
-        <div className="mt-4 flex gap-2">
+        {/* Sidebar Header */}
+        <div className="p-4 border-b border-gray-700 flex items-center justify-between min-h-[60px]">
+          {!sidebarCollapsed && (
+            <h2 className="text-lg font-bold truncate">{projectTitle}</h2>
+          )}
           <button
-            className="flex-1 bg-blue-800 hover:bg-blue-700 py-1 rounded"
-            onClick={() => handleAddNode("folder", "root")}
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="p-1 hover:bg-gray-700 rounded transition-colors"
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            + Folder
-          </button>
-          <button
-            className="flex-1 bg-blue-800 hover:bg-blue-700 py-1 rounded"
-            onClick={() => handleAddNode("file", "root")}
-          >
-            + File
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d={sidebarCollapsed ? "M9 5l7 7-7 7" : "M15 19l-7-7 7-7"}
+              />
+            </svg>
           </button>
         </div>
-        <button
-          className="mt-4 w-full flex items-center gap-2 px-2 py-1 bg-green-700 hover:bg-green-600 rounded"
-          onClick={() => setChatOpen((s) => !s)}
-        >
-          <VscComment /> Chat
-        </button>
-        {gitStatus && (
-          <button
-            className="mt-2 w-full flex items-center gap-2 px-2 py-1 bg-orange-700 hover:bg-orange-600 rounded"
-            onClick={() => setShowGitPanel((s) => !s)}
-          >
-            <VscHistory /> Git History
-          </button>
-        )}
-        <PresenceList presence={presence} />
+
+        {/* File Tree Content */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {!sidebarCollapsed && (
+            <>
+              <FileTree
+                fileTree={fileTree}
+                setFileTree={setFileTree}
+                activeFile={activeFile}
+                setActiveFile={setActiveFile}
+                expandedFolders={expandedFolders}
+                setExpandedFolders={setExpandedFolders}
+                onAddNode={handleAddNode}
+                onDeleteNode={handleDeleteNode}
+              />
+
+              {/* File Operations */}
+              <div className="mt-4 flex gap-2">
+                <button
+                  className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95"
+                  onClick={() => handleAddNode("folder", "root")}
+                >
+                  + Folder
+                </button>
+                <button
+                  className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95"
+                  onClick={() => handleAddNode("file", "root")}
+                >
+                  + File
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Sidebar Footer */}
+        <div className="p-4 border-t border-gray-700 space-y-2">
+          {!sidebarCollapsed && (
+            <>
+              <PresenceList presence={presence} />
+            </>
+          )}
+        </div>
       </aside>
 
-      <div
-        className={`flex-1 flex flex-col ${chatOpen ? "md:w-2/3" : "w-full"}`}
-      >
-        <div className="flex justify-between items-center bg-gray-800 px-4 py-2 border-b border-gray-700">
-          <div>
-            Editing: <strong>{activeFile || "No file selected"}</strong>
-          </div>
-          <div className="flex gap-2">
+      {/* Main Editor Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Fixed Navigation Bar */}
+        <div className="flex justify-between items-center bg-gray-800 px-4 py-3 border-b border-gray-700 min-h-[60px] flex-shrink-0">
+          <div className="flex items-center gap-4 min-w-0 flex-1">
+            {/* Mobile Menu Button */}
             <button
-              className="bg-purple-800 hover:bg-purple-600 px-4 py-1 rounded"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="md:hidden p-2 hover:bg-gray-700 rounded-lg transition-colors"
+              title="Toggle sidebar"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
+              </svg>
+            </button>
+
+            <div className="text-sm text-gray-300 truncate">
+              <span className="text-gray-400">Editing:</span>{" "}
+              <strong className="text-white">
+                {activeFile || "No file selected"}
+              </strong>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 flex-shrink-0">
+            <button
+              className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg"
               onClick={handleInitGit}
             >
               Init Git
             </button>
             <button
-              className="bg-blue-800 hover:bg-blue-600 px-4 py-1 rounded"
+              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg"
               onClick={handleSaveProject}
             >
               Save Project
             </button>
           </div>
         </div>
-        <div className="flex-1">
+
+        {/* Editor Content */}
+        <div className="flex-1 relative">
           <Editor
             height="100%"
             theme="vs-dark"
             defaultLanguage="javascript"
             onMount={handleMount}
-            options={{ minimap: { enabled: false }, automaticLayout: true }}
+            options={{
+              minimap: { enabled: false },
+              automaticLayout: true,
+              fontSize: 14,
+              lineHeight: 1.5,
+              scrollBeyondLastLine: false,
+              wordWrap: "on",
+            }}
           />
         </div>
       </div>
 
-      {chatOpen && (
-        <ChatPanel
-          chatMessages={chatMessages}
-          user={user}
-          onSendMessage={handleSendChatMessage}
-          onClose={() => setChatOpen(false)}
-        />
-      )}
+      {/* Floating Action Buttons */}
+      <div
+        className={`fixed z-30 transition-all duration-300 ${
+          chatOpen || showGitPanel
+            ? "bottom-6 right-[340px] flex flex-col gap-4 mb-2"
+            : "bottom-6 right-6 flex flex-col gap-4 mb-2"
+        }`}
+      >
+        {/* Chat Button */}
+        <button
+          className={`w-12 h-12 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-lg transition-all duration-200 transform hover:scale-110 active:scale-95 flex items-center justify-center group ${
+            chatOpen ? "ring-2 ring-blue-400" : ""
+          }`}
+          onClick={() => {
+            setChatOpen(true);
+            setShowGitPanel(false);
+          }}
+          title="Open Chat"
+        >
+          <VscComment className="w-5 h-5" />
+        </button>
 
-      {showGitPanel && gitStatus && (
-        <aside className="w-80 bg-gray-800 border-l border-gray-700 p-4 overflow-y-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-              <VscGitCommit /> Git History
-            </h3>
-            <button
-              className="text-gray-400 hover:text-white"
-              onClick={() => setShowGitPanel(false)}
-            >
-              ✕
-            </button>
-          </div>
+        {/* Git History Button */}
+        {gitStatus && (
+          <button
+            className={`w-12 h-12 bg-orange-600 hover:bg-orange-500 text-white rounded-full shadow-lg transition-all duration-200 transform hover:scale-110 active:scale-95 flex items-center justify-center group ${
+              showGitPanel ? "ring-2 ring-orange-400" : ""
+            }`}
+            onClick={() => {
+              setShowGitPanel(true);
+              setChatOpen(false);
+            }}
+            title="Git History"
+          >
+            <VscHistory className="w-5 h-5" />
+          </button>
+        )}
+      </div>
 
-          <div className="space-y-4">
-            <div>
-              <h4 className="text-sm font-semibold mb-2 text-gray-400">
-                Repository Status
-              </h4>
-              <div className="text-xs space-y-1">
-                <p>
-                  Branch:{" "}
-                  <span className="text-green-400">
-                    {gitStatus?.branches?.find((b) => b.current)?.name ||
-                      "master"}
-                  </span>
-                </p>
-                {gitStatus?.status?.modified &&
-                  gitStatus.status.modified.length > 0 && (
-                    <p className="text-yellow-400">
-                      Modified: {gitStatus.status.modified.length} files
-                    </p>
-                  )}
-                {gitStatus?.status?.created &&
-                  gitStatus.status.created.length > 0 && (
-                    <p className="text-green-400">
-                      New: {gitStatus.status.created.length} files
-                    </p>
-                  )}
+      {/* Right Sidebar Panel */}
+      {(chatOpen || showGitPanel) && (
+        <aside
+          className={`w-80 bg-gray-800 border-l border-gray-700 flex flex-col transition-all duration-300 ease-in-out ${
+            isMobile ? "fixed right-0 top-0 h-full z-50" : ""
+          }`}
+        >
+          {chatOpen && (
+            <ChatPanel
+              chatMessages={chatMessages}
+              user={user}
+              onSendMessage={handleSendChatMessage}
+              onClose={() => setChatOpen(false)}
+            />
+          )}
+
+          {showGitPanel && gitStatus && (
+            <div className="h-full flex flex-col">
+              {/* Git Panel Header */}
+              <div className="flex justify-between items-center p-4 border-b border-gray-700 min-h-[60px] flex-shrink-0">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <VscHistory className="w-5 h-5" />
+                  Git History
+                </h3>
+                <button
+                  onClick={() => setShowGitPanel(false)}
+                  className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
               </div>
-            </div>
 
-            <div>
-              <h4 className="text-sm font-semibold mb-2 text-gray-400">
-                Commit History
-              </h4>
-              {gitStatus?.commits && gitStatus.commits.length > 0 ? (
-                <div className="space-y-3">
-                  {gitStatus.commits.map((commit: GitCommit) => (
-                    <div
-                      key={commit.hash}
-                      className="bg-gray-900 p-3 rounded border border-gray-700"
-                    >
-                      <div className="flex items-start gap-2">
-                        <VscGitCommit className="text-green-500 mt-1" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-white truncate">
-                            {commit.message}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {commit.author}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {new Date(commit.date).toLocaleString()}
-                          </p>
-                          <p className="text-xs text-gray-600 font-mono mt-1">
-                            {commit.hash.substring(0, 7)}
-                          </p>
+              {/* Git Panel Content */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {gitStatus?.commits && gitStatus.commits.length > 0 ? (
+                  <div className="space-y-4">
+                    {gitStatus.commits.map((commit: GitCommit) => (
+                      <div
+                        key={commit.hash}
+                        className="bg-gray-900 p-4 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors"
+                      >
+                        <div className="flex items-start gap-3">
+                          <VscGitCommit className="text-green-500 mt-1 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-white truncate mb-2">
+                              {commit.message}
+                            </p>
+                            <div className="flex items-center gap-4 text-xs text-gray-400">
+                              <span>{commit.author}</span>
+                              <span>
+                                {new Date(commit.date).toLocaleString()}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 font-mono mt-2">
+                              {commit.hash.substring(0, 7)}
+                            </p>
+                          </div>
                         </div>
                       </div>
+                    ))}
+                  </div>
+                ) : gitStatus?.initialized === false ? (
+                  <div className="text-center py-12">
+                    <div className="mb-6">
+                      <VscHistory className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                      <p className="text-gray-400 mb-4">
+                        Git is not initialized for this project
+                      </p>
                     </div>
-                  ))}
-                </div>
-              ) : gitStatus?.initialized === false ? (
-                <div className="text-center py-8">
-                  <p className="text-sm text-gray-400 mb-4">
-                    Git is not initialized for this project
-                  </p>
-                  <button
-                    onClick={handleInitGit}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    Initialize Git
-                  </button>
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500">No commits yet</p>
-              )}
+                    <button
+                      onClick={() => {
+                        handleInitGit();
+                        setShowGitPanel(false);
+                      }}
+                      className="px-6 py-3 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg"
+                    >
+                      Initialize Git
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <VscHistory className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400">No commits yet</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </aside>
       )}
     </div>
