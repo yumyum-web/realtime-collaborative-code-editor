@@ -2,12 +2,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/app/lib/mongoose";
 import VersionControl from "@/app/models/VersionControl";
-import Project from "@/app/models/project"; // adjust path if different
+import Project from "@/app/models/project";
 
-// POST -> create new branch
-// GET -> list branches & activeBranch
-// PUT -> switch active branch { branchName }
-// DELETE -> delete branch { branchName }
+interface Branch {
+  name: string;
+  commits: { message: string; timestamp: Date; author: string }[];
+  lastStructure: Record<string, unknown>;
+}
 
 export async function POST(
   req: NextRequest,
@@ -26,9 +27,7 @@ export async function POST(
 
     let vc = await VersionControl.findOne({ projectId });
 
-    // Initialize VC doc if not exists
     if (!vc) {
-      // ensure project exists
       const project = await Project.findById(projectId).lean();
       if (!project)
         return NextResponse.json(
@@ -38,85 +37,73 @@ export async function POST(
 
       vc = await VersionControl.create({
         projectId,
-        branches: [{ name: "main", commits: [] }],
+        branches: [
+          {
+            name: "main",
+            commits: [],
+            lastStructure:
+              !Array.isArray(project) && project.structure
+                ? project.structure
+                : {},
+          },
+        ],
         activeBranch: "main",
       });
     }
 
-    // Prevent duplicate branch name
-    if (vc.branches.find((b: { name: string }) => b.name === branchName)) {
+    if (vc.branches.find((b: Branch) => b.name === branchName)) {
       return NextResponse.json(
         { error: "Branch already exists" },
         { status: 400 },
       );
     }
 
-    // If baseBranch provided, copy latest commit from base
-    type Commit = {
-      message: string;
-      author: string;
-      timestamp: Date;
-      structure: Record<string, unknown>;
+    const base: Branch | undefined =
+      baseBranch && vc.branches.find((b: Branch) => b.name === baseBranch);
+    const newBranch: Branch = {
+      name: branchName,
+      commits: [],
+      lastStructure: base
+        ? base.lastStructure
+        : vc.branches.find((b: Branch) => b.name === "main")?.lastStructure ||
+          {},
     };
 
-    let commitsToCopy: Commit[] = [];
-    if (baseBranch) {
-      const base = vc.branches.find((b: Branch) => b.name === baseBranch);
-      if (base && base.commits.length > 0) {
-        // clone last commit into new branch as an initial commit (optional)
-        const last = base.commits[base.commits.length - 1];
-        commitsToCopy = [
-          {
-            message: `branch ${branchName} created from ${baseBranch}`,
-            author: last.author,
-            timestamp: new Date(),
-            structure: last.structure,
-          },
-        ];
-      }
-    }
-
-    vc.branches.push({ name: branchName, commits: commitsToCopy });
+    vc.branches.push(newBranch);
     await vc.save();
-
-    interface Branch {
-      name: string;
-      commits: {
-        message: string;
-        author: string;
-        timestamp: Date;
-        structure: Record<string, unknown>;
-      }[];
-    }
 
     return NextResponse.json({
       success: true,
       branches: vc.branches.map((b: Branch) => b.name),
     });
   } catch (err) {
-    console.error(err);
+    console.error("POST branch error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string } },
 ) {
   try {
     await connectDB();
     const projectId = params.id;
-    const vc = (await VersionControl.findOne({ projectId }).lean()) as {
-      branches: { name: string }[];
-      activeBranch: string;
-    } | null;
-    if (!vc) return NextResponse.json({ branches: [], activeBranch: "main" });
-    return NextResponse.json({
-      branches: vc.branches.map((b) => b.name),
-      activeBranch: vc.activeBranch,
-    });
+    const vc = await VersionControl.findOne({ projectId }).lean();
+    if (!vc)
+      return NextResponse.json({ branches: ["main"], activeBranch: "main" });
+    if (!Array.isArray(vc) && vc.branches) {
+      return NextResponse.json({
+        branches: vc.branches.map((b: Branch) => b.name),
+        activeBranch: vc.activeBranch,
+      });
+    }
+    return NextResponse.json(
+      { error: "Invalid version control data" },
+      { status: 500 },
+    );
   } catch (err) {
-    console.error(err);
+    console.error("GET branch error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
@@ -143,29 +130,23 @@ export async function PUT(
         { status: 404 },
       );
 
-    interface Branch {
-      name: string;
-      commits: {
-        message: string;
-        author: string;
-        timestamp: Date;
-        structure: Record<string, unknown>;
-      }[];
-    }
-
-    if (!vc.branches.find((b: Branch) => b.name === branchName)) {
+    const branch = vc.branches.find((b: Branch) => b.name === branchName);
+    if (!branch)
       return NextResponse.json(
         { error: "Branch does not exist" },
         { status: 404 },
       );
-    }
 
     vc.activeBranch = branchName;
     await vc.save();
 
-    return NextResponse.json({ success: true, activeBranch: vc.activeBranch });
+    return NextResponse.json({
+      success: true,
+      activeBranch: vc.activeBranch,
+      structure: branch.lastStructure || {},
+    });
   } catch (err) {
-    console.error(err);
+    console.error("PUT branch error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
@@ -192,7 +173,6 @@ export async function DELETE(
         { status: 404 },
       );
 
-    // prevent deleting last branch
     if (vc.branches.length <= 1) {
       return NextResponse.json(
         { error: "Cannot delete the only branch" },
@@ -200,7 +180,6 @@ export async function DELETE(
       );
     }
 
-    // cannot delete active branch (require switching first)
     if (vc.activeBranch === branchName) {
       return NextResponse.json(
         { error: "Switch to another branch before deleting" },
@@ -208,17 +187,15 @@ export async function DELETE(
       );
     }
 
-    vc.branches = vc.branches.filter(
-      (b: { name: string }) => b.name !== branchName,
-    );
+    vc.branches = vc.branches.filter((b: Branch) => b.name !== branchName);
     await vc.save();
 
     return NextResponse.json({
       success: true,
-      branches: vc.branches.map((b: { name: string }) => b.name),
+      branches: vc.branches.map((b: Branch) => b.name),
     });
   } catch (err) {
-    console.error(err);
+    console.error("DELETE branch error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

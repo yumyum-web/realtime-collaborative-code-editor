@@ -6,12 +6,14 @@ export interface Commit {
   message: string;
   author: string;
   timestamp: Date;
-  structure: Record<string, unknown>;
+  structure: Record<string, unknown>; // full file tree snapshot
 }
 
 export interface Branch {
   name: string;
   commits: Commit[];
+  lastStructure: Record<string, unknown>; // working tree for branch
+  lastMergedFrom?: string; // optional metadata
 }
 
 export interface VersionControlDocument extends Document {
@@ -35,6 +37,8 @@ const CommitSchema = new Schema<Commit>(
 const BranchSchema = new Schema<Branch>({
   name: { type: String, required: true },
   commits: { type: [CommitSchema], default: [] },
+  lastStructure: { type: Schema.Types.Mixed, default: {} },
+  lastMergedFrom: { type: String },
 });
 
 const VersionControlSchema = new Schema<VersionControlDocument>(
