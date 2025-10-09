@@ -1,27 +1,15 @@
 // src/app/api/projects/[id]/version-control/merge/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/app/lib/mongoose";
-import VersionControl from "@/app/models/VersionControl";
-import Project from "@/app/models/project";
+import VersionControl, { Branch, Commit } from "@/app/models/VersionControl";
+import Project, { ProjectDocument } from "@/app/models/project";
 
-// Define the Branch interface
-interface Branch {
-  name: string;
-  lastStructure?: Record<string, unknown>;
-  commits: Array<{
-    message: string;
-    author: string;
-    timestamp: Date;
-    structure: Record<string, unknown>;
-  }>;
-  lastMergedFrom?: string;
-}
-
+// POST: Merge (Push or Pull)
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  // body: { action: "push"|"pull", sourceBranch: string, targetBranch: string, author }
   try {
     await connectDB();
     const projectId = params.id;
@@ -34,53 +22,59 @@ export async function POST(
       );
     }
 
-    const vc = await VersionControl.findOne({ projectId });
-    if (!vc)
+    const vcDoc = await VersionControl.findOne({ projectId });
+    if (!vcDoc)
       return NextResponse.json(
         { error: "Version control not initialized" },
         { status: 404 },
       );
 
-    const source: Branch | undefined = vc.branches.find(
-      (b: Branch) => b.name === sourceBranch,
-    );
-    const target: Branch | undefined = vc.branches.find(
-      (b: Branch) => b.name === targetBranch,
-    );
+    const source = vcDoc.branches.find((b: Branch) => b.name === sourceBranch);
+    const target = vcDoc.branches.find((b: Branch) => b.name === targetBranch);
 
     if (!source || !target)
-      return NextResponse.json({ error: "Branch not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Source or Target branch not found" },
+        { status: 404 },
+      );
 
-    // Simple merge strategy: overwrite target.lastStructure with source.lastStructure
-    // Create a merge commit on target
-    const mergedStructure = source.lastStructure || {};
+    // Simple merge strategy: overwrite target's working copy with source's working copy
+    const mergedStructure = JSON.parse(JSON.stringify(source.lastStructure)); // CRUCIAL: Deep copy
 
+    // Create a merge commit on the target branch
     target.commits.push({
       message: `Merge (${action}) ${sourceBranch} → ${targetBranch}`,
       author,
       timestamp: new Date(),
-      structure: mergedStructure,
-    });
+      structure: mergedStructure, // Snapshot of the merged state
+    } as Commit);
+
+    // Update the target's working copy
     target.lastStructure = mergedStructure;
     target.lastMergedFrom = sourceBranch;
 
-    // if merging into main, update Project.structure too
+    // If merging into 'main', update the main Project document too (persisting to main db state)
     if (targetBranch === "main") {
-      const project = await Project.findById(projectId);
+      const project = (await Project.findById(
+        projectId,
+      )) as ProjectDocument | null;
       if (!project)
         return NextResponse.json(
           { error: "Project not found" },
           { status: 404 },
         );
+
       project.structure = mergedStructure;
       await project.save();
     }
 
-    await vc.save();
+    vcDoc.markModified("branches");
+    await vcDoc.save();
 
     return NextResponse.json({
       success: true,
       message: `Merged ${sourceBranch} into ${targetBranch}`,
+      structure: mergedStructure, // Return merged structure for immediate client update (Pull operation)
     });
   } catch (err) {
     console.error("POST merge error:", err);

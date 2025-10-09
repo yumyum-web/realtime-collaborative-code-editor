@@ -1,5 +1,7 @@
 import mongoose, { Schema, Document } from "mongoose";
 
+// --- Interfaces for Type Safety ---
+
 export interface Member {
   email: string;
   username: string;
@@ -13,15 +15,25 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
+// Define FileEntity for the project structure (optional, as we use Schema.Types.Mixed)
+export type FileEntity = {
+  name: string;
+  type: "file" | "folder";
+  children?: FileEntity[];
+  content?: string | null;
+};
+
 export interface ProjectDocument extends Document {
   title: string;
   description?: string;
   members: Member[];
-  structure: Record<string, unknown>;
+  structure: FileEntity; // Using FileEntity type for clarity
   chats: ChatMessage[];
   createdAt: Date;
   updatedAt: Date;
 }
+
+// --- Schemas ---
 
 const ChatSchema = new Schema<ChatMessage>(
   {
@@ -47,11 +59,18 @@ const ProjectSchema = new Schema<ProjectDocument>(
     title: { type: String, required: true },
     description: { type: String },
     members: { type: [MemberSchema], required: true },
-    structure: { type: Schema.Types.Mixed, default: {} },
+    // Use Mixed for flexible, nested file structure representation
+    structure: {
+      type: Schema.Types.Mixed,
+      default: () => ({ name: "root", type: "folder", children: [] }),
+    },
     chats: { type: [ChatSchema], default: [] },
   },
   { timestamps: true },
 );
 
-export default mongoose.models.Project ||
+const Project =
+  mongoose.models.Project ||
   mongoose.model<ProjectDocument>("Project", ProjectSchema);
+
+export default Project;
