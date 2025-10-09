@@ -7,6 +7,7 @@ import fs from "fs";
 
 interface ProjectMember {
   email: string;
+  username?: string;
   role: string;
 }
 
@@ -142,6 +143,13 @@ export async function POST(
 
     // Update project with repo path
     try {
+      // Ensure all members have usernames before saving
+      project.members.forEach((member) => {
+        if (!member.username) {
+          member.username = member.email.split("@")[0];
+        }
+      });
+
       project.gitRepoPath = repoPath;
       await project.save();
     } catch (saveError) {
@@ -224,6 +232,14 @@ export async function PUT(
       date: commit.date,
       filesChanged: [], // TODO: get changed files
     }));
+
+    // Ensure all members have usernames before saving
+    project.members.forEach((member) => {
+      if (!member.username) {
+        member.username = member.email.split("@")[0];
+      }
+    });
+
     await project.save();
 
     return NextResponse.json({ message: "Committed" });

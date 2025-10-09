@@ -2,7 +2,14 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Editor, { OnMount } from "@monaco-editor/react";
-import { VscComment, VscGitCommit, VscHistory } from "react-icons/vsc";
+import {
+  VscComment,
+  VscGitCommit,
+  VscHistory,
+  VscGitMerge,
+  VscAdd,
+  VscWarning,
+} from "react-icons/vsc";
 import { useParams } from "next/navigation";
 
 import type {
@@ -77,6 +84,17 @@ export default function EditorPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+  // Branch management state
+  const [currentBranch, setCurrentBranch] = useState<string>("main");
+  const [allBranches, setAllBranches] = useState<string[]>([]);
+  const [showBranchModal, setShowBranchModal] = useState(false);
+  const [newBranchName, setNewBranchName] = useState("");
+
+  // Conflict resolution state
+  const [mergeConflicts, setMergeConflicts] = useState<
+    Array<{ file: string; content: string }>
+  >([]);
+  const [showConflictModal, setShowConflictModal] = useState(false);
   const { presence, setEditor, setMonaco } = useYjs(
     activeFile,
     user,
@@ -116,6 +134,10 @@ export default function EditorPage() {
       if (res.ok) {
         const data = await res.json();
         setGitStatus(data);
+        setCurrentBranch(data.status?.current || "main");
+        setAllBranches(
+          data.branches?.map((b: { name: string }) => b.name) || [],
+        );
         console.log("Git status:", data);
       } else {
         setGitStatus(null);
@@ -145,6 +167,126 @@ export default function EditorPage() {
       alert("Error initializing Git");
     }
   }, [projectId, user?.email, handleGetGitStatus]);
+
+  // Branch management functions
+  const handleCreateBranch = useCallback(async () => {
+    if (!newBranchName.trim() || !user?.email) return;
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/git/branch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userEmail: user.email,
+          branchName: newBranchName.trim(),
+          createFrom: currentBranch,
+        }),
+      });
+
+      if (response.ok) {
+        setCurrentBranch(newBranchName);
+        setNewBranchName("");
+        setShowBranchModal(false);
+        await handleGetGitStatus();
+        alert(`Branch "${newBranchName}" created successfully!`);
+      } else {
+        const error = await response.json();
+        alert(`Failed to create branch: ${error.error}`);
+      }
+    } catch (error) {
+      alert("Failed to create branch");
+    }
+  }, [
+    projectId,
+    user?.email,
+    newBranchName,
+    currentBranch,
+    handleGetGitStatus,
+  ]);
+
+  const handleSwitchBranch = useCallback(
+    async (branchName: string) => {
+      if (!user?.email) return;
+
+      try {
+        const response = await fetch(`/api/projects/${projectId}/git/branch`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userEmail: user.email,
+            branchName: branchName,
+          }),
+        });
+
+        if (response.ok) {
+          setCurrentBranch(branchName);
+          await handleGetGitStatus();
+          alert(`Switched to branch "${branchName}"`);
+        } else {
+          const error = await response.json();
+          alert(`Failed to switch branch: ${error.error}`);
+        }
+      } catch (error) {
+        alert("Failed to switch branch");
+      }
+    },
+    [projectId, user?.email, handleGetGitStatus],
+  );
+
+  // Conflict resolution functions
+  const checkForConflicts = useCallback(async () => {
+    if (!user?.email) return;
+
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/git/conflicts?userEmail=${user.email}`,
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setMergeConflicts(data.conflicts || []);
+        setShowConflictModal(data.conflicts?.length > 0);
+      }
+    } catch (error) {
+      console.error("Failed to check conflicts:", error);
+    }
+  }, [projectId, user?.email]);
+
+  const handleResolveConflict = useCallback(
+    async (
+      resolution: "ours" | "theirs" | "manual",
+      filePath: string,
+      content?: string,
+    ) => {
+      if (!user?.email) return;
+
+      try {
+        const response = await fetch(
+          `/api/projects/${projectId}/git/conflict`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userEmail: user.email,
+              filePath,
+              resolution,
+              content,
+            }),
+          },
+        );
+
+        if (response.ok) {
+          await handleGetGitStatus();
+          await checkForConflicts();
+        } else {
+          const error = await response.json();
+          alert(`Failed to resolve conflict: ${error.error}`);
+        }
+      } catch (error) {
+        alert("Failed to resolve conflict");
+      }
+    },
+    [projectId, user?.email, handleGetGitStatus, checkForConflicts],
+  );
 
   useEffect(() => {
     handleGetGitStatus();
@@ -191,6 +333,15 @@ export default function EditorPage() {
   const handleSaveProject = useCallback(async () => {
     if (!projectId) return;
 
+    // Check for conflicts before saving
+    await checkForConflicts();
+
+    if (mergeConflicts.length > 0) {
+      alert("Please resolve merge conflicts before saving.");
+      setShowConflictModal(true);
+      return;
+    }
+
     const structure = reconstructTree(fileTree, "", filesRef.current)[0];
     try {
       const res = await fetch(`/api/projects/${projectId}`, {
@@ -210,8 +361,9 @@ export default function EditorPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userEmail: user?.email,
-            message: "Save project",
+            message: `Save project on branch ${currentBranch}`,
             files: filesRef.current,
+            branch: currentBranch,
           }),
         });
       }
@@ -221,7 +373,16 @@ export default function EditorPage() {
       console.error("Save error:", error);
       alert("Save failed");
     }
-  }, [projectId, fileTree, filesRef, gitStatus, user?.email]);
+  }, [
+    projectId,
+    checkForConflicts,
+    mergeConflicts.length,
+    fileTree,
+    filesRef,
+    gitStatus,
+    user?.email,
+    currentBranch,
+  ]);
 
   const handleAddNode = useCallback(
     (type: "file" | "folder", parentPath: string) => {
@@ -385,6 +546,31 @@ export default function EditorPage() {
 
           {/* Action Buttons */}
           <div className="flex gap-2 flex-shrink-0">
+            {/* Branch Management */}
+            {gitStatus && (
+              <div className="flex items-center gap-2 bg-gray-700 rounded-lg px-3 py-2">
+                <VscGitMerge className="w-4 h-4 text-gray-400" />
+                <select
+                  value={currentBranch}
+                  onChange={(e) => handleSwitchBranch(e.target.value)}
+                  className="bg-transparent text-white text-sm border-none outline-none cursor-pointer"
+                >
+                  {allBranches.map((branch) => (
+                    <option key={branch} value={branch}>
+                      {branch}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setShowBranchModal(true)}
+                  className="text-gray-400 hover:text-white transition-colors"
+                  title="Create new branch"
+                >
+                  <VscAdd className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             <button
               className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg"
               onClick={handleInitGit}
@@ -559,6 +745,114 @@ export default function EditorPage() {
             </div>
           )}
         </aside>
+      )}
+
+      {/* Branch Creation Modal */}
+      {showBranchModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 w-96 max-w-full mx-4">
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Create New Branch
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Branch Name
+                </label>
+                <input
+                  type="text"
+                  value={newBranchName}
+                  onChange={(e) => setNewBranchName(e.target.value)}
+                  placeholder="feature/new-feature"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onKeyPress={(e) => e.key === "Enter" && handleCreateBranch()}
+                />
+              </div>
+              <div className="text-sm text-gray-400">
+                Creating from:{" "}
+                <span className="text-white font-medium">{currentBranch}</span>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleCreateBranch}
+                className="flex-1 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                Create Branch
+              </button>
+              <button
+                onClick={() => setShowBranchModal(false)}
+                className="flex-1 bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Conflict Resolution Modal */}
+      {showConflictModal && mergeConflicts.length > 0 && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto mx-4">
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <VscWarning className="w-5 h-5 text-yellow-500" />
+              Merge Conflicts Detected
+            </h3>
+
+            <div className="space-y-4">
+              {mergeConflicts.map((conflict, index) => (
+                <div key={index} className="bg-gray-700 rounded-lg p-4">
+                  <h4 className="text-white font-medium mb-2">
+                    {conflict.file}
+                  </h4>
+                  <div className="bg-gray-900 rounded p-3 font-mono text-sm text-gray-300 mb-3 whitespace-pre-wrap">
+                    {conflict.content}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() =>
+                        handleResolveConflict("ours", conflict.file)
+                      }
+                      className="bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded text-sm"
+                    >
+                      Use Ours
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleResolveConflict("theirs", conflict.file)
+                      }
+                      className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-sm"
+                    >
+                      Use Theirs
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleResolveConflict(
+                          "manual",
+                          conflict.file,
+                          conflict.content,
+                        )
+                      }
+                      className="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1 rounded text-sm"
+                    >
+                      Edit Manually
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowConflictModal(false)}
+                className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
