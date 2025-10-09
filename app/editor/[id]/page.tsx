@@ -15,17 +15,19 @@ import { useUser } from "./hooks/useUser";
 import { useSocket } from "./hooks/useSocket";
 import { useFileTree } from "./hooks/useFileTree";
 import { useYjs } from "./hooks/useYjs";
-
 import { useMonaco } from "./hooks/useMonaco";
-import { addNode, deleteNode, reconstructTree } from "./utils/fileTreeHelpers";
 
+import { addNode, deleteNode, reconstructTree } from "./utils/fileTreeHelpers";
 import { FileTree } from "./components/FileTree";
 import { ChatPanel } from "./components/ChatPanel";
 import { PresenceList } from "./components/PresenceList";
 import VersionControlPanel from "./components/versioncontrol";
 
-// --- Minimal Local Toast Implementation (To replace disruptive alerts) ---
-type ToastMessage = { message: string; type: "success" | "error" };
+// --- Minimal Local Toast Implementation ---
+type ToastMessage = {
+  message: string;
+  type: "success" | "error";
+};
 
 const useToast = () => {
   const [toast, setToast] = useState<ToastMessage | null>(null);
@@ -44,7 +46,6 @@ const useToast = () => {
 
   return { toast, showToast };
 };
-// ------------------------------------------------------------------------
 
 type StructureNode = {
   name: string;
@@ -55,8 +56,8 @@ type StructureNode = {
 
 export default function EditorPage() {
   const { id: projectId } = useParams() as { id: string };
-
   useMonaco();
+
   const user = useUser();
   const { toast, showToast } = useToast();
 
@@ -81,9 +82,9 @@ export default function EditorPage() {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
     new Set(),
   );
-  // chatOpen and vcOpen are mutually exclusive: when opening one, close the other
   const [chatOpen, setChatOpen] = useState(false);
   const [vcOpen, setVcOpen] = useState(false);
+  const [currentBranch, setCurrentBranch] = useState<string>("main");
 
   const { presence, setEditor, setMonaco } = useYjs(
     activeFile,
@@ -93,7 +94,7 @@ export default function EditorPage() {
     filesRef.current,
   );
 
-  // ---- Helpers to convert structure <-> filesRef/fileTree ----
+  // ---- Build structure from current editor state ----
   const buildStructure = useCallback((): StructureNode | null => {
     try {
       const root = reconstructTree(fileTree, "", filesRef.current)[0];
@@ -105,70 +106,109 @@ export default function EditorPage() {
     }
   }, [fileTree, filesRef, showToast]);
 
+  // ---- Apply structure to editor (complete replacement) ----
   const applyStructureToEditor = useCallback(
     (structure: StructureNode | null) => {
-      if (!structure) return;
+      if (!structure) {
+        showToast("Invalid structure received.", "error");
+        return;
+      }
+
+      // Full hard reset before applying new structure
+      setFileTree([]);
+      filesRef.current = {};
+      setActiveFile("");
+      setExpandedFolders(new Set());
+
       const newFilesRef: Record<string, string> = {};
-      const traverse = (node: StructureNode, currentPath: string) => {
-        const path = currentPath ? `${currentPath}/${node.name}` : node.name;
+      const newExpanded = new Set<string>();
+
+      const traverse = (node: StructureNode, path: string) => {
+        const fullPath = path ? `${path}/${node.name}` : node.name;
         if (node.type === "file") {
-          newFilesRef[path] = node.content ?? "";
-        } else if (node.type === "folder" && Array.isArray(node.children)) {
-          for (const child of node.children) {
-            traverse(child, path);
-          }
+          newFilesRef[fullPath] = node.content ?? "";
+        } else if (node.type === "folder" && node.children) {
+          newExpanded.add(fullPath);
+          node.children.forEach((child) => traverse(child, fullPath));
         }
       };
 
-      if (structure.type === "folder") {
-        const rootPath = structure.name || "";
-        if (Array.isArray(structure.children)) {
-          for (const child of structure.children) traverse(child, rootPath);
-        }
-        setFileTree([structure as StructureNode]);
-      } else {
+      if (structure.type === "folder" && Array.isArray(structure.children)) {
         traverse(structure, "");
-        setFileTree([structure as StructureNode]);
       }
 
-      filesRef.current = { ...filesRef.current, ...newFilesRef };
+      setFileTree([structure]);
+      filesRef.current = newFilesRef;
+      setExpandedFolders(newExpanded);
 
-      if (!activeFile) {
-        const first = Object.keys(newFilesRef)[0];
-        if (first) setActiveFile(first);
-      }
+      // Pick the first available file
+      const firstFile = Object.keys(newFilesRef)[0];
+      if (firstFile) setActiveFile(firstFile);
+
+      showToast("Project structure updated.", "success");
     },
-    [filesRef, setFileTree, activeFile],
+    [setFileTree, filesRef, showToast],
   );
 
-  // ---- On mount: check for vc_load (branch switch) and apply structure if present ----
+  // ---- Load current branch on mount ----
   useEffect(() => {
-    try {
-      const item = localStorage.getItem(`vc_load:${projectId}`);
-      if (item) {
-        const parsed = JSON.parse(item);
-        const structure = parsed.structure as StructureNode | undefined;
-        if (structure) {
-          applyStructureToEditor(structure);
-          showToast("Loaded changes from version control.", "success");
+    const loadCurrentBranch = async () => {
+      try {
+        const res = await fetch(
+          `/api/projects/${projectId}/version-control/branch`,
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setCurrentBranch(data.activeBranch || "main");
         }
-        localStorage.removeItem(`vc_load:${projectId}`);
+      } catch (err) {
+        console.error("Failed to load current branch:", err);
       }
-    } catch {
-      // ignore parse errors
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    };
+    loadCurrentBranch();
   }, [projectId]);
 
-  // ---- Socket handlers (unchanged) ----
+  // ---- Check for vc_load flag ----
+  useEffect(() => {
+    const checkVcLoad = () => {
+      try {
+        const item = localStorage.getItem(`vc_load:${projectId}`);
+        if (item) {
+          const parsed = JSON.parse(item);
+          const structure = parsed.structure as StructureNode | undefined;
+          const branch = parsed.branch as string | undefined;
+
+          if (structure) {
+            applyStructureToEditor(structure);
+            if (branch) setCurrentBranch(branch);
+            showToast(
+              parsed.message || "Loaded changes from version control.",
+              "success",
+            );
+          }
+
+          localStorage.removeItem(`vc_load:${projectId}`);
+        }
+      } catch (err) {
+        console.error("Error checking vc_load:", err);
+      }
+    };
+
+    checkVcLoad();
+    const interval = setInterval(checkVcLoad, 500);
+    return () => clearInterval(interval);
+  }, [projectId, applyStructureToEditor, showToast]);
+
+  // ---- Socket handlers ----
   useEffect(() => {
     if (!socket) return;
 
     const handleNodeAdded = (payload: NodeAddedPayload) => {
       setFileTree((prev) => addNode(prev, payload));
       if (payload.type === "file") {
-        setActiveFile((f) => f || `${payload.parentPath}/${payload.name}`);
-        filesRef.current[`${payload.parentPath}/${payload.name}`] = "";
+        const filePath = `${payload.parentPath}/${payload.name}`;
+        filesRef.current[filePath] = "";
+        if (!activeFile) setActiveFile(filePath);
       }
       setExpandedFolders((p) => {
         const n = new Set(p);
@@ -184,7 +224,10 @@ export default function EditorPage() {
       }
       setFileTree((prev) => deleteNode(prev, payload));
       delete filesRef.current[payload.path];
-      setActiveFile((f) => (f === payload.path ? "" : f));
+      if (activeFile === payload.path) {
+        const remainingFiles = Object.keys(filesRef.current);
+        setActiveFile(remainingFiles.length > 0 ? remainingFiles[0] : "");
+      }
     };
 
     socket.on("node-added", handleNodeAdded);
@@ -194,23 +237,16 @@ export default function EditorPage() {
       socket.off("node-added", handleNodeAdded);
       socket.off("node-deleted", handleNodeDeleted);
     };
-  }, [socket, setFileTree, filesRef, showToast]);
+  }, [socket, setFileTree, filesRef, activeFile, showToast]);
 
-  // ---- Save logic: if active branch is main => save Project; else update branch.lastStructure ----
+  // ---- Save project ----
   const handleSaveProject = useCallback(async () => {
     if (!projectId) return;
-
     const structure = buildStructure();
     if (!structure) return;
 
     try {
-      const branchRes = await fetch(
-        `/api/projects/${projectId}/version-control/branch`,
-      );
-      const branchInfo = await branchRes.json();
-      const active = branchInfo.activeBranch || "main";
-
-      if (active === "main") {
+      if (currentBranch === "main") {
         const res = await fetch(`/api/projects/${projectId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -228,12 +264,15 @@ export default function EditorPage() {
           {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ branchName: active, structure }),
+            body: JSON.stringify({ branchName: currentBranch, structure }),
           },
         );
         if (res.ok) {
-          showToast(`Working copy saved to branch "${active}".`, "success");
-          localStorage.removeItem(`vc_autosave:${projectId}:${active}`);
+          showToast(
+            `Working copy saved to branch "${currentBranch}".`,
+            "success",
+          );
+          localStorage.removeItem(`vc_autosave:${projectId}:${currentBranch}`);
         } else {
           const data = await res.json();
           showToast(data.error || "Branch working copy save failed.", "error");
@@ -243,39 +282,31 @@ export default function EditorPage() {
       console.error("handleSaveProject error", err);
       showToast("An unexpected error occurred during save.", "error");
     }
-  }, [projectId, buildStructure, showToast]);
+  }, [projectId, currentBranch, buildStructure, showToast]);
 
-  // ---- Autosave to localStorage every 10s (safety) ----
+  // ---- Autosave to localStorage every 10s ----
   useEffect(() => {
     let mounted = true;
-    const interval = setInterval(async () => {
+    const interval = setInterval(() => {
       if (!mounted) return;
       try {
-        const branchRes = await fetch(
-          `/api/projects/${projectId}/version-control/branch`,
-        );
-        const branchInfo = await branchRes.json();
-        const active = branchInfo.activeBranch || "main";
-
         const structure = buildStructure();
         if (!structure) return;
-
         localStorage.setItem(
-          `vc_autosave:${projectId}:${active}`,
+          `vc_autosave:${projectId}:${currentBranch}`,
           JSON.stringify({ structure, updatedAt: Date.now() }),
         );
-      } catch {
-        // ignore autosave errors
+      } catch (err) {
+        console.error("Autosave error:", err);
       }
     }, 10000);
-
     return () => {
       clearInterval(interval);
       mounted = false;
     };
-  }, [projectId, buildStructure]);
+  }, [projectId, currentBranch, buildStructure]);
 
-  // ---- Warn on unload if there is autosave (unsaved changes) ----
+  // ---- Warn on unload ----
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       try {
@@ -288,10 +319,7 @@ export default function EditorPage() {
             return "";
           }
         }
-      } catch (err) {
-        // ignore
-      }
-      return;
+      } catch {}
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
@@ -306,17 +334,20 @@ export default function EditorPage() {
     [setEditor, setMonaco],
   );
 
-  // ---- UI rendering ----
+  // ---- Set initial active file ----
   useEffect(() => {
     if (fileTree.length > 0 && !activeFile) {
       const firstFile = getFirstFile();
       if (firstFile) {
         setActiveFile(firstFile);
-        setExpandedFolders(new Set([fileTree[0].name]));
+        if (fileTree[0] && fileTree[0].name) {
+          setExpandedFolders(new Set([fileTree[0].name]));
+        }
       }
     }
   }, [fileTree, activeFile, getFirstFile]);
 
+  // ---- Node operations ----
   const handleAddNode = useCallback(
     (type: "file" | "folder", parentPath: string) => {
       const name = prompt(`Enter ${type} name`);
@@ -324,23 +355,28 @@ export default function EditorPage() {
         showToast("Operation cancelled.", "error");
         return;
       }
+
       setFileTree((p) => addNode(p, { type, parentPath, name }));
+      const newPath = `${parentPath}/${name}`;
+
       if (type === "file") {
-        setActiveFile((f) => f || `${parentPath}/${name}`);
-        filesRef.current[`${parentPath}/${name}`] = "";
+        filesRef.current[newPath] = "";
+        if (!activeFile) setActiveFile(newPath);
       }
+
       setExpandedFolders((p) => {
         const n = new Set(p);
         n.add(parentPath);
         return n;
       });
+
       emitNodeAdded({ type, parentPath, name });
       showToast(
         `${type === "file" ? "File" : "Folder"} "${name}" added.`,
         "success",
       );
     },
-    [setFileTree, filesRef, emitNodeAdded, showToast],
+    [setFileTree, filesRef, activeFile, emitNodeAdded, showToast],
   );
 
   const handleDeleteNode = useCallback(
@@ -349,16 +385,19 @@ export default function EditorPage() {
         showToast("Root cannot be deleted.", "error");
         return;
       }
-      if (!confirm(`Delete ${path}? This action cannot be undone.`)) {
-        showToast("Delete cancelled.", "error");
-        return;
-      }
+      if (!confirm(`Delete ${path}? This action cannot be undone.`)) return;
+
       setFileTree((p) => deleteNode(p, { path }));
       emitNodeDeleted({ path });
       delete filesRef.current[path];
+
+      if (activeFile === path) {
+        const remainingFiles = Object.keys(filesRef.current);
+        setActiveFile(remainingFiles.length > 0 ? remainingFiles[0] : "");
+      }
       showToast(`Deleted ${path}.`, "success");
     },
-    [setFileTree, emitNodeDeleted, filesRef, showToast],
+    [setFileTree, emitNodeDeleted, filesRef, activeFile, showToast],
   );
 
   const handleSendChatMessage = useCallback(
@@ -376,11 +415,11 @@ export default function EditorPage() {
     [projectId, emitChatMessage, showToast],
   );
 
-  // ensure only one right panel is open at a time
   const openChat = () => {
     setChatOpen(true);
     setVcOpen(false);
   };
+
   const openVc = () => {
     setVcOpen(true);
     setChatOpen(false);
@@ -388,7 +427,7 @@ export default function EditorPage() {
 
   return (
     <div className="flex h-screen bg-gray-900 text-gray-200">
-      {/* --- TOAST NOTIFICATION AREA --- */}
+      {/* Toast notification */}
       {toast && (
         <div
           className={`fixed top-4 right-4 z-50 p-3 rounded-lg shadow-xl text-white ${
@@ -398,15 +437,16 @@ export default function EditorPage() {
           {toast.message}
         </div>
       )}
-      {/* --------------------------------- */}
 
       {/* Sidebar */}
-      <aside
-        className={`w-64 bg-gray-800 p-4 overflow-y-auto text-sm border-r border-gray-700`}
-      >
+      <aside className="w-64 bg-gray-800 p-4 overflow-y-auto text-sm border-r border-gray-700">
         <h2 className="text-xl font-bold mb-4 border-b border-gray-700 pb-2">
           {projectTitle}
         </h2>
+        <div className="mb-2 text-xs text-gray-400">
+          Branch:{" "}
+          <span className="text-blue-400 font-semibold">{currentBranch}</span>
+        </div>
 
         <FileTree
           fileTree={fileTree}
@@ -472,14 +512,15 @@ export default function EditorPage() {
             height="100%"
             theme="vs-dark"
             defaultLanguage="javascript"
+            path={activeFile}
+            value={filesRef.current[activeFile] || ""}
             onMount={handleMount}
             options={{ minimap: { enabled: false }, automaticLayout: true }}
           />
         </div>
       </div>
 
-      {/* Right-side sliding area (chat OR version control) */}
-      {/* Shared placement: fixed right side, responsive width */}
+      {/* Chat Panel */}
       {chatOpen && (
         <div className="fixed right-0 top-0 bottom-0 w-full md:w-96 bg-gray-800 z-40 border-l border-gray-700 overflow-y-auto">
           <ChatPanel
@@ -491,6 +532,7 @@ export default function EditorPage() {
         </div>
       )}
 
+      {/* Version Control Panel */}
       {vcOpen && (
         <div className="fixed right-0 top-0 bottom-0 w-full md:w-96 bg-gray-800 z-40 border-l border-gray-700 overflow-y-auto">
           {user && (
@@ -500,6 +542,8 @@ export default function EditorPage() {
               onClose={() => setVcOpen(false)}
               showToast={showToast}
               applyStructureToEditor={applyStructureToEditor}
+              currentBranch={currentBranch}
+              setCurrentBranch={setCurrentBranch}
             />
           )}
         </div>

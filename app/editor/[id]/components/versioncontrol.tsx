@@ -15,6 +15,8 @@ type Props = {
   onClose?: () => void;
   showToast: (message: string, type: "success" | "error") => void;
   applyStructureToEditor: (structure: StructureNode | null) => void;
+  currentBranch: string;
+  setCurrentBranch: (branch: string) => void;
 };
 
 type Commit = {
@@ -30,9 +32,10 @@ export default function VersionControlPanel({
   onClose,
   showToast,
   applyStructureToEditor,
+  currentBranch,
+  setCurrentBranch,
 }: Props) {
   const [branches, setBranches] = useState<string[]>([]);
-  const [activeBranch, setActiveBranch] = useState<string>("main");
   const [newBranchName, setNewBranchName] = useState("");
   const [commitMessage, setCommitMessage] = useState("");
   const [commits, setCommits] = useState<Commit[]>([]);
@@ -52,17 +55,17 @@ export default function VersionControlPanel({
         return;
       }
       setBranches(data.branches || ["main"]);
-      setActiveBranch(data.activeBranch || "main");
+      setCurrentBranch(data.activeBranch || "main");
     } catch (err) {
       console.error("fetchBranches error", err);
       showToast("Network error fetching branches.", "error");
     }
-  }, [projectId, showToast]);
+  }, [projectId, showToast, setCurrentBranch]);
 
   const fetchCommits = useCallback(
     async (branchName?: string) => {
       try {
-        const b = branchName || activeBranch;
+        const b = branchName || currentBranch;
         const res = await fetch(
           `/api/projects/${projectId}/version-control/commit?branch=${encodeURIComponent(b)}`,
         );
@@ -78,7 +81,7 @@ export default function VersionControlPanel({
         showToast("Network error fetching commits.", "error");
       }
     },
-    [activeBranch, projectId, showToast],
+    [currentBranch, projectId, showToast],
   );
 
   useEffect(() => {
@@ -86,8 +89,8 @@ export default function VersionControlPanel({
   }, [fetchBranches]);
 
   useEffect(() => {
-    if (activeBranch) fetchCommits(activeBranch);
-  }, [activeBranch, fetchCommits]);
+    if (currentBranch) fetchCommits(currentBranch);
+  }, [currentBranch, fetchCommits]);
 
   const createBranch = async () => {
     const name = newBranchName.trim();
@@ -99,7 +102,7 @@ export default function VersionControlPanel({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ branchName: name, baseBranch: activeBranch }),
+          body: JSON.stringify({ branchName: name, baseBranch: currentBranch }),
         },
       );
       const data = await res.json();
@@ -131,7 +134,7 @@ export default function VersionControlPanel({
           body: JSON.stringify({
             message: commitMessage,
             author: user.email,
-            branchName: activeBranch,
+            branchName: currentBranch,
           }),
         },
       );
@@ -142,8 +145,8 @@ export default function VersionControlPanel({
         return;
       }
       setCommitMessage("");
-      await fetchCommits(activeBranch);
-      localStorage.removeItem(localKey.current(activeBranch));
+      await fetchCommits(currentBranch);
+      localStorage.removeItem(localKey.current(currentBranch));
       showToast("Committed successfully.", "success");
     } catch (err) {
       setLoading(false);
@@ -152,14 +155,16 @@ export default function VersionControlPanel({
     }
   };
 
-  // switch branch: prompt to commit/discard if autosave exists
+  // --- Switch branch with proper structure reload ---
   const switchBranch = async (target: string) => {
-    if (target === activeBranch) return;
-    const autosaveKey = localKey.current(activeBranch);
+    if (target === currentBranch) return;
+
+    const autosaveKey = localKey.current(currentBranch);
     const saved = localStorage.getItem(autosaveKey);
+
     if (saved) {
       const keep = confirm(
-        `You have unsaved work in branch "${activeBranch}". Commit before switching? OK=Commit & switch, Cancel=Discard & switch.`,
+        `You have unsaved work in branch "${currentBranch}". Commit before switching? OK=Commit & switch, Cancel=Discard & switch.`,
       );
       if (keep) {
         await handleCommit();
@@ -178,29 +183,57 @@ export default function VersionControlPanel({
           body: JSON.stringify({ branchName: target }),
         },
       );
+
       const data = await res.json();
       setLoading(false);
+
       if (!res.ok) {
         showToast(data.error || "Switch failed.", "error");
         return;
       }
 
-      // Reload the editor immediately using the returned structure
-      applyStructureToEditor(data.structure as StructureNode);
-      showToast(`Switched to branch: ${target}. Workspace updated.`, "success");
-      await fetchBranches();
-      setActiveBranch(target);
-      await fetchCommits(target);
+      // Apply structure immediately
+      if (data.structure) {
+        applyStructureToEditor(data.structure as StructureNode);
+      } else {
+        // 🔁 Fallback: force re-fetch project structure if not in response
+        const refRes = await fetch(
+          `/api/projects/${projectId}/version-control/structure?branch=${target}`,
+        );
+        const refData = await refRes.json();
+        if (refRes.ok && refData.structure) {
+          applyStructureToEditor(refData.structure as StructureNode);
+        }
+      }
+
+      // Clear any existing cached structure of previous branch
+      localStorage.removeItem(`vc_structure:${projectId}:${currentBranch}`);
+
+      // Cache current branch structure
+      if (data.structure) {
+        localStorage.setItem(
+          `vc_structure:${projectId}:${target}`,
+          JSON.stringify(data.structure),
+        );
+      }
+
+      setCurrentBranch(target);
+      showToast(
+        `Switched to branch "${target}". Workspace updated.`,
+        "success",
+      );
+
+      // Refetch metadata (branches + commits)
+      await Promise.all([fetchBranches(), fetchCommits(target)]);
     } catch (err) {
       setLoading(false);
-      console.error(err);
+      console.error("switchBranch error", err);
       showToast("Switch failed.", "error");
     }
   };
 
   const deleteBranch = async (branchName: string) => {
     if (!confirm(`Delete branch "${branchName}"? This cannot be undone.`)) {
-      showToast("Delete cancelled.", "error");
       return;
     }
     setLoading(true);
@@ -228,13 +261,13 @@ export default function VersionControlPanel({
     }
   };
 
+  // Restore commit with immediate structure reload
   const restoreCommit = async (commitId: string) => {
     if (
       !confirm(
-        "Restore this commit? This will overwrite current project structure.",
+        "Restore this commit? This will overwrite your current working copy.",
       )
     ) {
-      showToast("Restore cancelled.", "error");
       return;
     }
     setLoading(true);
@@ -244,20 +277,34 @@ export default function VersionControlPanel({
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ commitId, branchName: activeBranch }),
+          body: JSON.stringify({ commitId, branchName: currentBranch }),
         },
       );
       const data = await res.json();
       setLoading(false);
+
       if (!res.ok) {
         showToast(data.error || "Restore failed.", "error");
         return;
       }
 
-      // Reload the editor immediately using the returned structure
-      applyStructureToEditor(data.structure as StructureNode);
-      showToast("Project restored to commit successfully.", "success");
-      await fetchCommits(activeBranch);
+      // CRITICAL: Apply structure immediately to update the editor
+      if (data.structure) {
+        applyStructureToEditor(data.structure as StructureNode);
+      }
+
+      // Store in localStorage as backup
+      localStorage.setItem(
+        `vc_load:${projectId}`,
+        JSON.stringify({
+          structure: data.structure,
+          branch: currentBranch,
+          message: "Commit restored successfully",
+        }),
+      );
+
+      showToast("Commit restored successfully. Workspace updated.", "success");
+      await fetchCommits(currentBranch);
     } catch (err) {
       setLoading(false);
       console.error(err);
@@ -266,14 +313,13 @@ export default function VersionControlPanel({
   };
 
   const handlePushToMain = async () => {
-    if (activeBranch === "main")
+    if (currentBranch === "main")
       return showToast("You're already on main.", "error");
     if (
       !confirm(
-        `Push branch "${activeBranch}" into main? This will overwrite main's working tree.`,
+        `Push branch "${currentBranch}" into main? This will overwrite main's working tree.`,
       )
     ) {
-      showToast("Push cancelled.", "error");
       return;
     }
     setLoading(true);
@@ -285,7 +331,7 @@ export default function VersionControlPanel({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "push",
-            sourceBranch: activeBranch,
+            sourceBranch: currentBranch,
             targetBranch: "main",
             author: user.email,
           }),
@@ -307,14 +353,13 @@ export default function VersionControlPanel({
   };
 
   const handlePullFromMain = async () => {
-    if (activeBranch === "main")
+    if (currentBranch === "main")
       return showToast("Pull not needed on main.", "error");
     if (
       !confirm(
-        `Pull main into "${activeBranch}"? This will overwrite ${activeBranch}'s working tree.`,
+        `Pull main into "${currentBranch}"? This will overwrite ${currentBranch}'s working tree.`,
       )
     ) {
-      showToast("Pull cancelled.", "error");
       return;
     }
     setLoading(true);
@@ -327,22 +372,36 @@ export default function VersionControlPanel({
           body: JSON.stringify({
             action: "pull",
             sourceBranch: "main",
-            targetBranch: activeBranch,
+            targetBranch: currentBranch,
             author: user.email,
           }),
         },
       );
       const data = await res.json();
       setLoading(false);
+
       if (!res.ok) {
         showToast(data.error || "Pull failed.", "error");
         return;
       }
 
-      // Reload editor with returned structure
-      applyStructureToEditor(data.structure as StructureNode);
+      // CRITICAL: Apply structure immediately to update the editor
+      if (data.structure) {
+        applyStructureToEditor(data.structure as StructureNode);
+      }
+
+      // Store in localStorage as backup
+      localStorage.setItem(
+        `vc_load:${projectId}`,
+        JSON.stringify({
+          structure: data.structure,
+          branch: currentBranch,
+          message: "Pulled from main successfully",
+        }),
+      );
+
       showToast("Pulled from main successfully. Workspace updated.", "success");
-      await fetchCommits(activeBranch);
+      await fetchCommits(currentBranch);
     } catch (err) {
       setLoading(false);
       console.error(err);
@@ -369,7 +428,7 @@ export default function VersionControlPanel({
       <div className="mb-4 pb-2 border-b border-gray-700">
         <div className="mb-2">
           <strong>Active Branch:</strong>{" "}
-          <span className="text-green-400">{activeBranch}</span>
+          <span className="text-green-400">{currentBranch}</span>
         </div>
 
         <div className="flex gap-2">
@@ -377,11 +436,15 @@ export default function VersionControlPanel({
             placeholder="New branch name"
             value={newBranchName}
             onChange={(e) => setNewBranchName(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === "Enter") createBranch();
+            }}
             className="flex-1 bg-gray-700 p-2 rounded text-white placeholder-gray-400"
           />
           <button
             onClick={createBranch}
-            className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded transition-colors"
+            disabled={loading || !newBranchName.trim()}
+            className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "..." : "Create"}
           </button>
@@ -398,24 +461,26 @@ export default function VersionControlPanel({
             >
               <div className="flex items-center gap-2">
                 <span
-                  className={`px-2 py-1 rounded text-xs ${b === activeBranch ? "bg-green-700" : "bg-gray-700"}`}
+                  className={`px-2 py-1 rounded text-xs font-medium ${b === currentBranch ? "bg-green-700" : "bg-gray-700"}`}
                 >
                   {b}
                 </span>
               </div>
               <div className="flex gap-2">
-                {b !== activeBranch && (
+                {b !== currentBranch && (
                   <button
                     onClick={() => switchBranch(b)}
-                    className="text-sm bg-indigo-600 hover:bg-indigo-700 px-2 py-1 rounded transition-colors"
+                    disabled={loading}
+                    className="text-sm bg-indigo-600 hover:bg-indigo-700 px-2 py-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Switch
                   </button>
                 )}
-                {b !== "main" && b !== activeBranch && (
+                {b !== "main" && b !== currentBranch && (
                   <button
                     onClick={() => deleteBranch(b)}
-                    className="text-sm bg-red-600 hover:bg-red-700 px-2 py-1 rounded transition-colors"
+                    disabled={loading}
+                    className="text-sm bg-red-600 hover:bg-red-700 px-2 py-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Delete
                   </button>
@@ -428,15 +493,15 @@ export default function VersionControlPanel({
         <div className="flex gap-2 pt-2">
           <button
             onClick={handlePushToMain}
-            className="flex-1 bg-purple-700 hover:bg-purple-600 px-3 py-2 rounded transition-colors"
-            disabled={activeBranch === "main" || loading}
+            className="flex-1 bg-purple-700 hover:bg-purple-600 px-3 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={currentBranch === "main" || loading}
           >
             Push → main
           </button>
           <button
             onClick={handlePullFromMain}
-            className="flex-1 bg-purple-700 hover:bg-purple-600 px-3 py-2 rounded transition-colors"
-            disabled={activeBranch === "main" || loading}
+            className="flex-1 bg-purple-700 hover:bg-purple-600 px-3 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={currentBranch === "main" || loading}
           >
             Pull ← main
           </button>
@@ -454,7 +519,7 @@ export default function VersionControlPanel({
         />
         <button
           onClick={handleCommit}
-          className="w-full bg-green-600 hover:bg-green-700 py-2 rounded transition-colors"
+          className="w-full bg-green-600 hover:bg-green-700 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={loading || !commitMessage.trim()}
         >
           {loading ? "Working..." : "Commit to branch"}
@@ -464,7 +529,7 @@ export default function VersionControlPanel({
       <div className="flex-1 pt-4 border-t border-gray-700 overflow-y-auto">
         <div>
           <h4 className="font-semibold mb-2">
-            Commits ({commits.length}) - {activeBranch}
+            Commits ({commits.length}) - {currentBranch}
           </h4>
           <div className="space-y-3">
             {commits.length === 0 && (
@@ -475,8 +540,10 @@ export default function VersionControlPanel({
                 key={c._id || c.message + c.timestamp}
                 className="bg-gray-800 p-3 rounded border border-gray-700 flex justify-between items-start"
               >
-                <div>
-                  <div className="font-medium text-sm">{c.message}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm truncate">
+                    {c.message}
+                  </div>
                   <div className="text-xs text-gray-400">
                     {c.author} •{" "}
                     {c.timestamp ? new Date(c.timestamp).toLocaleString() : ""}
@@ -489,7 +556,8 @@ export default function VersionControlPanel({
                         ? restoreCommit(c._id)
                         : showToast("Invalid commit ID", "error")
                     }
-                    className="text-xs bg-yellow-600 hover:bg-yellow-700 px-2 py-1 rounded"
+                    disabled={loading}
+                    className="text-xs bg-yellow-600 hover:bg-yellow-700 px-2 py-1 rounded whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Restore
                   </button>
