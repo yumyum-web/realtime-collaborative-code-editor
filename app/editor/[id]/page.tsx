@@ -94,6 +94,9 @@ export default function EditorPage() {
     filesRef.current,
   );
 
+  // Force editor to reload when activeFile or filesRef changes
+  const [editorKey, setEditorKey] = useState(0);
+
   // ---- Build structure from current editor state ----
   const buildStructure = useCallback((): StructureNode | null => {
     try {
@@ -141,9 +144,13 @@ export default function EditorPage() {
       filesRef.current = newFilesRef;
       setExpandedFolders(newExpanded);
 
-      // Pick the first available file
+      // Pick the first available file and force editor reload
       const firstFile = Object.keys(newFilesRef)[0];
-      if (firstFile) setActiveFile(firstFile);
+      if (firstFile) {
+        setActiveFile(firstFile);
+        // Force Monaco editor to reload with new content
+        setEditorKey((prev) => prev + 1);
+      }
 
       showToast("Project structure updated.", "success");
     },
@@ -439,7 +446,7 @@ export default function EditorPage() {
       )}
 
       {/* Sidebar */}
-      <aside className="w-64 bg-gray-800 p-4 overflow-y-auto text-sm border-r border-gray-700">
+      <aside className="w-64 bg-gray-800 p-4 overflow-y-auto text-sm border-r border-gray-700 flex-shrink-0">
         <h2 className="text-xl font-bold mb-4 border-b border-gray-700 pb-2">
           {projectTitle}
         </h2>
@@ -492,23 +499,22 @@ export default function EditorPage() {
       </aside>
 
       {/* Main Editor */}
-      <div className="flex-1 flex flex-col">
-        <div className="flex justify-between items-center bg-gray-800 px-4 py-2 border-b border-gray-700">
-          <div>
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex justify-between items-center bg-gray-800 px-4 py-2 border-b border-gray-700 z-10">
+          <div className="truncate">
             Editing: <strong>{activeFile || "No file selected"}</strong>
           </div>
-          <div className="flex gap-2">
-            <button
-              className="bg-blue-800 hover:bg-blue-600 px-4 py-1 rounded"
-              onClick={handleSaveProject}
-            >
-              Save Project
-            </button>
-          </div>
+          <button
+            className="bg-blue-800 hover:bg-blue-600 px-4 py-1 rounded whitespace-nowrap ml-4 flex-shrink-0"
+            onClick={handleSaveProject}
+          >
+            Save Project
+          </button>
         </div>
 
-        <div className="flex-1">
+        <div className="flex-1 relative">
           <Editor
+            key={editorKey}
             height="100%"
             theme="vs-dark"
             defaultLanguage="javascript"
@@ -522,7 +528,7 @@ export default function EditorPage() {
 
       {/* Chat Panel */}
       {chatOpen && (
-        <div className="fixed right-0 top-0 bottom-0 w-full md:w-96 bg-gray-800 z-40 border-l border-gray-700 overflow-y-auto">
+        <div className="w-96 bg-gray-800 border-l border-gray-700 overflow-y-auto flex-shrink-0">
           <ChatPanel
             chatMessages={chatMessages}
             user={user}
@@ -534,7 +540,7 @@ export default function EditorPage() {
 
       {/* Version Control Panel */}
       {vcOpen && (
-        <div className="fixed right-0 top-0 bottom-0 w-full md:w-96 bg-gray-800 z-40 border-l border-gray-700 overflow-y-auto">
+        <div className="w-96 bg-gray-800 border-l border-gray-700 overflow-y-auto flex-shrink-0">
           {user && (
             <VersionControlPanel
               projectId={projectId}

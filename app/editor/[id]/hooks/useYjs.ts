@@ -21,11 +21,10 @@ export function useYjs(
   const [model, setModel] = useState<Monaco.editor.ITextModel | null>(null);
   const [ydoc, setYdoc] = useState<Y.Doc | null>(null);
   const [provider, setProvider] = useState<WebsocketProvider | null>(null);
-
   const [presence, setPresence] = useState<PresenceUser[]>([]);
-
   const decorationsRef = useRef<string[]>([]);
 
+  // Update remote cursor decorations
   const updateRemoteCursorDecorations = useCallback(
     (states: PresenceUser[]) => {
       if (!provider || !editor || !monaco) return;
@@ -39,7 +38,6 @@ export function useYjs(
         decs.push({
           range: new monaco.Range(line, col, line, col),
           options: {
-            className: undefined,
             isWholeLine: false,
             stickiness:
               monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
@@ -56,7 +54,6 @@ export function useYjs(
         decs,
       );
 
-      // CSS for remote cursors
       const styleId = "remote-cursors-styles";
       let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
       if (!styleEl) {
@@ -68,25 +65,26 @@ export function useYjs(
         .map((s) => {
           if (!s.user) return "";
           const color = s.user.color ?? "#888";
-          return `.monaco-editor .remoteCursor_${s.clientId} { background: rgba(${parseInt(color.slice(1, 3), 16)}, ${parseInt(color.slice(3, 5), 16)}, ${parseInt(color.slice(5, 7), 16)}, 0.12); border-left: 2px solid ${color}; }`;
+          return `.monaco-editor .remoteCursor_${s.clientId} {
+            background: rgba(${parseInt(color.slice(1, 3), 16)}, ${parseInt(color.slice(3, 5), 16)}, ${parseInt(color.slice(5, 7), 16)}, 0.12);
+            border-left: 2px solid ${color};
+          }`;
         })
         .join("\n");
     },
     [editor, monaco, provider],
   );
 
-  // Create Y.Doc
+  // Create new Y.Doc
   useEffect(() => {
     const doc = new Y.Doc();
     setYdoc(doc);
     return () => {
-      try {
-        doc.destroy?.();
-      } catch {}
+      doc.destroy();
     };
   }, [activeFile, projectId]);
 
-  // Connect to Yjs server
+  // Connect to WebSocket provider
   useEffect(() => {
     if (!ydoc) return;
     const safeFile = activeFile.replace(/[\/\\]/g, "--").replace(/\./g, "-");
@@ -99,11 +97,13 @@ export function useYjs(
     setProvider(provider);
 
     return () => {
-      provider?.destroy?.();
+      try {
+        provider.destroy();
+      } catch {}
     };
   }, [activeFile, projectId, ydoc]);
 
-  // Setup model for the active file
+  // Create Monaco model
   useEffect(() => {
     if (!activeFile || !monaco) return;
 
@@ -114,26 +114,38 @@ export function useYjs(
     }
 
     setModel(model);
+
+    return () => {
+      // Dispose old model safely
+      if (model && !model.isDisposed()) {
+        model.dispose();
+      }
+    };
   }, [activeFile, monaco, projectId]);
 
-  // Update editor with the new model
+  // Attach model to editor
   useEffect(() => {
     if (!editor || !model) return;
+    if (model.isDisposed()) return;
     editor.setModel(model);
   }, [editor, model]);
 
-  // Setup monaco binding
+  // Yjs binding setup
   useEffect(() => {
+    if (!ydoc || !model || !provider || model.isDisposed()) return;
+
     let binding: MonacoBinding | undefined;
     let ytext: Y.Text | undefined;
     let ymap: Y.Map<boolean> | undefined;
 
     const observeYText = () => {
-      files[activeFile] = ytext!.toString();
+      if (!files || !activeFile) return;
+      files[activeFile] = ytext?.toString() ?? "";
     };
 
     import("y-monaco").then(({ MonacoBinding }) => {
-      if (!ydoc || !model || !provider) return;
+      if (!ydoc || !provider || !model || model.isDisposed()) return;
+
       ytext = ydoc.getText("monaco");
       ymap = ydoc.getMap("metadata");
 
@@ -141,23 +153,17 @@ export function useYjs(
         const isInitialized = ymap!.get("initialized");
         const hasContent = ytext!.length > 0;
 
-        if (!isInitialized && !hasContent && activeFile && files[activeFile]) {
+        if (!isInitialized && !hasContent && files[activeFile]) {
           ytext!.insert(0, files[activeFile]);
           ymap!.set("initialized", true);
         }
       };
 
-      if (provider.synced) {
-        // If already synced, initialize immediately
+      const onSync = () => {
         initializeContent();
-      } else {
-        // Wait for initial sync to complete
-        const onSync = () => {
-          initializeContent();
-          provider.off("synced", onSync);
-        };
-        provider.on("synced", onSync);
-      }
+        provider.off("synced", onSync);
+      };
+      provider.on("synced", onSync);
 
       ytext.observe(observeYText);
 
@@ -170,15 +176,20 @@ export function useYjs(
     });
 
     return () => {
-      binding?.destroy?.();
-      ytext?.unobserve(observeYText);
+      try {
+        binding?.destroy?.();
+      } catch {}
+      try {
+        ytext?.unobserve?.(observeYText);
+      } catch {}
     };
-  }, [model, provider, ydoc, editor, activeFile, initialFiles, files]);
+  }, [model, provider, ydoc, editor, activeFile, files]);
 
   // Awareness setup
   useEffect(() => {
     if (!provider || !editor) return;
     const awareness = provider.awareness;
+
     if (user) {
       awareness.setLocalStateField("user", {
         name: user.username ?? user.email ?? "unknown",
@@ -199,6 +210,7 @@ export function useYjs(
       setPresence(states);
       updateRemoteCursorDecorations(states);
     };
+
     awareness.on("change", onAwarenessChange);
 
     const cursorListener = editor.onDidChangeCursorPosition((e) => {
@@ -209,18 +221,12 @@ export function useYjs(
     });
 
     return () => {
-      try {
-        cursorListener?.dispose();
-      } catch {}
+      cursorListener?.dispose?.();
       try {
         awareness.off("change", onAwarenessChange);
       } catch {}
     };
   }, [user, updateRemoteCursorDecorations, provider, editor]);
 
-  return {
-    presence,
-    setEditor,
-    setMonaco,
-  };
+  return { presence, setEditor, setMonaco };
 }

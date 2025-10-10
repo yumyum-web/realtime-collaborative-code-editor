@@ -192,11 +192,14 @@ export default function VersionControlPanel({
         return;
       }
 
-      // Apply structure immediately
+      // CRITICAL: Update current branch BEFORE applying structure
+      setCurrentBranch(target);
+
+      // Apply structure immediately with complete reload
       if (data.structure) {
         applyStructureToEditor(data.structure as StructureNode);
       } else {
-        // 🔁 Fallback: force re-fetch project structure if not in response
+        // Fallback: force re-fetch project structure if not in response
         const refRes = await fetch(
           `/api/projects/${projectId}/version-control/structure?branch=${target}`,
         );
@@ -217,7 +220,6 @@ export default function VersionControlPanel({
         );
       }
 
-      setCurrentBranch(target);
       showToast(
         `Switched to branch "${target}". Workspace updated.`,
         "success",
