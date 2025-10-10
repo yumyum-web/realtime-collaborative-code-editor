@@ -77,6 +77,7 @@ export default function EditorPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [vcOpen, setVcOpen] = useState(false);
   const [currentBranch, setCurrentBranch] = useState<string>("main");
+  const [forceRefresh, setForceRefresh] = useState<number>(0);
 
   const {
     fileTree,
@@ -96,6 +97,7 @@ export default function EditorPage() {
     initialFiles,
     filesRef.current,
     currentBranch,
+    forceRefresh,
   );
 
   // Force editor to reload when activeFile, filesRef, OR currentBranch changes
@@ -160,24 +162,28 @@ export default function EditorPage() {
           `✅ Applied structure: ${Object.keys(newFilesRef).length} files`,
         );
 
-        // Step 3: Set new active file after a delay
+        // Step 3: Set new active file after a delay and trigger force refresh
         setTimeout(() => {
           const firstFile = Object.keys(newFilesRef)[0];
           if (firstFile) {
             setActiveFile(firstFile);
+            // Trigger force refresh to ensure Yjs uses the new content
+            setForceRefresh(Date.now());
             // Safer editor reload
             setEditorMounting(true);
             setTimeout(() => {
               setEditorKey((prev) => prev + 1);
               setEditorMounting(false);
             }, 50);
-            console.log(`📄 Active file set to: ${firstFile}`);
+            console.log(
+              `📄 Active file set to: ${firstFile} with force refresh`,
+            );
           }
           showToast("Project structure updated.", "success");
         }, 100);
       }, 100);
     },
-    [setFileTree, filesRef, showToast],
+    [setFileTree, filesRef, showToast, setForceRefresh],
   );
 
   // ---- Load current branch on mount ----

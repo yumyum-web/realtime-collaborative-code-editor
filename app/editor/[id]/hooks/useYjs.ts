@@ -13,6 +13,7 @@ export function useYjs(
   initialFiles: Record<string, string>,
   files: Record<string, string>,
   currentBranch: string,
+  forceRefresh?: number, // Add timestamp to force refresh when files are externally updated
 ) {
   const [monaco, setMonaco] = useState<typeof import("monaco-editor") | null>(
     null,
@@ -28,14 +29,22 @@ export function useYjs(
   const modelRef = useRef<Monaco.editor.ITextModel | null>(null);
   const cursorListenerRef = useRef<Monaco.IDisposable | null>(null);
   const awarenessListenerRef = useRef<(() => void) | null>(null);
+  const ytextObserverRef = useRef<(() => void) | null>(null);
 
   // Update remote cursor decorations
   const updateRemoteCursorDecorations = useCallback(
     (states: PresenceUser[]) => {
       if (!providerRef.current || !editor || !monaco) return;
 
-      // Safety check: ensure editor model exists and is not disposed
+      // Enhanced safety checks for editor state
       try {
+        // Check DOM node existence
+        const domNode = editor.getDomNode?.();
+        if (!domNode || !domNode.isConnected) {
+          console.warn("⚠️ Skipping cursor update - editor DOM node missing");
+          return;
+        }
+
         const model = editor.getModel();
         if (!model || model.isDisposed()) {
           console.warn("⚠️ Skipping cursor update - editor model is disposed");
@@ -68,10 +77,16 @@ export function useYjs(
       });
 
       try {
-        decorationsRef.current = editor.deltaDecorations(
-          decorationsRef.current,
-          decs,
-        );
+        // Additional safety check before updating decorations
+        const currentModel = editor.getModel();
+        if (currentModel && !currentModel.isDisposed()) {
+          decorationsRef.current = editor.deltaDecorations(
+            decorationsRef.current,
+            decs,
+          );
+        } else {
+          decorationsRef.current = [];
+        }
       } catch (err) {
         console.warn("⚠️ Error updating decorations:", err);
         decorationsRef.current = [];
@@ -125,6 +140,24 @@ export function useYjs(
       }
     }
 
+    // Remove ytext observer
+    if (
+      ytextObserverRef.current &&
+      ydocRef.current &&
+      !ydocRef.current.isDestroyed
+    ) {
+      try {
+        const ytext = ydocRef.current.getText("monaco");
+        if (ytext) {
+          ytext.unobserve(ytextObserverRef.current);
+        }
+        ytextObserverRef.current = null;
+      } catch (err) {
+        console.warn("YText observer cleanup warning:", err);
+        ytextObserverRef.current = null; // Clear reference even if cleanup fails
+      }
+    }
+
     // Destroy binding
     if (bindingRef.current) {
       try {
@@ -172,150 +205,232 @@ export function useYjs(
     let mounted = true;
     console.log(`🔄 Setting up Yjs for: ${currentBranch}/${activeFile}`);
 
-    // Cleanup previous setup
-    cleanupAll();
+    // Wrap entire setup in try-catch to prevent Monaco DOM errors
+    try {
+      // Cleanup previous setup
+      cleanupAll();
 
-    // Create new Y.Doc
-    const ydoc = new Y.Doc();
-    ydocRef.current = ydoc;
+      // Create new Y.Doc
+      const ydoc = new Y.Doc();
+      ydocRef.current = ydoc;
 
-    // Create WebSocket provider with branch-specific room
-    const safeFile = activeFile.replace(/[\/\\]/g, "--").replace(/\./g, "-");
-    const safeBranch = currentBranch
-      .replace(/[\/\\]/g, "--")
-      .replace(/\s/g, "%20");
-    const roomName = `${projectId}-${safeBranch}--${safeFile}`;
+      // Create WebSocket provider with branch-specific room
+      const safeFile = activeFile.replace(/[\/\\]/g, "--").replace(/\./g, "-");
+      const safeBranch = currentBranch
+        .replace(/[\/\\]/g, "--")
+        .replace(/\s/g, "%20");
+      const roomName = `${projectId}-${safeBranch}--${safeFile}`;
 
-    console.log(`📡 Connecting to Yjs room: ${roomName}`);
-    const provider = new WebsocketProvider(
-      "ws://localhost:1234",
-      roomName,
-      ydoc,
-      {
-        connect: true,
-      },
-    );
-    providerRef.current = provider;
+      console.log(`📡 Connecting to Yjs room: ${roomName}`);
+      const provider = new WebsocketProvider(
+        "ws://localhost:1234",
+        roomName,
+        ydoc,
+        {
+          connect: true,
+        },
+      );
+      providerRef.current = provider;
 
-    // Get or create Monaco model
-    const uri = monaco.Uri.parse(
-      `inmemory:///${projectId}/${currentBranch}/${activeFile}`,
-    );
-    let model = monaco.editor.getModel(uri);
+      // Get or create Monaco model
+      const uri = monaco.Uri.parse(
+        `inmemory:///${projectId}/${currentBranch}/${activeFile}`,
+      );
+      let model = monaco.editor.getModel(uri);
 
-    if (!model) {
-      const content = files[activeFile] ?? "";
-      model = monaco.editor.createModel(content, undefined, uri);
-      console.log(`📝 Created new model for ${activeFile}`);
-    } else {
-      console.log(`📝 Using existing model for ${activeFile}`);
-    }
+      if (!model) {
+        const content = files[activeFile] ?? "";
+        model = monaco.editor.createModel(content, undefined, uri);
+        console.log(`📝 Created new model for ${activeFile}`);
+      } else {
+        console.log(`📝 Using existing model for ${activeFile}`);
+      }
 
-    modelRef.current = model;
+      modelRef.current = model;
 
-    // Attach model to editor
-    if (model && !model.isDisposed()) {
-      editor.setModel(model);
-    }
-
-    // Initialize Yjs binding after provider syncs
-    const initBinding = async () => {
-      if (!mounted || !model || model.isDisposed()) return;
-
+      // Attach model to editor with safety checks
       try {
-        const { MonacoBinding } = await import("y-monaco");
-        if (!mounted || !model || model.isDisposed()) return;
-
-        const ytext = ydoc.getText("monaco");
-        const ymap = ydoc.getMap("metadata");
-
-        // Initialize content only if Yjs doc is empty
-        const isInitialized = ymap.get("initialized");
-        const hasContent = ytext.length > 0;
-
-        if (!isInitialized && !hasContent) {
-          const initialContent = files[activeFile] ?? "";
-          if (initialContent) {
-            console.log(`💾 Initializing Yjs content for ${activeFile}`);
-            ytext.insert(0, initialContent);
-          }
-          ymap.set("initialized", true);
-        } else {
-          // Sync local files with Yjs content
-          const yjsContent = ytext.toString();
-          if (yjsContent !== files[activeFile]) {
-            console.log(`🔄 Syncing local content from Yjs`);
-            files[activeFile] = yjsContent;
+        if (model && !model.isDisposed()) {
+          const domNode = editor.getDomNode?.();
+          if (domNode && domNode.isConnected) {
+            editor.setModel(model);
+          } else {
+            console.warn(
+              "⚠️ Skipping setModel - editor DOM node not available",
+            );
           }
         }
-
-        // Create binding
-        const binding = new MonacoBinding(
-          ytext,
-          model,
-          new Set([editor]),
-          provider.awareness,
-        );
-        bindingRef.current = binding;
-
-        // Observe ytext changes to update local files
-        const observer = () => {
-          if (!mounted || !files || !activeFile) return;
-          files[activeFile] = ytext.toString();
-        };
-        ytext.observe(observer);
-
-        console.log(`✅ Yjs binding established for ${activeFile}`);
       } catch (err) {
-        console.error("Failed to create MonacoBinding:", err);
+        console.warn("⚠️ Error setting model to editor:", err);
       }
-    };
 
-    // Wait for provider to sync
-    if (provider.synced) {
-      initBinding();
-    } else {
-      const onSync = () => {
-        if (mounted) initBinding();
-        provider.off("synced", onSync);
+      // Initialize Yjs binding after provider syncs
+      const initBinding = async () => {
+        if (!mounted || !model || model.isDisposed()) return;
+
+        // Additional safety check for editor DOM
+        try {
+          const domNode = editor.getDomNode?.();
+          if (!domNode || !domNode.isConnected) {
+            console.warn("⚠️ Skipping binding init - editor DOM not available");
+            return;
+          }
+        } catch (err) {
+          console.warn("⚠️ Error checking editor DOM:", err);
+          return;
+        }
+
+        try {
+          const { MonacoBinding } = await import("y-monaco");
+          if (!mounted || !model || model.isDisposed()) return;
+
+          // Double-check editor DOM again after async import
+          const domNode = editor.getDomNode?.();
+          if (!domNode || !domNode.isConnected) {
+            console.warn(
+              "⚠️ Skipping binding creation - editor DOM removed during import",
+            );
+            return;
+          }
+
+          const ytext = ydoc.getText("monaco");
+          const ymap = ydoc.getMap("metadata");
+
+          // Initialize content only if Yjs doc is empty OR if force refresh is triggered
+          const isInitialized = ymap.get("initialized");
+          const hasContent = ytext.length > 0;
+          const lastForceRefresh =
+            (ymap.get("lastForceRefresh") as number) || 0;
+          const shouldForceRefresh =
+            forceRefresh && forceRefresh > lastForceRefresh;
+
+          if (!isInitialized && !hasContent) {
+            const initialContent = files[activeFile] ?? "";
+            if (initialContent) {
+              console.log(`💾 Initializing Yjs content for ${activeFile}`);
+              ytext.insert(0, initialContent);
+            }
+            ymap.set("initialized", true);
+            if (forceRefresh) {
+              ymap.set("lastForceRefresh", forceRefresh);
+            }
+          } else if (shouldForceRefresh) {
+            // Force refresh: overwrite Yjs content with current file content
+            const newContent = files[activeFile] ?? "";
+            console.log(`🔄 Force refreshing Yjs content for ${activeFile}`);
+
+            // Clear existing content and insert new content
+            if (ytext.length > 0) {
+              ytext.delete(0, ytext.length);
+            }
+            if (newContent) {
+              ytext.insert(0, newContent);
+            }
+            ymap.set("lastForceRefresh", forceRefresh);
+          } else {
+            // Normal sync: prefer Yjs content over local files
+            const yjsContent = ytext.toString();
+            if (yjsContent !== files[activeFile]) {
+              console.log(`🔄 Syncing local content from Yjs`);
+              files[activeFile] = yjsContent;
+            }
+          }
+
+          // Create binding
+          const binding = new MonacoBinding(
+            ytext,
+            model,
+            new Set([editor]),
+            provider.awareness,
+          );
+          bindingRef.current = binding;
+
+          // Observe ytext changes to update local files
+          const observer = () => {
+            if (!mounted || !files || !activeFile) return;
+            files[activeFile] = ytext.toString();
+          };
+          ytext.observe(observer);
+          ytextObserverRef.current = observer;
+
+          console.log(`✅ Yjs binding established for ${activeFile}`);
+        } catch (err) {
+          console.error("Failed to create MonacoBinding:", err);
+        }
       };
-      provider.on("synced", onSync);
-    }
 
-    // Setup awareness
-    if (user) {
-      provider.awareness.setLocalStateField("user", {
-        name: user.username ?? user.email ?? "unknown",
-        email: user.email,
-        color: randomColor(),
-        cursor: null,
+      // Wait for provider to sync
+      if (provider.synced) {
+        initBinding();
+      } else {
+        const onSync = () => {
+          if (mounted) initBinding();
+          provider.off("synced", onSync);
+        };
+        provider.on("synced", onSync);
+      }
+
+      // Setup awareness
+      if (user) {
+        provider.awareness.setLocalStateField("user", {
+          name: user.username ?? user.email ?? "unknown",
+          email: user.email,
+          color: randomColor(),
+          cursor: null,
+        });
+      }
+
+      const onAwarenessChange = () => {
+        if (!mounted) return;
+
+        try {
+          // Check if editor is still available before processing awareness changes
+          const domNode = editor.getDomNode?.();
+          if (!domNode || !domNode.isConnected) {
+            return;
+          }
+
+          const states = Array.from(
+            provider.awareness.getStates().entries(),
+          ).map(([clientId, state]) => ({
+            clientId: Number(clientId),
+            user: state?.user,
+            cursor: state?.cursor,
+          }));
+          setPresence(states);
+          updateRemoteCursorDecorations(states);
+        } catch (err) {
+          console.warn("⚠️ Error in awareness change handler:", err);
+        }
+      };
+
+      provider.awareness.on("change", onAwarenessChange);
+      awarenessListenerRef.current = onAwarenessChange;
+
+      const cursorListener = editor.onDidChangeCursorPosition((e) => {
+        if (!mounted) return;
+
+        // Safety check before awareness update
+        try {
+          const domNode = editor.getDomNode?.();
+          if (!domNode || !domNode.isConnected) {
+            return;
+          }
+
+          provider.awareness.setLocalStateField("cursor", {
+            line: e.position.lineNumber,
+            column: e.position.column,
+          });
+        } catch (err) {
+          console.warn("⚠️ Error updating cursor position:", err);
+        }
       });
+      cursorListenerRef.current = cursorListener;
+    } catch (err) {
+      console.error("🚨 Critical error in Yjs setup:", err);
+      // Ensure cleanup even if setup fails
+      cleanupAll();
     }
-
-    const onAwarenessChange = () => {
-      if (!mounted) return;
-      const states = Array.from(provider.awareness.getStates().entries()).map(
-        ([clientId, state]) => ({
-          clientId: Number(clientId),
-          user: state?.user,
-          cursor: state?.cursor,
-        }),
-      );
-      setPresence(states);
-      updateRemoteCursorDecorations(states);
-    };
-
-    provider.awareness.on("change", onAwarenessChange);
-    awarenessListenerRef.current = onAwarenessChange;
-
-    const cursorListener = editor.onDidChangeCursorPosition((e) => {
-      if (!mounted) return;
-      provider.awareness.setLocalStateField("cursor", {
-        line: e.position.lineNumber,
-        column: e.position.column,
-      });
-    });
-    cursorListenerRef.current = cursorListener;
 
     // Cleanup on unmount or when dependencies change
     return () => {
@@ -331,6 +446,7 @@ export function useYjs(
     editor,
     files,
     user,
+    forceRefresh,
     cleanupAll,
     updateRemoteCursorDecorations,
   ]);
