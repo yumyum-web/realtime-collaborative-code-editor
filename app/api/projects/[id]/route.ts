@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/app/lib/mongoose";
-import Project from "@/app/models/project";
-
-type FileEntity = {
-  name: string;
-  type: "file" | "folder";
-  children?: FileEntity[];
-  content?: string | null;
-};
+import Project, { FileEntity, ProjectDocument } from "@/app/models/project";
+import VersionControl from "@/app/models/VersionControl";
 
 type UpdateProjectBody = {
   title?: string;
@@ -15,27 +9,95 @@ type UpdateProjectBody = {
   structure?: FileEntity;
 };
 
-// GET project by ID
+// GET project by ID - now respects active branch
 export async function GET(
-  _req: NextRequest,
-  context: { params: Promise<{ id: string }> },
+  req: NextRequest,
+  context: { params: { id: string } },
 ) {
   await connectDB();
-  const { id } = await context.params; // fixed
-  const project = await Project.findById(id).lean();
+  const { id } = context.params;
+
+  // Check if branch query parameter is provided
+  const { searchParams } = new URL(req.url);
+  const branchQuery = searchParams.get("branch");
+
+  const project = (await Project.findById(id).lean()) as ProjectDocument | null;
   if (!project) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
-  return NextResponse.json(project);
+
+  // If branch query is provided and it's not "main", fetch from version control
+  if (branchQuery && branchQuery !== "main") {
+    try {
+      const versionControl = await VersionControl.findOne({ projectId: id });
+      if (!versionControl) {
+        // If no version control found, return main project structure
+        return NextResponse.json(project);
+      }
+
+      const branch = versionControl.branches.find(
+        (b: { name: string; workingTree?: FileEntity }) =>
+          b.name === branchQuery,
+      );
+      if (!branch) {
+        return NextResponse.json(
+          { error: `Branch "${branchQuery}" not found` },
+          { status: 404 },
+        );
+      }
+
+      // Return project with branch structure
+      return NextResponse.json({
+        ...project,
+        structure: branch.workingTree || project.structure,
+        activeBranch: branchQuery,
+      });
+    } catch (err) {
+      console.error("Error fetching branch data:", err);
+      // Fallback to main structure
+      return NextResponse.json(project);
+    }
+  }
+
+  // If no branch specified or branch is "main", check for active branch in version control
+  try {
+    const versionControl = await VersionControl.findOne({ projectId: id });
+    if (
+      versionControl &&
+      versionControl.activeBranch &&
+      versionControl.activeBranch !== "main"
+    ) {
+      const activeBranch = versionControl.branches.find(
+        (b: { name: string; workingTree?: FileEntity }) =>
+          b.name === versionControl.activeBranch,
+      );
+
+      if (activeBranch && activeBranch.workingTree) {
+        return NextResponse.json({
+          ...project,
+          structure: activeBranch.workingTree,
+          activeBranch: versionControl.activeBranch,
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Error checking active branch:", err);
+  }
+
+  // Default: return main project structure
+  return NextResponse.json({
+    ...project,
+    activeBranch: "main",
+  });
 }
 
-// Update project
+// Update project (used by main save, only updates Project.structure when on 'main' branch)
 export async function PUT(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> },
+  context: { params: { id: string } },
 ) {
   await connectDB();
-  const { id } = await context.params; // fixed
+  const { id } = context.params;
   const body: UpdateProjectBody = await req.json();
 
   const update: UpdateProjectBody = {};
@@ -43,9 +105,12 @@ export async function PUT(
   if (body.description !== undefined) update.description = body.description;
   if (body.structure !== undefined) update.structure = body.structure;
 
+  // Use findByIdAndUpdate for simplicity when only updating the main document
   const project = await Project.findByIdAndUpdate(id, update, {
     new: true,
+    runValidators: true,
   }).lean();
+
   if (!project) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
@@ -55,10 +120,10 @@ export async function PUT(
 // Delete project (only owner)
 export async function DELETE(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> },
+  context: { params: { id: string } },
 ) {
   await connectDB();
-  const { id } = await context.params; // fixed
+  const { id } = context.params;
 
   const userEmail = req.headers.get("x-user-email");
   if (!userEmail) {
@@ -78,19 +143,28 @@ export async function DELETE(
   }
 
   await Project.findByIdAndDelete(id);
+
+  // Also delete the associated VersionControl document
+  try {
+    await VersionControl.findOneAndDelete({ projectId: id });
+  } catch (err) {
+    console.error("Error deleting version control:", err);
+  }
+
   return NextResponse.json({ message: "Project deleted successfully" });
 }
 
 // Add chat message
 export async function POST(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> },
+  context: { params: { id: string } },
 ) {
   await connectDB();
-  const { id } = await context.params; // fixed
+  const { id } = context.params;
   const { senderEmail, senderUsername, message } = await req.json();
 
-  const project = await Project.findById(id);
+  // Find the project document for update
+  const project = (await Project.findById(id)) as ProjectDocument | null;
   if (!project) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
