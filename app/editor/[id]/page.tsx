@@ -86,15 +86,17 @@ export default function EditorPage() {
   const [vcOpen, setVcOpen] = useState(false);
   const [currentBranch, setCurrentBranch] = useState<string>("main");
 
+  // CRITICAL: Pass currentBranch to useYjs
   const { presence, setEditor, setMonaco } = useYjs(
     activeFile,
     user,
     projectId,
     initialFiles,
     filesRef.current,
+    currentBranch, // ADD THIS
   );
 
-  // Force editor to reload when activeFile or filesRef changes
+  // Force editor to reload when activeFile, filesRef, OR currentBranch changes
   const [editorKey, setEditorKey] = useState(0);
 
   // ---- Build structure from current editor state ----
@@ -117,42 +119,51 @@ export default function EditorPage() {
         return;
       }
 
-      // Full hard reset before applying new structure
-      setFileTree([]);
-      filesRef.current = {};
+      console.log("Applying structure to editor:", structure);
+
+      // Step 1: Clear active file first to trigger Yjs cleanup
       setActiveFile("");
-      setExpandedFolders(new Set());
 
-      const newFilesRef: Record<string, string> = {};
-      const newExpanded = new Set<string>();
+      // Step 2: Wait a tick for cleanup to complete
+      setTimeout(() => {
+        // Full hard reset
+        setFileTree([]);
+        filesRef.current = {};
+        setExpandedFolders(new Set());
 
-      const traverse = (node: StructureNode, path: string) => {
-        const fullPath = path ? `${path}/${node.name}` : node.name;
-        if (node.type === "file") {
-          newFilesRef[fullPath] = node.content ?? "";
-        } else if (node.type === "folder" && node.children) {
-          newExpanded.add(fullPath);
-          node.children.forEach((child) => traverse(child, fullPath));
+        const newFilesRef: Record<string, string> = {};
+        const newExpanded = new Set<string>();
+
+        const traverse = (node: StructureNode, path: string) => {
+          const fullPath = path ? `${path}/${node.name}` : node.name;
+          if (node.type === "file") {
+            newFilesRef[fullPath] = node.content ?? "";
+          } else if (node.type === "folder" && node.children) {
+            newExpanded.add(fullPath);
+            node.children.forEach((child) => traverse(child, fullPath));
+          }
+        };
+
+        if (structure.type === "folder" && Array.isArray(structure.children)) {
+          traverse(structure, "");
         }
-      };
 
-      if (structure.type === "folder" && Array.isArray(structure.children)) {
-        traverse(structure, "");
-      }
+        // Apply all changes
+        filesRef.current = newFilesRef;
+        setFileTree([structure]);
+        setExpandedFolders(newExpanded);
 
-      setFileTree([structure]);
-      filesRef.current = newFilesRef;
-      setExpandedFolders(newExpanded);
-
-      // Pick the first available file and force editor reload
-      const firstFile = Object.keys(newFilesRef)[0];
-      if (firstFile) {
-        setActiveFile(firstFile);
-        // Force Monaco editor to reload with new content
-        setEditorKey((prev) => prev + 1);
-      }
-
-      showToast("Project structure updated.", "success");
+        // Step 3: Set new active file after a small delay
+        setTimeout(() => {
+          const firstFile = Object.keys(newFilesRef)[0];
+          if (firstFile) {
+            setActiveFile(firstFile);
+            // Force complete editor reload
+            setEditorKey((prev) => prev + 1);
+          }
+          showToast("Project structure updated.", "success");
+        }, 50);
+      }, 50);
     },
     [setFileTree, filesRef, showToast],
   );
@@ -186,12 +197,17 @@ export default function EditorPage() {
           const branch = parsed.branch as string | undefined;
 
           if (structure) {
-            applyStructureToEditor(structure);
-            if (branch) setCurrentBranch(branch);
-            showToast(
-              parsed.message || "Loaded changes from version control.",
-              "success",
-            );
+            if (branch && branch !== currentBranch) {
+              setCurrentBranch(branch);
+            }
+            // Small delay to ensure branch state is updated
+            setTimeout(() => {
+              applyStructureToEditor(structure);
+              showToast(
+                parsed.message || "Loaded changes from version control.",
+                "success",
+              );
+            }, 100);
           }
 
           localStorage.removeItem(`vc_load:${projectId}`);
@@ -204,7 +220,7 @@ export default function EditorPage() {
     checkVcLoad();
     const interval = setInterval(checkVcLoad, 500);
     return () => clearInterval(interval);
-  }, [projectId, applyStructureToEditor, showToast]);
+  }, [projectId, currentBranch, applyStructureToEditor, showToast]);
 
   // ---- Socket handlers ----
   useEffect(() => {
@@ -335,11 +351,20 @@ export default function EditorPage() {
   // ---- Editor mount ----
   const handleMount: OnMount = useCallback(
     (editor, monaco) => {
+      console.log("📝 Monaco editor mounted");
       setEditor(editor);
       setMonaco(monaco);
     },
     [setEditor, setMonaco],
   );
+
+  // ---- Cleanup on unmount ----
+  useEffect(() => {
+    return () => {
+      console.log("🛑 Editor page unmounting");
+      // Cleanup will be handled by useYjs
+    };
+  }, []);
 
   // ---- Set initial active file ----
   useEffect(() => {
