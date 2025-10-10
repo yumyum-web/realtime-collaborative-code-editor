@@ -7,29 +7,75 @@ export function useFileTree(projectId: string) {
   const [initialFiles, setInitialFiles] = useState<Record<string, string>>({});
   const filesRef = useRef<Record<string, string>>({});
   const [projectTitle, setProjectTitle] = useState("Loading...");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!projectId) return;
 
-    fetch(`/api/projects/${projectId}`)
-      .then((r) => r.json())
-      .then((data) => {
+    const loadProject = async () => {
+      setIsLoading(true);
+
+      try {
+        // First, get the current active branch
+        let activeBranch = "main";
+        try {
+          const branchRes = await fetch(
+            `/api/projects/${projectId}/version-control/branch`,
+          );
+          if (branchRes.ok) {
+            const branchData = await branchRes.json();
+            activeBranch = branchData.activeBranch || "main";
+            console.log(`📂 Active branch detected: ${activeBranch}`);
+          }
+        } catch (err) {
+          console.warn(
+            "Could not fetch active branch, defaulting to main:",
+            err,
+          );
+        }
+
+        // Fetch project data with branch context
+        const projectRes = await fetch(
+          `/api/projects/${projectId}?branch=${activeBranch}`,
+        );
+
+        if (!projectRes.ok) {
+          throw new Error("Failed to fetch project");
+        }
+
+        const data = await projectRes.json();
         const root = data.structure ?? data;
         setProjectTitle(data.title ?? "Untitled");
+
+        console.log(`📦 Loading structure for branch: ${activeBranch}`, root);
 
         const flat: Record<string, string> = {};
         function walk(node: FileNode & { content?: string }, path = "") {
           const cur = path ? `${path}/${node.name}` : node.name;
-          if (node.type === "file") flat[cur] = node.content ?? "";
-          else node.children?.forEach((c) => walk(c, cur));
+          if (node.type === "file") {
+            flat[cur] = node.content ?? "";
+          } else if (node.children) {
+            node.children.forEach((c) => walk(c, cur));
+          }
         }
         walk(root);
 
         setInitialFiles(flat);
         filesRef.current = flat;
         setFileTree([root]);
-      })
-      .catch(console.error);
+
+        console.log(
+          `✅ Loaded ${Object.keys(flat).length} files for ${activeBranch}`,
+        );
+      } catch (err) {
+        console.error("Failed to load project:", err);
+        setProjectTitle("Error loading project");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProject();
   }, [projectId]);
 
   const getFirstFile = () => findFirstFile(fileTree);
@@ -41,5 +87,6 @@ export function useFileTree(projectId: string) {
     filesRef,
     projectTitle,
     getFirstFile,
+    isLoading,
   };
 }

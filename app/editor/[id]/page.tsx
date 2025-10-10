@@ -76,6 +76,7 @@ export default function EditorPage() {
     filesRef,
     projectTitle,
     getFirstFile,
+    isLoading,
   } = useFileTree(projectId);
 
   const [activeFile, setActiveFile] = useState<string>("");
@@ -86,14 +87,14 @@ export default function EditorPage() {
   const [vcOpen, setVcOpen] = useState(false);
   const [currentBranch, setCurrentBranch] = useState<string>("main");
 
-  // CRITICAL: Pass currentBranch to useYjs
+  // CRITICAL: Pass currentBranch to useYjs - only after loading completes
   const { presence, setEditor, setMonaco } = useYjs(
-    activeFile,
+    isLoading ? "" : activeFile, // Don't initialize Yjs until files are loaded
     user,
     projectId,
     initialFiles,
     filesRef.current,
-    currentBranch, // ADD THIS
+    currentBranch,
   );
 
   // Force editor to reload when activeFile, filesRef, OR currentBranch changes
@@ -170,6 +171,8 @@ export default function EditorPage() {
 
   // ---- Load current branch on mount ----
   useEffect(() => {
+    if (isLoading) return; // Wait for initial load to complete
+
     const loadCurrentBranch = async () => {
       try {
         const res = await fetch(
@@ -177,14 +180,16 @@ export default function EditorPage() {
         );
         if (res.ok) {
           const data = await res.json();
-          setCurrentBranch(data.activeBranch || "main");
+          const branch = data.activeBranch || "main";
+          console.log(`🔀 Setting current branch to: ${branch}`);
+          setCurrentBranch(branch);
         }
       } catch (err) {
         console.error("Failed to load current branch:", err);
       }
     };
     loadCurrentBranch();
-  }, [projectId]);
+  }, [projectId, isLoading]);
 
   // ---- Check for vc_load flag ----
   useEffect(() => {
@@ -368,16 +373,17 @@ export default function EditorPage() {
 
   // ---- Set initial active file ----
   useEffect(() => {
-    if (fileTree.length > 0 && !activeFile) {
-      const firstFile = getFirstFile();
-      if (firstFile) {
-        setActiveFile(firstFile);
-        if (fileTree[0] && fileTree[0].name) {
-          setExpandedFolders(new Set([fileTree[0].name]));
-        }
+    if (isLoading || fileTree.length === 0 || activeFile) return;
+
+    const firstFile = getFirstFile();
+    if (firstFile) {
+      console.log(`📄 Setting initial active file: ${firstFile}`);
+      setActiveFile(firstFile);
+      if (fileTree[0] && fileTree[0].name) {
+        setExpandedFolders(new Set([fileTree[0].name]));
       }
     }
-  }, [fileTree, activeFile, getFirstFile]);
+  }, [fileTree, activeFile, getFirstFile, isLoading]);
 
   // ---- Node operations ----
   const handleAddNode = useCallback(
@@ -538,16 +544,25 @@ export default function EditorPage() {
         </div>
 
         <div className="flex-1 relative">
-          <Editor
-            key={editorKey}
-            height="100%"
-            theme="vs-dark"
-            defaultLanguage="javascript"
-            path={activeFile}
-            value={filesRef.current[activeFile] || ""}
-            onMount={handleMount}
-            options={{ minimap: { enabled: false }, automaticLayout: true }}
-          />
+          {isLoading ? (
+            <div className="flex items-center justify-center h-full bg-gray-900">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                <p className="text-gray-400">Loading project...</p>
+              </div>
+            </div>
+          ) : (
+            <Editor
+              key={editorKey}
+              height="100%"
+              theme="vs-dark"
+              defaultLanguage="javascript"
+              path={activeFile}
+              value={filesRef.current[activeFile] || ""}
+              onMount={handleMount}
+              options={{ minimap: { enabled: false }, automaticLayout: true }}
+            />
+          )}
         </div>
       </div>
 

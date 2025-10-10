@@ -145,7 +145,11 @@ export function useYjs(
 
   // Main effect for Yjs setup - depends on activeFile, projectId, currentBranch
   useEffect(() => {
-    if (!activeFile || !monaco || !editor) return;
+    // Don't initialize if no active file (during loading)
+    if (!activeFile || !monaco || !editor) {
+      console.log("⏸️ Yjs setup skipped - waiting for dependencies");
+      return;
+    }
 
     let mounted = true;
     console.log(`🔄 Setting up Yjs for: ${currentBranch}/${activeFile}`);
