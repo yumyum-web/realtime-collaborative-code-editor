@@ -87,7 +87,8 @@ export function useFileTree(projectId: string, currentBranch?: string) {
     };
 
     loadProject();
-  }, [projectId, currentBranch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
 
   const getFirstFile = () => findFirstFile(fileTree);
 

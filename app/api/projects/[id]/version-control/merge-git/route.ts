@@ -16,7 +16,7 @@ export async function POST(
   try {
     await connectDB();
     const { id: projectId } = await params;
-    const { sourceBranch } = await req.json();
+    const { sourceBranch, targetBranch } = await req.json();
 
     if (!sourceBranch) {
       return NextResponse.json(
@@ -27,7 +27,19 @@ export async function POST(
 
     const git = await getGitRepo(projectId);
     const branchInfo = await git.branchLocal();
-    const targetBranch = branchInfo.current;
+
+    // If targetBranch is specified, switch to it first
+    let currentTarget = branchInfo.current;
+    if (targetBranch && targetBranch !== currentTarget) {
+      if (!branchInfo.all.includes(targetBranch)) {
+        return NextResponse.json(
+          { error: `Target branch "${targetBranch}" not found` },
+          { status: 404 },
+        );
+      }
+      await git.checkout(targetBranch);
+      currentTarget = targetBranch;
+    }
 
     // Check if source branch exists
     if (!branchInfo.all.includes(sourceBranch)) {
@@ -38,7 +50,7 @@ export async function POST(
     }
 
     // Cannot merge into itself
-    if (targetBranch === sourceBranch) {
+    if (currentTarget === sourceBranch) {
       return NextResponse.json(
         { error: "Cannot merge branch into itself" },
         { status: 400 },
@@ -65,14 +77,14 @@ export async function POST(
     // Successful merge
     const finalStructure = await readFilesFromRepo(projectId);
 
-    console.log(`✅ Merged ${sourceBranch} into ${targetBranch}`);
+    console.log(`✅ Merged ${sourceBranch} into ${currentTarget}`);
 
     // Broadcast merge event via Socket.IO
     const io = global.socketIOServer;
     if (io) {
       io.to(projectId).emit("branch-merged", {
         sourceBranch,
-        targetBranch,
+        targetBranch: currentTarget,
         structure: finalStructure,
       });
     }
@@ -80,7 +92,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       hasConflicts: false,
-      targetBranch,
+      targetBranch: currentTarget,
       sourceBranch,
       structure: finalStructure,
       summary: mergeResult.summary,

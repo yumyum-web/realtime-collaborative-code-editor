@@ -36,6 +36,10 @@ export async function POST(
     const { id: projectId } = await params;
     const { branchName, baseBranch } = await req.json();
 
+    console.log(
+      `📝 POST branch request: ${branchName} from ${baseBranch || "main"} for project ${projectId}`,
+    );
+
     if (!branchName) {
       return NextResponse.json(
         { error: "branchName required" },
@@ -48,7 +52,12 @@ export async function POST(
 
     // Ensure base branch exists
     const branches = await git.branchLocal();
+    console.log(
+      `📋 Available branches: [${branches.all.join(", ")}], current: ${branches.current}`,
+    );
+
     if (!branches.all.includes(base)) {
+      console.error(`❌ Base branch "${base}" not found`);
       return NextResponse.json(
         { error: `Base branch "${base}" not found` },
         { status: 404 },
@@ -57,6 +66,7 @@ export async function POST(
 
     // Check if branch already exists
     if (branches.all.includes(branchName)) {
+      console.error(`❌ Branch "${branchName}" already exists`);
       return NextResponse.json(
         { error: "Branch already exists" },
         { status: 400 },
@@ -64,7 +74,24 @@ export async function POST(
     }
 
     // Create new branch from base
+    console.log(`🌿 Creating branch "${branchName}" from "${base}"...`);
     await git.checkoutBranch(branchName, base);
+
+    // IMPORTANT: Commit the current state to the new branch to make it distinct
+    // This ensures the new branch has its own initial commit with the current structure
+    try {
+      await git.add(".");
+      await git.commit(`Initial commit for branch ${branchName}`, {
+        "--allow-empty": null, // Allow empty commits if no changes
+      });
+      console.log(`✅ Committed initial state to branch ${branchName}`);
+    } catch (commitErr) {
+      console.warn(
+        `⚠️ Could not commit to new branch (may be empty):`,
+        commitErr,
+      );
+      // This is not a fatal error - the branch is still created
+    }
 
     console.log(`✅ Created branch ${branchName} from ${base}`);
 
@@ -75,7 +102,16 @@ export async function POST(
     });
   } catch (err) {
     console.error("POST branch error:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    const errorMessage = err instanceof Error ? err.message : "Server error";
+    const errorStack = err instanceof Error ? err.stack : undefined;
+    console.error("Error stack:", errorStack);
+    return NextResponse.json(
+      {
+        error: "Server error",
+        details: errorMessage,
+      },
+      { status: 500 },
+    );
   }
 }
 

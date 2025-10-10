@@ -141,20 +141,19 @@ export function useYjs(
     }
 
     // Remove ytext observer
-    if (
-      ytextObserverRef.current &&
-      ydocRef.current &&
-      !ydocRef.current.isDestroyed
-    ) {
+    if (ytextObserverRef.current && ydocRef.current) {
       try {
-        const ytext = ydocRef.current.getText("monaco");
-        if (ytext) {
-          ytext.unobserve(ytextObserverRef.current);
+        if (!ydocRef.current.isDestroyed) {
+          const ytext = ydocRef.current.getText("monaco");
+          if (ytext && ytext.unobserve) {
+            ytext.unobserve(ytextObserverRef.current);
+          }
         }
-        ytextObserverRef.current = null;
       } catch (err) {
+        // This can happen if the doc is destroyed in a way we don't expect
         console.warn("YText observer cleanup warning:", err);
-        ytextObserverRef.current = null; // Clear reference even if cleanup fails
+      } finally {
+        ytextObserverRef.current = null;
       }
     }
 

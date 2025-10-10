@@ -15,6 +15,7 @@ type Props = {
   onClose?: () => void;
   showToast: (message: string, type: "success" | "error") => void;
   applyStructureToEditor: (structure: StructureNode | null) => void;
+  buildStructure: () => StructureNode | null;
   currentBranch: string;
   setCurrentBranch: (branch: string) => void;
 };
@@ -32,6 +33,7 @@ export default function VersionControlPanel({
   onClose,
   showToast,
   applyStructureToEditor,
+  buildStructure,
   currentBranch,
   setCurrentBranch,
 }: Props) {
@@ -46,7 +48,7 @@ export default function VersionControlPanel({
   const fetchBranches = useCallback(async () => {
     try {
       const res = await fetch(
-        `/api/projects/${projectId}/version-control/branch`,
+        `/api/projects/${projectId}/version-control/branch-git`,
       );
       const data = await res.json();
       if (!res.ok) {
@@ -67,7 +69,7 @@ export default function VersionControlPanel({
       try {
         const b = branchName || currentBranch;
         const res = await fetch(
-          `/api/projects/${projectId}/version-control/commit?branch=${encodeURIComponent(b)}`,
+          `/api/projects/${projectId}/version-control/commit-git?branch=${encodeURIComponent(b)}`,
         );
         const data = await res.json();
         if (!res.ok) {
@@ -98,7 +100,7 @@ export default function VersionControlPanel({
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/projects/${projectId}/version-control/branch`,
+        `/api/projects/${projectId}/version-control/branch-git`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -124,17 +126,25 @@ export default function VersionControlPanel({
   const handleCommit = async () => {
     if (!commitMessage.trim())
       return showToast("Enter a commit message.", "error");
+
+    // Build current structure
+    const structure = buildStructure();
+    if (!structure) {
+      return showToast("Failed to build project structure.", "error");
+    }
+
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/projects/${projectId}/version-control/commit`,
+        `/api/projects/${projectId}/version-control/commit-git`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             message: commitMessage,
-            author: user.email,
+            author: `${user.username || user.email} <${user.email}>`,
             branchName: currentBranch,
+            structure,
           }),
         },
       );
@@ -158,42 +168,29 @@ export default function VersionControlPanel({
   const switchBranch = async (target: string) => {
     if (target === currentBranch) return;
 
-    const autosaveKey = localKey.current(currentBranch);
-    const saved = localStorage.getItem(autosaveKey);
-
-    if (saved) {
-      const keep = confirm(
-        `You have unsaved work in branch "${currentBranch}". Commit before switching? OK=Commit & switch, Cancel=Discard & switch.`,
-      );
-      if (keep) {
-        await handleCommit();
-      } else {
-        localStorage.removeItem(autosaveKey);
-      }
-    }
-
     setLoading(true);
 
-    // Clear all cached structures
     try {
-      const keys = Object.keys(localStorage);
-      keys.forEach((key) => {
-        if (key.startsWith(`vc_structure:${projectId}`)) {
-          localStorage.removeItem(key);
+      // Step 1: Check for unsaved work and handle it.
+      const autosaveKey = localKey.current(currentBranch);
+      const saved = localStorage.getItem(autosaveKey);
+      if (saved) {
+        const keep = confirm(
+          `You have unsaved work in branch "${currentBranch}". Commit before switching? OK=Commit & switch, Cancel=Discard & switch.`,
+        );
+        if (keep) {
+          await handleCommit(); // This might switch branch, so we need to be careful. Let's assume it commits to current.
         }
-      });
-    } catch (err) {
-      console.error("Failed to clear cached structures", err);
-    }
+        // If they cancel, we discard the work by not committing it.
+        localStorage.removeItem(autosaveKey);
+      }
 
-    try {
-      console.log(`🔀 Switching from ${currentBranch} to ${target}`);
-      setCurrentBranch(target);
-
-      await new Promise((resolve) => setTimeout(resolve, 200));
-
+      // Step 2: Call the API to switch the branch on the server.
+      console.log(
+        `[SWITCH] Calling PUT /api/.../branch-git to switch to ${target}`,
+      );
       const res = await fetch(
-        `/api/projects/${projectId}/version-control/branch`,
+        `/api/projects/${projectId}/version-control/branch-git`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -202,28 +199,28 @@ export default function VersionControlPanel({
       );
 
       const data = await res.json();
-      setLoading(false);
 
       if (!res.ok) {
-        showToast(data.error || "Switch failed.", "error");
-        setCurrentBranch(currentBranch);
-        return;
+        throw new Error(data.error || "Failed to switch branch on server.");
       }
 
-      console.log("✅ Branch switch response:", data);
+      console.log("[SWITCH] Server responded OK.", data);
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Step 3: Server has confirmed the switch. Now, update the frontend state.
+      setCurrentBranch(target);
 
+      // Step 4: Apply the new file structure returned by the server.
       if (data.structure) {
-        console.log("📦 Applying structure from switch response");
+        console.log("[SWITCH] Applying structure from response.");
         applyStructureToEditor(data.structure as StructureNode);
-
+        // Cache the new structure
         localStorage.setItem(
           `vc_structure:${projectId}:${target}`,
           JSON.stringify(data.structure),
         );
       } else {
-        console.warn("⚠️ No structure in switch response, fetching separately");
+        // This fallback should ideally not be needed if the PUT endpoint is reliable.
+        console.warn("[SWITCH] No structure in response, fetching separately.");
         const refRes = await fetch(
           `/api/projects/${projectId}?branch=${target}`,
         );
@@ -231,21 +228,21 @@ export default function VersionControlPanel({
         if (refRes.ok && refData.structure) {
           applyStructureToEditor(refData.structure as StructureNode);
         } else {
-          showToast("Failed to load branch structure.", "error");
+          throw new Error("Failed to load branch structure after switch.");
         }
       }
 
-      showToast(
-        `Switched to branch "${target}". Workspace updated.`,
-        "success",
-      );
-
+      // Step 5: Refresh auxiliary data like branch and commit lists.
       await Promise.all([fetchBranches(), fetchCommits(target)]);
+
+      showToast(`Switched to branch "${target}".`, "success");
     } catch (err) {
-      setLoading(false);
       console.error("❌ switchBranch error", err);
-      showToast("Switch failed.", "error");
-      setCurrentBranch(currentBranch);
+      showToast((err as Error).message, "error");
+      // Optional: Attempt to revert state if something failed.
+      // For now, we'll just log the error and notify the user.
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -256,7 +253,7 @@ export default function VersionControlPanel({
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/projects/${projectId}/version-control/branch`,
+        `/api/projects/${projectId}/version-control/branch-git`,
         {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
@@ -289,11 +286,14 @@ export default function VersionControlPanel({
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/projects/${projectId}/version-control/commit`,
+        `/api/projects/${projectId}/version-control/commit-git`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ commitId, branchName: currentBranch }),
+          body: JSON.stringify({
+            commitHash: commitId,
+            branchName: currentBranch,
+          }),
         },
       );
       const data = await res.json();
@@ -344,15 +344,14 @@ export default function VersionControlPanel({
 
     try {
       const res = await fetch(
-        `/api/projects/${projectId}/version-control/merge`,
+        `/api/projects/${projectId}/version-control/merge-git`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            action: "push",
             sourceBranch: currentBranch,
             targetBranch: "main",
-            author: user.email,
+            commitMessage: `Merge ${currentBranch} into main`,
           }),
         },
       );
@@ -361,7 +360,14 @@ export default function VersionControlPanel({
       setLoading(false);
 
       if (!res.ok) {
-        showToast(data.error || "Push failed.", "error");
+        if (data.hasConflicts) {
+          showToast(
+            "Merge conflicts detected. Please resolve manually.",
+            "error",
+          );
+        } else {
+          showToast(data.error || "Push failed.", "error");
+        }
         return;
       }
 
@@ -399,7 +405,7 @@ export default function VersionControlPanel({
 
     if (
       !confirm(
-        `Pull main into "${currentBranch}"? This will overwrite ${currentBranch}'s working tree.`,
+        `Pull main into "${currentBranch}"? This will merge main's changes into your branch.`,
       )
     ) {
       return;
@@ -408,16 +414,16 @@ export default function VersionControlPanel({
     setLoading(true);
 
     try {
+      // Merge main into current branch
       const res = await fetch(
-        `/api/projects/${projectId}/version-control/merge`,
+        `/api/projects/${projectId}/version-control/merge-git`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            action: "pull",
             sourceBranch: "main",
             targetBranch: currentBranch,
-            author: user.email,
+            commitMessage: `Merge main into ${currentBranch}`,
           }),
         },
       );
@@ -426,14 +432,21 @@ export default function VersionControlPanel({
       setLoading(false);
 
       if (!res.ok) {
-        showToast(data.error || "Pull failed.", "error");
+        if (data.hasConflicts) {
+          showToast(
+            "Merge conflicts detected. Please resolve manually.",
+            "error",
+          );
+        } else {
+          showToast(data.error || "Pull failed.", "error");
+        }
         return;
       }
 
       console.log("✅ Pull response:", data);
 
       // Apply structure immediately with verification
-      if (data.structure && data.targetBranch === currentBranch) {
+      if (data.structure) {
         console.log("📦 Applying pulled structure to editor");
 
         // Clear old cache

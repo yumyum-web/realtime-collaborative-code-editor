@@ -87,7 +87,8 @@ export default function EditorPage() {
     projectTitle,
     getFirstFile,
     isLoading,
-  } = useFileTree(projectId, currentBranch);
+    // fetchProjectForBranch, // Expose the fetch function
+  } = useFileTree(projectId);
 
   // CRITICAL: Pass currentBranch to useYjs - only after loading completes
   const { presence, setEditor, setMonaco } = useYjs(
@@ -207,19 +208,6 @@ export default function EditorPage() {
     };
     loadCurrentBranch();
   }, [projectId, isLoading]);
-
-  // ---- Clear active file when branch changes to force reload ----
-  useEffect(() => {
-    console.log(`🔄 Branch changed to: ${currentBranch}, clearing active file`);
-    setActiveFile(""); // This will force useYjs to reinitialize
-
-    // Safer editor reload with proper cleanup timing
-    setEditorMounting(true);
-    setTimeout(() => {
-      setEditorKey((prev) => prev + 1);
-      setEditorMounting(false);
-    }, 100);
-  }, [currentBranch]);
 
   // ---- Check for vc_load flag ----
   useEffect(() => {
@@ -634,6 +622,7 @@ export default function EditorPage() {
               onClose={() => setVcOpen(false)}
               showToast={showToast}
               applyStructureToEditor={applyStructureToEditor}
+              buildStructure={buildStructure}
               currentBranch={currentBranch}
               setCurrentBranch={setCurrentBranch}
             />

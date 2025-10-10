@@ -38,33 +38,82 @@ export async function GET(
       project.gitRepoPath = repoPath;
     }
 
-    // Check if we need to switch branches
-    if (branchQuery && branchQuery !== "main") {
-      const branches = await git.branchLocal();
-      if (branches.all.includes(branchQuery)) {
-        await git.checkout(branchQuery);
-      } else {
-        // Branch doesn't exist in Git, fall back to MongoDB VC
-        console.log(`⚠️ Branch ${branchQuery} not in Git, using MongoDB VC`);
-        return await loadFromMongoDBVC(id, branchQuery, project);
-      }
-    } else if (branchQuery === "main") {
-      await git.checkout("main");
+    // Check current branch
+    const currentBranchInfo = await git.branchLocal();
+    const currentBranch = currentBranchInfo.current;
+    const availableBranches = currentBranchInfo.all;
+
+    console.log(
+      `[GET] Project ${id} - Current branch: ${currentBranch}, Available: [${availableBranches.join(", ")}]`,
+    );
+
+    // Check if Git repo has any real commits (not just the auto-generated initial commit)
+    const log = await git.log();
+    const hasUserCommits =
+      log.all.length > 0 &&
+      log.all.some((commit) => !commit.message.includes("Initial commit"));
+
+    // If no user commits exist, use MongoDB structure (new project)
+    if (!hasUserCommits) {
+      console.log(`[GET] New project ${id}, using MongoDB default structure`);
+      return NextResponse.json({
+        ...project,
+        structure: project.structure,
+        activeBranch: currentBranch || "main",
+        source: "mongodb-default",
+      });
     }
 
-    // Read files from Git repository
+    // CRITICAL: NEVER checkout branches in GET endpoint!
+    // Only the PUT /branch-git endpoint should change Git state
+    // This prevents race conditions when multiple requests come in
+
+    if (branchQuery) {
+      // User requested specific branch via query parameter
+      if (availableBranches.includes(branchQuery)) {
+        if (currentBranch !== branchQuery) {
+          // Branch mismatch! Git is on different branch than requested
+          // This means the branch-git endpoint hasn't switched yet,
+          // or there's a race condition with multiple requests
+          console.log(
+            `[GET] WARNING: Branch mismatch - requested ${branchQuery}, Git on ${currentBranch}`,
+          );
+          console.log(`[GET] Falling back to MongoDB to avoid race conditions`);
+          return await loadFromMongoDBVC(id, branchQuery, project);
+        }
+        // Git is already on requested branch - just read from it
+        console.log(`[GET] Reading from requested branch: ${branchQuery}`);
+      } else {
+        // Branch doesn't exist in Git, fall back to MongoDB VC
+        console.log(
+          `[GET] Branch ${branchQuery} not found in Git, using MongoDB`,
+        );
+        return await loadFromMongoDBVC(id, branchQuery, project);
+      }
+    } else {
+      // No branch query - just read from whatever is currently checked out
+      // This preserves the state set by the branch-git endpoint
+      console.log(
+        `[GET] No branch query, reading from current branch: ${currentBranch}`,
+      );
+    }
+
+    // Read files from currently checked out branch (NO checkout happens here!)
     const structure = await readFilesFromRepo(id);
-    console.log(`📁 Loaded from Git repo: ${id}/${branchQuery || "main"}`);
+    const finalBranchInfo = await git.branchLocal();
+    const activeBranch = finalBranchInfo.current;
+
+    console.log(`[GET] Loaded from Git repo: ${id}/${activeBranch}`);
 
     return NextResponse.json({
       ...project,
       structure,
-      activeBranch: branchQuery || "main",
-      source: "git", // Indicate source for debugging
+      activeBranch,
+      source: "git",
     });
   } catch (gitError) {
     console.warn(
-      `⚠️ Git load failed for ${id}, falling back to MongoDB:`,
+      `[GET] Git load failed for ${id}, falling back to MongoDB:`,
       gitError,
     );
 
@@ -79,7 +128,7 @@ async function loadFromMongoDBVC(
   branchQuery: string | null,
   project: ProjectDocument,
 ) {
-  console.log(`💾 Loading from MongoDB for ${projectId}`);
+  console.log(`[MongoDB] Loading from MongoDB for ${projectId}`);
 
   // If branch query is provided and it's not "main", fetch from version control
   if (branchQuery && branchQuery !== "main") {
@@ -175,10 +224,10 @@ export async function PUT(
             lastSyncedAt: new Date(),
           });
 
-          console.log(`✅ Git backup completed for project ${id}`);
+          console.log(`[PUT] Git backup completed for project ${id}`);
         }
       } catch (err) {
-        console.error(`⚠️ Git backup failed for project ${id}:`, err);
+        console.error(`[PUT] Git backup failed for project ${id}:`, err);
       }
     });
   }

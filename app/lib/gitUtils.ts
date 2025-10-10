@@ -25,11 +25,13 @@ export async function getGitRepo(projectId: string): Promise<SimpleGit> {
     // Initialize new Git repo
     await fs.mkdir(repoPath, { recursive: true });
     const git = simpleGit(repoPath);
-    await git.init();
+
+    // Initialize with main as default branch (instead of master)
+    await git.init(["-b", "main"]);
     await git.addConfig("user.name", "Collaborative Editor");
     await git.addConfig("user.email", "editor@example.com");
 
-    // Create initial commit
+    // Create initial commit on main branch
     const readmePath = path.join(repoPath, "README.md");
     await fs.writeFile(
       readmePath,
@@ -38,10 +40,117 @@ export async function getGitRepo(projectId: string): Promise<SimpleGit> {
     await git.add(".");
     await git.commit("Initial commit");
 
-    console.log(`✅ Initialized Git repo for project ${projectId}`);
+    console.log(
+      `✅ Initialized Git repo for project ${projectId} on main branch`,
+    );
+    return git;
   }
 
-  return simpleGit(repoPath);
+  // Repository exists, ensure it has a main branch
+  const git = simpleGit(repoPath);
+
+  try {
+    const branches = await git.branchLocal();
+
+    // If no branches exist, create initial commit
+    if (branches.all.length === 0) {
+      console.log(
+        `🔧 Git repo exists but empty, creating initial commit for ${projectId}`,
+      );
+      const readmePath = path.join(repoPath, "README.md");
+      await fs.writeFile(
+        readmePath,
+        "# Project\n\nInitialized by Collaborative Editor",
+      );
+      await git.add(".");
+      await git.commit("Initial commit");
+
+      // Ensure we're on main branch (Git might have created master)
+      try {
+        const currentBranch = await git.revparse(["--abbrev-ref", "HEAD"]);
+        if (currentBranch.trim() !== "main") {
+          await git.branch(["-M", "main"]);
+          console.log(`🔧 Renamed branch to main for ${projectId}`);
+        }
+      } catch (branchError) {
+        console.warn(
+          `⚠️ Could not check/rename branch for ${projectId}:`,
+          branchError,
+        );
+      }
+    }
+    // If master branch exists but not main, rename it
+    else if (
+      branches.all.includes("master") &&
+      !branches.all.includes("main")
+    ) {
+      console.log(`🔧 Renaming master to main for ${projectId}`);
+      try {
+        await git.checkout("master");
+        await git.branch(["-M", "main"]);
+        console.log(`✅ Renamed master to main for ${projectId}`);
+      } catch (renameError) {
+        console.error(
+          `❌ Failed to rename master to main for ${projectId}:`,
+          renameError,
+        );
+        throw renameError;
+      }
+    }
+    // If main branch doesn't exist but other branches do, create it
+    else if (!branches.all.includes("main")) {
+      console.log(`🔧 Creating main branch for existing repo ${projectId}`);
+      try {
+        // Checkout the first available branch, then create main
+        await git.checkout(branches.all[0]);
+        await git.checkoutBranch("main", branches.all[0]);
+      } catch (createError) {
+        console.error(
+          `❌ Failed to create main branch for ${projectId}:`,
+          createError,
+        );
+        throw createError;
+      }
+    }
+    // If both master and main exist, delete master
+    else if (branches.all.includes("master") && branches.all.includes("main")) {
+      console.log(`🔧 Removing duplicate master branch for ${projectId}`);
+      try {
+        const current = branches.current;
+        // Ensure we're not on master before deleting it
+        if (current === "master") {
+          await git.checkout("main");
+        }
+        await git.deleteLocalBranch("master", true);
+        console.log(`✅ Removed master branch, using main for ${projectId}`);
+      } catch (deleteError) {
+        console.warn(
+          `⚠️ Could not delete master branch for ${projectId}:`,
+          deleteError,
+        );
+        // Non-fatal - continue even if master deletion fails
+      }
+    }
+  } catch (error) {
+    console.warn(`⚠️ Error checking Git repo state for ${projectId}:`, error);
+    // If there are issues, try to reinitialize
+    try {
+      const readmePath = path.join(repoPath, "README.md");
+      await fs.writeFile(
+        readmePath,
+        "# Project\n\nReinitialized by Collaborative Editor",
+      );
+      await git.add(".");
+      await git.commit("Reinitialize commit");
+    } catch (reinitError) {
+      console.error(
+        `❌ Failed to reinitialize Git repo for ${projectId}:`,
+        reinitError,
+      );
+    }
+  }
+
+  return git;
 }
 
 /**
@@ -116,7 +225,8 @@ export async function readFilesFromRepo(
       const children: FileEntity[] = [];
 
       for (const entry of entries) {
-        if (entry === ".git") continue; // Skip .git directory
+        // Skip Git-related files and folders
+        if (entry === ".git" || entry === ".gitignore") continue;
         const childPath = path.join(nodePath, entry);
         const childRelativePath = path.join(relativePath, entry);
         children.push(await readNode(childPath, childRelativePath));
@@ -149,6 +259,8 @@ export async function readFilesFromRepo(
     const children: FileEntity[] = [];
 
     for (const entry of entries) {
+      // Skip Git-related files at root level too
+      if (entry === ".git" || entry === ".gitignore") continue;
       const childPath = path.join(rootPath, entry);
       children.push(await readNode(childPath, entry));
     }
@@ -159,7 +271,22 @@ export async function readFilesFromRepo(
       children,
     };
   } else {
-    return await readNode(repoPath, "");
+    // Read from repo base, excluding .git and .gitignore
+    const entries = await fs.readdir(repoPath);
+    const children: FileEntity[] = [];
+
+    for (const entry of entries) {
+      // Skip Git-related files
+      if (entry === ".git" || entry === ".gitignore") continue;
+      const childPath = path.join(repoPath, entry);
+      children.push(await readNode(childPath, entry));
+    }
+
+    return {
+      name: "root",
+      type: "folder",
+      children,
+    };
   }
 }
 
