@@ -38,9 +38,9 @@ export function useYjs(
 
       // Enhanced safety checks for editor state
       try {
-        // Check DOM node existence
+        // Check if editor exists (less strict - just check existence, not DOM connection)
         const domNode = editor.getDomNode?.();
-        if (!domNode || !domNode.isConnected) {
+        if (!domNode) {
           console.warn("⚠️ Skipping cursor update - editor DOM node missing");
           return;
         }
@@ -248,31 +248,54 @@ export function useYjs(
 
       modelRef.current = model;
 
-      // Attach model to editor with safety checks
-      try {
-        if (model && !model.isDisposed()) {
-          const domNode = editor.getDomNode?.();
-          if (domNode && domNode.isConnected) {
-            editor.setModel(model);
-          } else {
-            console.warn(
-              "⚠️ Skipping setModel - editor DOM node not available",
-            );
+      // Attach model to editor with retry logic
+      const attachModel = () => {
+        try {
+          if (!model || model.isDisposed()) {
+            console.warn("⚠️ Model is disposed, cannot attach");
+            return false;
           }
+
+          // Check if editor exists and is mounted
+          const domNode = editor.getDomNode?.();
+          if (!domNode) {
+            console.warn("⚠️ Editor DOM node not available yet");
+            return false;
+          }
+
+          // Directly set model - Monaco will handle DOM readiness
+          editor.setModel(model);
+          console.log(`✅ Model attached for ${activeFile}`);
+          return true;
+        } catch (err) {
+          console.warn("⚠️ Error attaching model:", err);
+          return false;
         }
-      } catch (err) {
-        console.warn("⚠️ Error setting model to editor:", err);
+      };
+
+      // Try to attach immediately, with fallback retry
+      if (!attachModel()) {
+        // If immediate attach fails, retry after a short delay
+        setTimeout(() => {
+          if (mounted) {
+            attachModel();
+          }
+        }, 50);
       }
 
       // Initialize Yjs binding after provider syncs
       const initBinding = async () => {
         if (!mounted || !model || model.isDisposed()) return;
 
-        // Additional safety check for editor DOM
+        // Check if editor is ready (less strict check)
         try {
           const domNode = editor.getDomNode?.();
-          if (!domNode || !domNode.isConnected) {
-            console.warn("⚠️ Skipping binding init - editor DOM not available");
+          if (!domNode) {
+            console.warn("⚠️ Editor DOM not ready, retrying binding init...");
+            // Retry after a short delay
+            setTimeout(() => {
+              if (mounted) initBinding();
+            }, 100);
             return;
           }
         } catch (err) {
@@ -284,11 +307,11 @@ export function useYjs(
           const { MonacoBinding } = await import("y-monaco");
           if (!mounted || !model || model.isDisposed()) return;
 
-          // Double-check editor DOM again after async import
+          // Verify editor is still available after async import
           const domNode = editor.getDomNode?.();
-          if (!domNode || !domNode.isConnected) {
+          if (!domNode) {
             console.warn(
-              "⚠️ Skipping binding creation - editor DOM removed during import",
+              "⚠️ Editor DOM removed during import, skipping binding",
             );
             return;
           }

@@ -4,10 +4,18 @@ import { Server, Socket } from "socket.io";
 import connectDB from "../app/lib/mongoose";
 import Project from "../app/models/project";
 
+// Declare global type for Socket.IO server
+declare global {
+  var socketIOServer: Server | undefined;
+}
+
 const httpServer = createServer();
 const io = new Server(httpServer, {
   cors: { origin: "*", methods: ["GET", "POST"] },
 });
+
+// Make io globally accessible for API routes
+global.socketIOServer = io;
 
 interface ClientSocket extends Socket {
   room?: string;

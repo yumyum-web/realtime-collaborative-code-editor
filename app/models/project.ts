@@ -27,7 +27,9 @@ export interface ProjectDocument extends Document {
   title: string;
   description?: string;
   members: Member[];
-  structure: FileEntity; // Using FileEntity type for clarity
+  structure: FileEntity; // Using FileEntity type for clarity (MongoDB backup)
+  gitRepoPath?: string; // Path to Git repository (primary storage)
+  lastSyncedAt?: Date; // Last time Git and MongoDB were synced
   chats: ChatMessage[];
   createdAt: Date;
   updatedAt: Date;
@@ -59,11 +61,15 @@ const ProjectSchema = new Schema<ProjectDocument>(
     title: { type: String, required: true },
     description: { type: String },
     members: { type: [MemberSchema], required: true },
-    // Use Mixed for flexible, nested file structure representation
+    // Use Mixed for flexible, nested file structure representation (MongoDB backup)
     structure: {
       type: Schema.Types.Mixed,
       default: () => ({ name: "root", type: "folder", children: [] }),
     },
+    // Path to Git repository (primary storage)
+    gitRepoPath: { type: String },
+    // Last time Git and MongoDB were synced
+    lastSyncedAt: { type: Date },
     chats: { type: [ChatSchema], default: [] },
   },
   { timestamps: true },
