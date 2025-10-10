@@ -33,6 +33,19 @@ export function useYjs(
   const updateRemoteCursorDecorations = useCallback(
     (states: PresenceUser[]) => {
       if (!providerRef.current || !editor || !monaco) return;
+
+      // Safety check: ensure editor model exists and is not disposed
+      try {
+        const model = editor.getModel();
+        if (!model || model.isDisposed()) {
+          console.warn("⚠️ Skipping cursor update - editor model is disposed");
+          return;
+        }
+      } catch (err) {
+        console.warn("⚠️ Error checking editor state:", err);
+        return;
+      }
+
       const myClientId = providerRef.current.awareness.clientID;
       const decs: Monaco.editor.IModelDeltaDecoration[] = [];
 
@@ -54,10 +67,15 @@ export function useYjs(
         });
       });
 
-      decorationsRef.current = editor.deltaDecorations(
-        decorationsRef.current,
-        decs,
-      );
+      try {
+        decorationsRef.current = editor.deltaDecorations(
+          decorationsRef.current,
+          decs,
+        );
+      } catch (err) {
+        console.warn("⚠️ Error updating decorations:", err);
+        decorationsRef.current = [];
+      }
 
       const styleId = "remote-cursors-styles";
       let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;

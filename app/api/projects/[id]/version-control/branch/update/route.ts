@@ -8,11 +8,11 @@ import { FileEntity } from "@/app/models/project";
 // PATCH: Update a branch's working structure (used by frontend autosave/manual save on non-main branch)
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
-    const projectId = params.id;
+    const { id: projectId } = await params;
     const { branchName, structure } = await req.json();
 
     if (!branchName || structure === undefined) {

@@ -8,11 +8,11 @@ import Project, { ProjectDocument } from "@/app/models/project";
 // POST: Create a new commit (Saves current branch.lastStructure as a snapshot)
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
-    const projectId = params.id;
+    const { id: projectId } = await params;
     const { message, author, branchName } = await req.json();
 
     if (!message || !author)
@@ -66,11 +66,11 @@ export async function POST(
 // GET: Get commits for a branch
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
-    const projectId = params.id;
+    const { id: projectId } = await params;
     const url = new URL(req.url);
     const branchName = url.searchParams.get("branch");
 
@@ -103,11 +103,11 @@ export async function GET(
 // PUT: Restore a commit (Overwrites branch.lastStructure and Project.structure if on main)
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
-    const projectId = params.id;
+    const { id: projectId } = await params;
     const { commitId, branchName } = await req.json();
 
     if (!commitId)

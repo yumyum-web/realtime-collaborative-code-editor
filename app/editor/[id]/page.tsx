@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useState, useRef } from "react";
-import Editor, { OnMount } from "@monaco-editor/react";
+import Editor from "@monaco-editor/react";
+import type * as Monaco from "monaco-editor";
 import { useParams } from "next/navigation";
 import { VscComment } from "react-icons/vsc";
 
@@ -69,6 +70,14 @@ export default function EditorPage() {
     emitChatMessage,
   } = useSocket(projectId);
 
+  const [activeFile, setActiveFile] = useState<string>("");
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
+    new Set(),
+  );
+  const [chatOpen, setChatOpen] = useState(false);
+  const [vcOpen, setVcOpen] = useState(false);
+  const [currentBranch, setCurrentBranch] = useState<string>("main");
+
   const {
     fileTree,
     setFileTree,
@@ -77,15 +86,7 @@ export default function EditorPage() {
     projectTitle,
     getFirstFile,
     isLoading,
-  } = useFileTree(projectId);
-
-  const [activeFile, setActiveFile] = useState<string>("");
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    new Set(),
-  );
-  const [chatOpen, setChatOpen] = useState(false);
-  const [vcOpen, setVcOpen] = useState(false);
-  const [currentBranch, setCurrentBranch] = useState<string>("main");
+  } = useFileTree(projectId, currentBranch);
 
   // CRITICAL: Pass currentBranch to useYjs - only after loading completes
   const { presence, setEditor, setMonaco } = useYjs(
@@ -99,6 +100,7 @@ export default function EditorPage() {
 
   // Force editor to reload when activeFile, filesRef, OR currentBranch changes
   const [editorKey, setEditorKey] = useState(0);
+  const [editorMounting, setEditorMounting] = useState(false);
 
   // ---- Build structure from current editor state ----
   const buildStructure = useCallback((): StructureNode | null => {
@@ -163,8 +165,12 @@ export default function EditorPage() {
           const firstFile = Object.keys(newFilesRef)[0];
           if (firstFile) {
             setActiveFile(firstFile);
-            // Force complete editor reload
-            setEditorKey((prev) => prev + 1);
+            // Safer editor reload
+            setEditorMounting(true);
+            setTimeout(() => {
+              setEditorKey((prev) => prev + 1);
+              setEditorMounting(false);
+            }, 50);
             console.log(`📄 Active file set to: ${firstFile}`);
           }
           showToast("Project structure updated.", "success");
@@ -195,6 +201,19 @@ export default function EditorPage() {
     };
     loadCurrentBranch();
   }, [projectId, isLoading]);
+
+  // ---- Clear active file when branch changes to force reload ----
+  useEffect(() => {
+    console.log(`🔄 Branch changed to: ${currentBranch}, clearing active file`);
+    setActiveFile(""); // This will force useYjs to reinitialize
+
+    // Safer editor reload with proper cleanup timing
+    setEditorMounting(true);
+    setTimeout(() => {
+      setEditorKey((prev) => prev + 1);
+      setEditorMounting(false);
+    }, 100);
+  }, [currentBranch]);
 
   // ---- Check for vc_load flag ----
   useEffect(() => {
@@ -359,16 +378,23 @@ export default function EditorPage() {
   }, [projectId]);
 
   // ---- Editor mount ----
-  const handleMount: OnMount = useCallback(
-    (editor, monaco) => {
-      console.log("📝 Monaco editor mounted");
+  const handleMount = useCallback(
+    (editor: Monaco.editor.IStandaloneCodeEditor, monaco: typeof Monaco) => {
+      console.log("🎯 Monaco Editor mounted");
       setEditor(editor);
       setMonaco(monaco);
+
+      // Add error handler to prevent crashes
+      if (editor) {
+        editor.onDidDispose(() => {
+          console.log("📤 Monaco Editor disposed");
+          setEditor(null);
+          setMonaco(null);
+        });
+      }
     },
     [setEditor, setMonaco],
-  );
-
-  // ---- Cleanup on unmount ----
+  ); // ---- Cleanup on unmount ----
   useEffect(() => {
     return () => {
       console.log("🛑 Editor page unmounting");
@@ -549,11 +575,13 @@ export default function EditorPage() {
         </div>
 
         <div className="flex-1 relative">
-          {isLoading ? (
+          {isLoading || editorMounting ? (
             <div className="flex items-center justify-center h-full bg-gray-900">
               <div className="text-center">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-                <p className="text-gray-400">Loading project...</p>
+                <p className="text-gray-400">
+                  {isLoading ? "Loading project..." : "Switching branch..."}
+                </p>
               </div>
             </div>
           ) : (
@@ -565,7 +593,14 @@ export default function EditorPage() {
               path={activeFile}
               value={filesRef.current[activeFile] || ""}
               onMount={handleMount}
-              options={{ minimap: { enabled: false }, automaticLayout: true }}
+              options={{
+                minimap: { enabled: false },
+                automaticLayout: true,
+                // Add these options to prevent DOM-related errors
+                readOnly: false,
+                scrollBeyondLastLine: false,
+                wordWrap: "on",
+              }}
             />
           )}
         </div>

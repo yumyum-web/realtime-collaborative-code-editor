@@ -7,11 +7,11 @@ import VersionControl, { Branch } from "@/app/models/VersionControl";
 // GET: Get structure for a specific branch
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
-    const projectId = params.id;
+    const { id: projectId } = await params;
     const url = new URL(req.url);
     const branchName = url.searchParams.get("branch");
 

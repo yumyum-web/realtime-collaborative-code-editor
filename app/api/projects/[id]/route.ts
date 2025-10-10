@@ -12,10 +12,10 @@ type UpdateProjectBody = {
 // GET project by ID - now respects active branch
 export async function GET(
   req: NextRequest,
-  context: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   await connectDB();
-  const { id } = context.params;
+  const { id } = await context.params;
 
   // Check if branch query parameter is provided
   const { searchParams } = new URL(req.url);
@@ -36,7 +36,7 @@ export async function GET(
       }
 
       const branch = versionControl.branches.find(
-        (b: { name: string; workingTree?: FileEntity }) =>
+        (b: { name: string; lastStructure?: FileEntity }) =>
           b.name === branchQuery,
       );
       if (!branch) {
@@ -49,7 +49,7 @@ export async function GET(
       // Return project with branch structure
       return NextResponse.json({
         ...project,
-        structure: branch.workingTree || project.structure,
+        structure: branch.lastStructure || project.structure,
         activeBranch: branchQuery,
       });
     } catch (err) {
@@ -68,14 +68,14 @@ export async function GET(
       versionControl.activeBranch !== "main"
     ) {
       const activeBranch = versionControl.branches.find(
-        (b: { name: string; workingTree?: FileEntity }) =>
+        (b: { name: string; lastStructure?: FileEntity }) =>
           b.name === versionControl.activeBranch,
       );
 
-      if (activeBranch && activeBranch.workingTree) {
+      if (activeBranch && activeBranch.lastStructure) {
         return NextResponse.json({
           ...project,
-          structure: activeBranch.workingTree,
+          structure: activeBranch.lastStructure,
           activeBranch: versionControl.activeBranch,
         });
       }
@@ -94,10 +94,10 @@ export async function GET(
 // Update project (used by main save, only updates Project.structure when on 'main' branch)
 export async function PUT(
   req: NextRequest,
-  context: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   await connectDB();
-  const { id } = context.params;
+  const { id } = await context.params;
   const body: UpdateProjectBody = await req.json();
 
   const update: UpdateProjectBody = {};
@@ -120,10 +120,10 @@ export async function PUT(
 // Delete project (only owner)
 export async function DELETE(
   req: NextRequest,
-  context: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   await connectDB();
-  const { id } = context.params;
+  const { id } = await context.params;
 
   const userEmail = req.headers.get("x-user-email");
   if (!userEmail) {
@@ -157,10 +157,10 @@ export async function DELETE(
 // Add chat message
 export async function POST(
   req: NextRequest,
-  context: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   await connectDB();
-  const { id } = context.params;
+  const { id } = await context.params;
   const { senderEmail, senderUsername, message } = await req.json();
 
   // Find the project document for update

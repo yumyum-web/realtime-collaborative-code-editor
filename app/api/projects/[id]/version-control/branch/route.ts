@@ -50,11 +50,11 @@ async function ensureVersionControlDocument(
 // POST: Create a new branch
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
-    const projectId = params.id;
+    const { id: projectId } = await params;
     const { branchName, baseBranch } = await req.json();
 
     if (!branchName)
@@ -112,11 +112,11 @@ export async function POST(
 // GET: Get all branches and active branch
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
-    const projectId = params.id;
+    const { id: projectId } = await params;
 
     // Ensure VC document is initialized if it's the first time
     const vcDoc = await ensureVersionControlDocument(projectId);
@@ -139,11 +139,11 @@ export async function GET(
 // PUT: Switch active branch
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
-    const projectId = params.id;
+    const { id: projectId } = await params;
     const { branchName } = await req.json();
 
     if (!branchName)
@@ -184,11 +184,11 @@ export async function PUT(
 // DELETE: Delete a branch
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
-    const projectId = params.id;
+    const { id: projectId } = await params;
     const { branchName } = await req.json();
 
     if (!branchName)

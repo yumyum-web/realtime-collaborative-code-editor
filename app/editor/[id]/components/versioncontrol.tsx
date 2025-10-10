@@ -224,7 +224,9 @@ export default function VersionControlPanel({
         );
       } else {
         console.warn("⚠️ No structure in switch response, fetching separately");
-        const refRes = await fetch(`/api/projects/${projectId}`);
+        const refRes = await fetch(
+          `/api/projects/${projectId}?branch=${target}`,
+        );
         const refData = await refRes.json();
         if (refRes.ok && refData.structure) {
           applyStructureToEditor(refData.structure as StructureNode);

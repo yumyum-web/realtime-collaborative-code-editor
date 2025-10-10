@@ -5,11 +5,11 @@ import Project, { ProjectDocument } from "@/app/models/project";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
-    const projectId = params.id;
+    const { id: projectId } = await params;
     const { action, sourceBranch, targetBranch, author } = await req.json();
 
     if (!action || !sourceBranch || !targetBranch || !author) {
