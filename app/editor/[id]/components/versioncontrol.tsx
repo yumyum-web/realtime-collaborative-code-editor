@@ -42,8 +42,38 @@ export default function VersionControlPanel({
   const [commitMessage, setCommitMessage] = useState("");
   const [commits, setCommits] = useState<Commit[]>([]);
   const [loading, setLoading] = useState(false);
+  const [operationInProgress, setOperationInProgress] = useState(false);
+  const [uncommittedCount, setUncommittedCount] = useState(0);
+  const [gitStatus, setGitStatus] = useState<{
+    modified: string[];
+    added: string[];
+    deleted: string[];
+    untracked: string[];
+    isClean: boolean;
+  } | null>(null);
 
   const localKey = useRef((b: string) => `vc_autosave:${projectId}:${b}`);
+
+  // Operation locking wrapper
+  const withLock = useCallback(
+    async (operation: () => Promise<void>) => {
+      if (operationInProgress) {
+        showToast("Please wait for current operation to complete", "error");
+        return;
+      }
+
+      setOperationInProgress(true);
+      try {
+        await operation();
+      } catch (err) {
+        console.error("Operation error:", err);
+        showToast("Operation failed", "error");
+      } finally {
+        setOperationInProgress(false);
+      }
+    },
+    [operationInProgress, showToast],
+  );
 
   const fetchBranches = useCallback(async () => {
     try {
@@ -63,6 +93,26 @@ export default function VersionControlPanel({
       showToast("Network error fetching branches.", "error");
     }
   }, [projectId, showToast, setCurrentBranch]);
+
+  const fetchGitStatus = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/version-control/status`,
+      );
+      const data = await res.json();
+      if (res.ok) {
+        setGitStatus(data);
+        const count =
+          (data.modified?.length || 0) +
+          (data.added?.length || 0) +
+          (data.deleted?.length || 0) +
+          (data.untracked?.length || 0);
+        setUncommittedCount(count);
+      }
+    } catch (err) {
+      console.error("fetchGitStatus error", err);
+    }
+  }, [projectId]);
 
   const fetchCommits = useCallback(
     async (branchName?: string) => {
@@ -88,39 +138,52 @@ export default function VersionControlPanel({
 
   useEffect(() => {
     fetchBranches();
-  }, [fetchBranches]);
+    fetchGitStatus();
+  }, [fetchBranches, fetchGitStatus]);
 
   useEffect(() => {
     if (currentBranch) fetchCommits(currentBranch);
   }, [currentBranch, fetchCommits]);
 
+  // Poll git status every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(fetchGitStatus, 5000);
+    return () => clearInterval(interval);
+  }, [fetchGitStatus]);
+
   const createBranch = async () => {
     const name = newBranchName.trim();
     if (!name) return showToast("Enter a valid branch name.", "error");
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `/api/projects/${projectId}/version-control/branch-git`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ branchName: name, baseBranch: currentBranch }),
-        },
-      );
-      const data = await res.json();
-      setLoading(false);
-      if (!res.ok) {
-        showToast(data.error || "Failed to create branch.", "error");
-        return;
+
+    await withLock(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `/api/projects/${projectId}/version-control/branch-git`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              branchName: name,
+              baseBranch: currentBranch,
+            }),
+          },
+        );
+        const data = await res.json();
+        setLoading(false);
+        if (!res.ok) {
+          showToast(data.error || "Failed to create branch.", "error");
+          return;
+        }
+        setNewBranchName("");
+        showToast(`Branch '${name}' created successfully.`, "success");
+        await fetchBranches();
+      } catch (err) {
+        setLoading(false);
+        console.error(err);
+        showToast("Failed to create branch.", "error");
       }
-      setNewBranchName("");
-      showToast(`Branch '${name}' created successfully.`, "success");
-      await fetchBranches();
-    } catch (err) {
-      setLoading(false);
-      console.error(err);
-      showToast("Failed to create branch.", "error");
-    }
+    });
   };
 
   const handleCommit = async () => {
@@ -133,146 +196,179 @@ export default function VersionControlPanel({
       return showToast("Failed to build project structure.", "error");
     }
 
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `/api/projects/${projectId}/version-control/commit-git`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: commitMessage,
-            author: `${user.username || user.email} <${user.email}>`,
-            branchName: currentBranch,
-            structure,
-          }),
-        },
-      );
-      const data = await res.json();
-      setLoading(false);
-      if (!res.ok) {
-        showToast(data.error || "Commit failed.", "error");
-        return;
+    await withLock(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `/api/projects/${projectId}/version-control/commit-git`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message: commitMessage,
+              author: `${user.username || user.email} <${user.email}>`,
+              branchName: currentBranch,
+              structure,
+            }),
+          },
+        );
+        const data = await res.json();
+        setLoading(false);
+        if (!res.ok) {
+          showToast(data.error || "Commit failed.", "error");
+          return;
+        }
+        setCommitMessage("");
+        await Promise.all([fetchCommits(currentBranch), fetchGitStatus()]);
+        localStorage.removeItem(localKey.current(currentBranch));
+        showToast("Committed successfully.", "success");
+      } catch (err) {
+        setLoading(false);
+        console.error(err);
+        showToast("Network error during commit.", "error");
       }
-      setCommitMessage("");
-      await fetchCommits(currentBranch);
-      localStorage.removeItem(localKey.current(currentBranch));
-      showToast("Committed successfully.", "success");
-    } catch (err) {
-      setLoading(false);
-      console.error(err);
-      showToast("Network error during commit.", "error");
-    }
+    });
   };
 
   const switchBranch = async (target: string) => {
     if (target === currentBranch) return;
 
-    setLoading(true);
+    await withLock(async () => {
+      setLoading(true);
 
-    try {
-      // Step 1: Check for unsaved work and handle it.
-      const autosaveKey = localKey.current(currentBranch);
-      const saved = localStorage.getItem(autosaveKey);
-      if (saved) {
-        const keep = confirm(
-          `You have unsaved work in branch "${currentBranch}". Commit before switching? OK=Commit & switch, Cancel=Discard & switch.`,
-        );
-        if (keep) {
-          await handleCommit(); // This might switch branch, so we need to be careful. Let's assume it commits to current.
+      try {
+        // Step 1: Check for uncommitted changes
+        if (uncommittedCount > 0) {
+          const action = confirm(
+            `You have ${uncommittedCount} uncommitted change(s) in branch "${currentBranch}".\n\nOK = Commit before switching\nCancel = Discard changes and switch`,
+          );
+          if (action) {
+            if (!commitMessage.trim()) {
+              showToast(
+                "Please enter a commit message before switching",
+                "error",
+              );
+              setLoading(false);
+              return;
+            }
+            await handleCommit();
+            // Wait a bit for commit to complete
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
         }
-        // If they cancel, we discard the work by not committing it.
-        localStorage.removeItem(autosaveKey);
-      }
 
-      // Step 2: Call the API to switch the branch on the server.
-      console.log(
-        `[SWITCH] Calling PUT /api/.../branch-git to switch to ${target}`,
-      );
-      const res = await fetch(
-        `/api/projects/${projectId}/version-control/branch-git`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ branchName: target }),
-        },
-      );
+        // Step 2: Check for autosaved work
+        const autosaveKey = localKey.current(currentBranch);
+        const saved = localStorage.getItem(autosaveKey);
+        if (saved) {
+          localStorage.removeItem(autosaveKey);
+        }
 
-      const data = await res.json();
+        // Step 3: Signal Yjs to disconnect (critical!)
+        console.log("[SWITCH] Signaling Yjs disconnect...");
+        applyStructureToEditor(null); // This will clear activeFile and trigger Yjs cleanup
 
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to switch branch on server.");
-      }
+        // Step 4: Wait for Yjs cleanup to complete
+        await new Promise((resolve) => setTimeout(resolve, 300));
 
-      console.log("[SWITCH] Server responded OK.", data);
-
-      // Step 3: Server has confirmed the switch. Now, update the frontend state.
-      setCurrentBranch(target);
-
-      // Step 4: Apply the new file structure returned by the server.
-      if (data.structure) {
-        console.log("[SWITCH] Applying structure from response.");
-        applyStructureToEditor(data.structure as StructureNode);
-        // Cache the new structure
-        localStorage.setItem(
-          `vc_structure:${projectId}:${target}`,
-          JSON.stringify(data.structure),
+        // Step 5: Call the API to switch the branch on the server
+        console.log(
+          `[SWITCH] Calling PUT /api/.../branch-git to switch to ${target}`,
         );
-      } else {
-        // This fallback should ideally not be needed if the PUT endpoint is reliable.
-        console.warn("[SWITCH] No structure in response, fetching separately.");
-        const refRes = await fetch(
-          `/api/projects/${projectId}?branch=${target}`,
+        const res = await fetch(
+          `/api/projects/${projectId}/version-control/branch-git`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ branchName: target }),
+          },
         );
-        const refData = await refRes.json();
-        if (refRes.ok && refData.structure) {
-          applyStructureToEditor(refData.structure as StructureNode);
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to switch branch on server.");
+        }
+
+        console.log("[SWITCH] Server responded OK.", data);
+
+        // Step 6: Update the frontend state
+        setCurrentBranch(target);
+
+        // Step 7: Apply the new file structure
+        if (data.structure) {
+          console.log("[SWITCH] Applying structure from response.");
+          // Wait a bit before applying to ensure Yjs is fully disconnected
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          applyStructureToEditor(data.structure as StructureNode);
+          // Cache the new structure
+          localStorage.setItem(
+            `vc_structure:${projectId}:${target}`,
+            JSON.stringify(data.structure),
+          );
         } else {
-          throw new Error("Failed to load branch structure after switch.");
+          console.warn(
+            "[SWITCH] No structure in response, fetching separately.",
+          );
+          const refRes = await fetch(
+            `/api/projects/${projectId}?branch=${target}`,
+          );
+          const refData = await refRes.json();
+          if (refRes.ok && refData.structure) {
+            await new Promise((resolve) => setTimeout(resolve, 200));
+            applyStructureToEditor(refData.structure as StructureNode);
+          } else {
+            throw new Error("Failed to load branch structure after switch.");
+          }
         }
+
+        // Step 8: Refresh auxiliary data
+        await Promise.all([
+          fetchBranches(),
+          fetchCommits(target),
+          fetchGitStatus(),
+        ]);
+
+        showToast(`Switched to branch "${target}".`, "success");
+      } catch (err) {
+        console.error("❌ switchBranch error", err);
+        showToast((err as Error).message, "error");
+      } finally {
+        setLoading(false);
       }
-
-      // Step 5: Refresh auxiliary data like branch and commit lists.
-      await Promise.all([fetchBranches(), fetchCommits(target)]);
-
-      showToast(`Switched to branch "${target}".`, "success");
-    } catch (err) {
-      console.error("❌ switchBranch error", err);
-      showToast((err as Error).message, "error");
-      // Optional: Attempt to revert state if something failed.
-      // For now, we'll just log the error and notify the user.
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   const deleteBranch = async (branchName: string) => {
     if (!confirm(`Delete branch "${branchName}"? This cannot be undone.`)) {
       return;
     }
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `/api/projects/${projectId}/version-control/branch-git`,
-        {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ branchName }),
-        },
-      );
-      const data = await res.json();
-      setLoading(false);
-      if (!res.ok) {
-        showToast(data.error || "Failed to delete branch.", "error");
-        return;
+
+    await withLock(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `/api/projects/${projectId}/version-control/branch-git`,
+          {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ branchName }),
+          },
+        );
+        const data = await res.json();
+        setLoading(false);
+        if (!res.ok) {
+          showToast(data.error || "Failed to delete branch.", "error");
+          return;
+        }
+        showToast(`Branch '${branchName}' deleted.`, "success");
+        await fetchBranches();
+      } catch (err) {
+        setLoading(false);
+        console.error(err);
+        showToast("Delete failed.", "error");
       }
-      showToast(`Branch '${branchName}' deleted.`, "success");
-      await fetchBranches();
-    } catch (err) {
-      setLoading(false);
-      console.error(err);
-      showToast("Delete failed.", "error");
-    }
+    });
   };
 
   const restoreCommit = async (commitId: string) => {
@@ -283,199 +379,266 @@ export default function VersionControlPanel({
     ) {
       return;
     }
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `/api/projects/${projectId}/version-control/commit-git`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            commitHash: commitId,
-            branchName: currentBranch,
-          }),
-        },
-      );
-      const data = await res.json();
-      setLoading(false);
 
-      if (!res.ok) {
-        showToast(data.error || "Restore failed.", "error");
-        return;
-      }
-
-      console.log("Commit restore response:", data);
-
-      if (data.structure) {
-        applyStructureToEditor(data.structure as StructureNode);
-
-        localStorage.setItem(
-          `vc_load:${projectId}`,
-          JSON.stringify({
-            structure: data.structure,
-            branch: currentBranch,
-            message: "Commit restored successfully",
-          }),
+    await withLock(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `/api/projects/${projectId}/version-control/commit-git`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              commitHash: commitId,
+              branchName: currentBranch,
+            }),
+          },
         );
-      }
+        const data = await res.json();
+        setLoading(false);
 
-      showToast("Commit restored successfully. Workspace updated.", "success");
-      await fetchCommits(currentBranch);
-    } catch (err) {
-      setLoading(false);
-      console.error(err);
-      showToast("Restore failed.", "error");
-    }
+        if (!res.ok) {
+          showToast(data.error || "Restore failed.", "error");
+          return;
+        }
+
+        console.log("Commit restore response:", data);
+
+        if (data.structure) {
+          applyStructureToEditor(data.structure as StructureNode);
+
+          localStorage.setItem(
+            `vc_load:${projectId}`,
+            JSON.stringify({
+              structure: data.structure,
+              branch: currentBranch,
+              message: "Commit restored successfully",
+            }),
+          );
+        }
+
+        showToast(
+          "Commit restored successfully. Workspace updated.",
+          "success",
+        );
+        await Promise.all([fetchCommits(currentBranch), fetchGitStatus()]);
+      } catch (err) {
+        setLoading(false);
+        console.error(err);
+        showToast("Restore failed.", "error");
+      }
+    });
   };
 
   const handlePushToMain = async () => {
     if (currentBranch === "main")
       return showToast("You're already on main.", "error");
 
+    // Check for uncommitted changes
+    if (uncommittedCount > 0) {
+      showToast("Please commit your changes before pushing to main.", "error");
+      return;
+    }
+
     if (
       !confirm(
-        `Push branch "${currentBranch}" into main? This will overwrite main's working tree.`,
+        `Push branch "${currentBranch}" into main? This will merge your branch into main.`,
       )
     ) {
       return;
     }
 
-    setLoading(true);
-
-    try {
-      const res = await fetch(
-        `/api/projects/${projectId}/version-control/merge-git`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sourceBranch: currentBranch,
-            targetBranch: "main",
-            commitMessage: `Merge ${currentBranch} into main`,
-          }),
-        },
-      );
-
-      const data = await res.json();
-      setLoading(false);
-
-      if (!res.ok) {
-        if (data.hasConflicts) {
-          showToast(
-            "Merge conflicts detected. Please resolve manually.",
-            "error",
-          );
-        } else {
-          showToast(data.error || "Push failed.", "error");
-        }
-        return;
-      }
-
-      console.log("✅ Push response:", data);
-
-      // Clear ALL cached structures to force refresh
-      try {
-        const keys = Object.keys(localStorage);
-        keys.forEach((key) => {
-          if (
-            key.startsWith(`vc_structure:${projectId}`) ||
-            key.startsWith(`vc_autosave:${projectId}`)
-          ) {
-            localStorage.removeItem(key);
-          }
-        });
-      } catch (err) {
-        console.error("Failed to clear cache", err);
-      }
-
-      showToast("Pushed to main successfully.", "success");
-
-      // Refresh metadata
-      await fetchBranches();
-    } catch (err) {
-      setLoading(false);
-      console.error("Push error:", err);
-      showToast("Push failed.", "error");
+    // Build current structure to send to server
+    const structure = buildStructure();
+    if (!structure) {
+      showToast("Failed to build project structure.", "error");
+      return;
     }
+
+    await withLock(async () => {
+      setLoading(true);
+
+      try {
+        console.log(`[PUSH] Starting push from ${currentBranch} to main`);
+
+        // Step 1: Merge current branch into main
+        const res = await fetch(
+          `/api/projects/${projectId}/version-control/merge-git`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sourceBranch: currentBranch,
+              targetBranch: "main",
+              commitMessage: `Merge ${currentBranch} into main`,
+              structure, // Send current structure
+            }),
+          },
+        );
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          setLoading(false);
+          if (data.hasConflicts) {
+            showToast(
+              "Merge conflicts detected. Please resolve manually.",
+              "error",
+            );
+          } else {
+            showToast(data.error || "Push failed.", "error");
+          }
+          return;
+        }
+
+        console.log("✅ Push response:", data);
+
+        // Step 2: Clear cached structures
+        try {
+          const keys = Object.keys(localStorage);
+          keys.forEach((key) => {
+            if (
+              key.startsWith(`vc_structure:${projectId}`) ||
+              key.startsWith(`vc_autosave:${projectId}`)
+            ) {
+              localStorage.removeItem(key);
+            }
+          });
+        } catch (err) {
+          console.error("Failed to clear cache", err);
+        }
+
+        // Step 3: Refresh metadata
+        await Promise.all([fetchBranches(), fetchGitStatus()]);
+
+        setLoading(false);
+        showToast(
+          `Successfully pushed ${currentBranch} to main. You're still on ${currentBranch}.`,
+          "success",
+        );
+      } catch (err) {
+        setLoading(false);
+        console.error("Push error:", err);
+        showToast("Push failed: " + (err as Error).message, "error");
+      }
+    });
   };
 
   const handlePullFromMain = async () => {
     if (currentBranch === "main")
       return showToast("Pull not needed on main.", "error");
 
+    // Check for uncommitted changes
+    if (uncommittedCount > 0) {
+      const shouldContinue = confirm(
+        `You have ${uncommittedCount} uncommitted change(s).\n\nCommit them before pulling from main?\n\nOK = Commit first\nCancel = Abort pull`,
+      );
+
+      if (shouldContinue) {
+        if (!commitMessage.trim()) {
+          showToast("Please enter a commit message before pulling.", "error");
+          return;
+        }
+        // Commit first
+        await handleCommit();
+        // Wait for commit to complete
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      } else {
+        return;
+      }
+    }
+
     if (
       !confirm(
-        `Pull main into "${currentBranch}"? This will merge main's changes into your branch.`,
+        `Pull main into "${currentBranch}"? This will merge main's changes into your current branch.`,
       )
     ) {
       return;
     }
 
-    setLoading(true);
+    // Build current structure to send to server
+    const structure = buildStructure();
+    if (!structure) {
+      showToast("Failed to build project structure.", "error");
+      return;
+    }
 
-    try {
-      // Merge main into current branch
-      const res = await fetch(
-        `/api/projects/${projectId}/version-control/merge-git`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sourceBranch: "main",
-            targetBranch: currentBranch,
-            commitMessage: `Merge main into ${currentBranch}`,
-          }),
-        },
-      );
+    await withLock(async () => {
+      setLoading(true);
 
-      const data = await res.json();
-      setLoading(false);
+      try {
+        console.log(`[PULL] Starting pull from main to ${currentBranch}`);
 
-      if (!res.ok) {
-        if (data.hasConflicts) {
-          showToast(
-            "Merge conflicts detected. Please resolve manually.",
-            "error",
-          );
-        } else {
-          showToast(data.error || "Pull failed.", "error");
-        }
-        return;
-      }
-
-      console.log("✅ Pull response:", data);
-
-      // Apply structure immediately with verification
-      if (data.structure) {
-        console.log("📦 Applying pulled structure to editor");
-
-        // Clear old cache
-        localStorage.removeItem(`vc_structure:${projectId}:${currentBranch}`);
-        localStorage.removeItem(`vc_autosave:${projectId}:${currentBranch}`);
-
-        // Apply structure to editor
-        applyStructureToEditor(data.structure as StructureNode);
-
-        // Cache the new structure
-        localStorage.setItem(
-          `vc_structure:${projectId}:${currentBranch}`,
-          JSON.stringify(data.structure),
+        // Step 1: Merge main into current branch
+        const res = await fetch(
+          `/api/projects/${projectId}/version-control/merge-git`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sourceBranch: "main",
+              targetBranch: currentBranch,
+              commitMessage: `Merge main into ${currentBranch}`,
+              structure, // Send current structure
+            }),
+          },
         );
 
+        const data = await res.json();
+
+        if (!res.ok) {
+          setLoading(false);
+          if (data.hasConflicts) {
+            showToast(
+              "Merge conflicts detected. Please resolve manually.",
+              "error",
+            );
+          } else {
+            showToast(data.error || "Pull failed.", "error");
+          }
+          return;
+        }
+
+        console.log("✅ Pull response:", data);
+
+        // Step 2: Apply structure to editor if available
+        if (data.structure) {
+          console.log("📦 Applying pulled structure to editor");
+
+          // Clear old cache
+          localStorage.removeItem(`vc_structure:${projectId}:${currentBranch}`);
+          localStorage.removeItem(`vc_autosave:${projectId}:${currentBranch}`);
+
+          // Signal Yjs to disconnect
+          applyStructureToEditor(null);
+          await new Promise((resolve) => setTimeout(resolve, 300));
+
+          // Apply new structure
+          applyStructureToEditor(data.structure as StructureNode);
+
+          // Cache the new structure
+          localStorage.setItem(
+            `vc_structure:${projectId}:${currentBranch}`,
+            JSON.stringify(data.structure),
+          );
+        } else {
+          console.warn("⚠️ No structure in pull response");
+        }
+
+        // Step 3: Refresh metadata
+        await Promise.all([fetchCommits(currentBranch), fetchGitStatus()]);
+
+        setLoading(false);
         showToast(
           "Pulled from main successfully. Workspace updated.",
           "success",
         );
-      } else {
-        showToast("Pull succeeded but structure update failed.", "error");
+      } catch (err) {
+        setLoading(false);
+        console.error("Pull error:", err);
+        showToast("Pull failed: " + (err as Error).message, "error");
       }
-
-      await fetchCommits(currentBranch);
-    } catch (err) {
-      setLoading(false);
-      console.error("Pull error:", err);
-      showToast("Pull failed.", "error");
-    }
+    });
   };
 
   return (
@@ -485,6 +648,11 @@ export default function VersionControlPanel({
           Version Control
         </h3>
         <div className="flex gap-2">
+          {operationInProgress && (
+            <span className="text-xs text-yellow-400 flex items-center gap-1">
+              <span className="animate-spin">⚙️</span> Working...
+            </span>
+          )}
           <button
             onClick={onClose}
             className="text-sm px-3 py-1 bg-red-600 hover:bg-red-700 rounded transition-colors"
@@ -500,6 +668,37 @@ export default function VersionControlPanel({
           <span className="text-green-400">{currentBranch}</span>
         </div>
 
+        {/* Git Status Indicator */}
+        {gitStatus && (
+          <div className="mb-2 text-xs">
+            {gitStatus.isClean ? (
+              <span className="text-green-400">✓ Working tree clean</span>
+            ) : (
+              <div className="text-yellow-400">
+                <div>⚠️ {uncommittedCount} uncommitted change(s):</div>
+                {gitStatus.modified.length > 0 && (
+                  <div className="ml-2">
+                    • {gitStatus.modified.length} modified
+                  </div>
+                )}
+                {gitStatus.added.length > 0 && (
+                  <div className="ml-2">• {gitStatus.added.length} added</div>
+                )}
+                {gitStatus.deleted.length > 0 && (
+                  <div className="ml-2">
+                    • {gitStatus.deleted.length} deleted
+                  </div>
+                )}
+                {gitStatus.untracked.length > 0 && (
+                  <div className="ml-2">
+                    • {gitStatus.untracked.length} untracked
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex gap-2">
           <input
             placeholder="New branch name"
@@ -512,7 +711,7 @@ export default function VersionControlPanel({
           />
           <button
             onClick={createBranch}
-            disabled={loading || !newBranchName.trim()}
+            disabled={loading || operationInProgress || !newBranchName.trim()}
             className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "..." : "Create"}
@@ -539,7 +738,7 @@ export default function VersionControlPanel({
                 {b !== currentBranch && (
                   <button
                     onClick={() => switchBranch(b)}
-                    disabled={loading}
+                    disabled={loading || operationInProgress}
                     className="text-sm bg-indigo-600 hover:bg-indigo-700 px-2 py-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Switch
@@ -548,7 +747,7 @@ export default function VersionControlPanel({
                 {b !== "main" && b !== currentBranch && (
                   <button
                     onClick={() => deleteBranch(b)}
-                    disabled={loading}
+                    disabled={loading || operationInProgress}
                     className="text-sm bg-red-600 hover:bg-red-700 px-2 py-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Delete
@@ -563,14 +762,18 @@ export default function VersionControlPanel({
           <button
             onClick={handlePushToMain}
             className="flex-1 bg-purple-700 hover:bg-purple-600 px-3 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={currentBranch === "main" || loading}
+            disabled={
+              currentBranch === "main" || loading || operationInProgress
+            }
           >
             Push → main
           </button>
           <button
             onClick={handlePullFromMain}
             className="flex-1 bg-purple-700 hover:bg-purple-600 px-3 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={currentBranch === "main" || loading}
+            disabled={
+              currentBranch === "main" || loading || operationInProgress
+            }
           >
             Pull ← main
           </button>
@@ -589,7 +792,7 @@ export default function VersionControlPanel({
         <button
           onClick={handleCommit}
           className="w-full bg-green-600 hover:bg-green-700 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={loading || !commitMessage.trim()}
+          disabled={loading || operationInProgress || !commitMessage.trim()}
         >
           {loading ? "Working..." : "Commit to branch"}
         </button>
@@ -625,7 +828,7 @@ export default function VersionControlPanel({
                         ? restoreCommit(c._id)
                         : showToast("Invalid commit ID", "error")
                     }
-                    disabled={loading}
+                    disabled={loading || operationInProgress}
                     className="text-xs bg-yellow-600 hover:bg-yellow-700 px-2 py-1 rounded whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Restore

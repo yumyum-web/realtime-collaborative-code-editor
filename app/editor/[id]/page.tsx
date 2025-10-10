@@ -120,8 +120,11 @@ export default function EditorPage() {
   // ---- Apply structure to editor (complete replacement) ----
   const applyStructureToEditor = useCallback(
     (structure: StructureNode | null) => {
+      // Handle null structure (branch switch signal - clear editor)
       if (!structure) {
-        showToast("Invalid structure received.", "error");
+        console.log("🔄 Clearing editor for branch switch");
+        setActiveFile(""); // This triggers Yjs cleanup
+        setEditorMounting(true);
         return;
       }
 
