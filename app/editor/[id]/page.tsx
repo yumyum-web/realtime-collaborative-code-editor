@@ -120,12 +120,12 @@ export default function EditorPage() {
         return;
       }
 
-      console.log("Applying structure to editor:", structure);
+      console.log("🔄 Applying structure to editor:", structure);
 
-      // Step 1: Clear active file first to trigger Yjs cleanup
+      // Step 1: Clear active file to trigger Yjs cleanup
       setActiveFile("");
 
-      // Step 2: Wait a tick for cleanup to complete
+      // Step 2: Wait for cleanup to complete
       setTimeout(() => {
         // Full hard reset
         setFileTree([]);
@@ -154,17 +154,22 @@ export default function EditorPage() {
         setFileTree([structure]);
         setExpandedFolders(newExpanded);
 
-        // Step 3: Set new active file after a small delay
+        console.log(
+          `✅ Applied structure: ${Object.keys(newFilesRef).length} files`,
+        );
+
+        // Step 3: Set new active file after a delay
         setTimeout(() => {
           const firstFile = Object.keys(newFilesRef)[0];
           if (firstFile) {
             setActiveFile(firstFile);
             // Force complete editor reload
             setEditorKey((prev) => prev + 1);
+            console.log(`📄 Active file set to: ${firstFile}`);
           }
           showToast("Project structure updated.", "success");
-        }, 50);
-      }, 50);
+        }, 100);
+      }, 100);
     },
     [setFileTree, filesRef, showToast],
   );

@@ -155,7 +155,6 @@ export default function VersionControlPanel({
     }
   };
 
-  // --- Switch branch with proper structure reload ---
   const switchBranch = async (target: string) => {
     if (target === currentBranch) return;
 
@@ -188,14 +187,11 @@ export default function VersionControlPanel({
     }
 
     try {
-      // STEP 1: Update branch state FIRST
       console.log(`🔀 Switching from ${currentBranch} to ${target}`);
       setCurrentBranch(target);
 
-      // STEP 2: Wait for state to propagate
       await new Promise((resolve) => setTimeout(resolve, 200));
 
-      // STEP 3: Fetch branch data
       const res = await fetch(
         `/api/projects/${projectId}/version-control/branch`,
         {
@@ -210,20 +206,18 @@ export default function VersionControlPanel({
 
       if (!res.ok) {
         showToast(data.error || "Switch failed.", "error");
-        setCurrentBranch(currentBranch); // Rollback
+        setCurrentBranch(currentBranch);
         return;
       }
 
       console.log("✅ Branch switch response:", data);
 
-      // STEP 4: Apply structure after another small delay
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       if (data.structure) {
         console.log("📦 Applying structure from switch response");
         applyStructureToEditor(data.structure as StructureNode);
 
-        // Cache the new structure
         localStorage.setItem(
           `vc_structure:${projectId}:${target}`,
           JSON.stringify(data.structure),
@@ -244,13 +238,12 @@ export default function VersionControlPanel({
         "success",
       );
 
-      // STEP 5: Refetch metadata
       await Promise.all([fetchBranches(), fetchCommits(target)]);
     } catch (err) {
       setLoading(false);
       console.error("❌ switchBranch error", err);
       showToast("Switch failed.", "error");
-      setCurrentBranch(currentBranch); // Rollback
+      setCurrentBranch(currentBranch);
     }
   };
 
@@ -283,7 +276,6 @@ export default function VersionControlPanel({
     }
   };
 
-  // Restore commit with immediate structure reload
   const restoreCommit = async (commitId: string) => {
     if (
       !confirm(
@@ -312,11 +304,9 @@ export default function VersionControlPanel({
 
       console.log("Commit restore response:", data);
 
-      // CRITICAL: Apply structure immediately to update the editor
       if (data.structure) {
         applyStructureToEditor(data.structure as StructureNode);
 
-        // Store in localStorage as backup
         localStorage.setItem(
           `vc_load:${projectId}`,
           JSON.stringify({
@@ -339,6 +329,7 @@ export default function VersionControlPanel({
   const handlePushToMain = async () => {
     if (currentBranch === "main")
       return showToast("You're already on main.", "error");
+
     if (
       !confirm(
         `Push branch "${currentBranch}" into main? This will overwrite main's working tree.`,
@@ -346,7 +337,9 @@ export default function VersionControlPanel({
     ) {
       return;
     }
+
     setLoading(true);
+
     try {
       const res = await fetch(
         `/api/projects/${projectId}/version-control/merge`,
@@ -361,21 +354,39 @@ export default function VersionControlPanel({
           }),
         },
       );
+
       const data = await res.json();
       setLoading(false);
+
       if (!res.ok) {
         showToast(data.error || "Push failed.", "error");
         return;
       }
+
+      console.log("✅ Push response:", data);
+
+      // Clear ALL cached structures to force refresh
+      try {
+        const keys = Object.keys(localStorage);
+        keys.forEach((key) => {
+          if (
+            key.startsWith(`vc_structure:${projectId}`) ||
+            key.startsWith(`vc_autosave:${projectId}`)
+          ) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch (err) {
+        console.error("Failed to clear cache", err);
+      }
+
       showToast("Pushed to main successfully.", "success");
 
-      // Clear main's cached structure
-      localStorage.removeItem(`vc_structure:${projectId}:main`);
-
+      // Refresh metadata
       await fetchBranches();
     } catch (err) {
       setLoading(false);
-      console.error(err);
+      console.error("Push error:", err);
       showToast("Push failed.", "error");
     }
   };
@@ -383,6 +394,7 @@ export default function VersionControlPanel({
   const handlePullFromMain = async () => {
     if (currentBranch === "main")
       return showToast("Pull not needed on main.", "error");
+
     if (
       !confirm(
         `Pull main into "${currentBranch}"? This will overwrite ${currentBranch}'s working tree.`,
@@ -390,7 +402,9 @@ export default function VersionControlPanel({
     ) {
       return;
     }
+
     setLoading(true);
+
     try {
       const res = await fetch(
         `/api/projects/${projectId}/version-control/merge`,
@@ -405,6 +419,7 @@ export default function VersionControlPanel({
           }),
         },
       );
+
       const data = await res.json();
       setLoading(false);
 
@@ -413,28 +428,37 @@ export default function VersionControlPanel({
         return;
       }
 
-      console.log("Pull response:", data);
+      console.log("✅ Pull response:", data);
 
-      // CRITICAL: Apply structure immediately to update the editor
-      if (data.structure) {
+      // Apply structure immediately with verification
+      if (data.structure && data.targetBranch === currentBranch) {
+        console.log("📦 Applying pulled structure to editor");
+
+        // Clear old cache
+        localStorage.removeItem(`vc_structure:${projectId}:${currentBranch}`);
+        localStorage.removeItem(`vc_autosave:${projectId}:${currentBranch}`);
+
+        // Apply structure to editor
         applyStructureToEditor(data.structure as StructureNode);
 
-        // Store in localStorage as backup
+        // Cache the new structure
         localStorage.setItem(
-          `vc_load:${projectId}`,
-          JSON.stringify({
-            structure: data.structure,
-            branch: currentBranch,
-            message: "Pulled from main successfully",
-          }),
+          `vc_structure:${projectId}:${currentBranch}`,
+          JSON.stringify(data.structure),
         );
+
+        showToast(
+          "Pulled from main successfully. Workspace updated.",
+          "success",
+        );
+      } else {
+        showToast("Pull succeeded but structure update failed.", "error");
       }
 
-      showToast("Pulled from main successfully. Workspace updated.", "success");
       await fetchCommits(currentBranch);
     } catch (err) {
       setLoading(false);
-      console.error(err);
+      console.error("Pull error:", err);
       showToast("Pull failed.", "error");
     }
   };

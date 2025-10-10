@@ -1,11 +1,8 @@
-// src/app/api/projects/[id]/version-control/merge/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/app/lib/mongoose";
 import VersionControl, { Branch, Commit } from "@/app/models/VersionControl";
 import Project, { ProjectDocument } from "@/app/models/project";
 
-// POST: Merge (Push or Pull)
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } },
@@ -38,22 +35,32 @@ export async function POST(
         { status: 404 },
       );
 
-    // Simple merge strategy: overwrite target's working copy with source's working copy
-    const mergedStructure = JSON.parse(JSON.stringify(source.lastStructure)); // CRUCIAL: Deep copy
+    // Use workingTree (current state) with fallback to lastStructure
+    const sourceStructure = source.workingTree || source.lastStructure;
+    if (!sourceStructure) {
+      return NextResponse.json(
+        { error: "Source branch has no structure" },
+        { status: 400 },
+      );
+    }
+
+    // Deep copy to prevent reference issues
+    const mergedStructure = JSON.parse(JSON.stringify(sourceStructure));
 
     // Create a merge commit on the target branch
     target.commits.push({
       message: `Merge (${action}) ${sourceBranch} → ${targetBranch}`,
       author,
       timestamp: new Date(),
-      structure: mergedStructure, // Snapshot of the merged state
+      structure: mergedStructure,
     } as Commit);
 
-    // Update the target's working copy
+    // Update BOTH workingTree and lastStructure
+    target.workingTree = mergedStructure;
     target.lastStructure = mergedStructure;
     target.lastMergedFrom = sourceBranch;
 
-    // If merging into 'main', update the main Project document too (persisting to main db state)
+    // If merging into 'main', update the main Project document
     if (targetBranch === "main") {
       const project = (await Project.findById(
         projectId,
@@ -66,15 +73,19 @@ export async function POST(
 
       project.structure = mergedStructure;
       await project.save();
+      console.log(`✅ Updated main project structure`);
     }
 
     vcDoc.markModified("branches");
     await vcDoc.save();
 
+    console.log(`✅ Merge complete: ${sourceBranch} → ${targetBranch}`);
+
     return NextResponse.json({
       success: true,
       message: `Merged ${sourceBranch} into ${targetBranch}`,
-      structure: mergedStructure, // Return merged structure for immediate client update (Pull operation)
+      structure: mergedStructure,
+      targetBranch,
     });
   } catch (err) {
     console.error("POST merge error:", err);
