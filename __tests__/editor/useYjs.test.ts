@@ -1,4 +1,4 @@
-﻿import { renderHook, act } from "@testing-library/react";
+import { renderHook, act } from "@testing-library/react";
 import { useYjs } from "@/app/editor/[id]/hooks/useYjs";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
