@@ -561,6 +561,13 @@ describe("useYjs", () => {
 
   describe("Error Handling", () => {
     it("should handle editor DOM not available gracefully", () => {
+      const consoleWarnSpy = jest
+        .spyOn(console, "warn")
+        .mockImplementation(() => {});
+      const consoleLogSpy = jest
+        .spyOn(console, "log")
+        .mockImplementation(() => {});
+
       const mockEditorWithoutDom = {
         ...mockEditor,
         getDomNode: jest.fn(() => null),
@@ -575,10 +582,21 @@ describe("useYjs", () => {
 
       // Should not throw and should handle gracefully
       expect(result.current.presence).toEqual([]);
+
+      consoleWarnSpy.mockRestore();
+      consoleLogSpy.mockRestore();
     });
 
     it("should handle Monaco binding creation failure", async () => {
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
+      const consoleSpy = jest
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const consoleWarnSpy = jest
+        .spyOn(console, "warn")
+        .mockImplementation(() => {});
+      const consoleLogSpy = jest
+        .spyOn(console, "log")
+        .mockImplementation(() => {});
 
       (MonacoBinding as jest.Mock).mockImplementation(() => {
         throw new Error("Binding failed");
@@ -597,6 +615,8 @@ describe("useYjs", () => {
       expect(result.current.presence).toEqual([]);
 
       consoleSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+      consoleLogSpy.mockRestore();
     });
   });
 });

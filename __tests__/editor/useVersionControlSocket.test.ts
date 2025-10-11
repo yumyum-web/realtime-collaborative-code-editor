@@ -226,6 +226,10 @@ describe("useVersionControlSocket", () => {
     });
 
     it("should handle pull changes error", async () => {
+      const consoleSpy = jest
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
       // Mock fetch to fail
       global.fetch = jest.fn(() =>
         Promise.resolve({
@@ -240,6 +244,8 @@ describe("useVersionControlSocket", () => {
       await expect(result.current.pullChanges()).rejects.toThrow(
         "Failed to pull changes",
       );
+
+      consoleSpy.mockRestore();
     });
   });
 

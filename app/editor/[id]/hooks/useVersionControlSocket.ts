@@ -139,7 +139,9 @@ export const useVersionControlSocket = (
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error("Pull changes error:", error);
+      if (process.env.NODE_ENV !== "test") {
+        console.error("Pull changes error:", error);
+      }
       throw error;
     }
   }, [projectId]);
