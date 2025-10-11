@@ -15,10 +15,36 @@ export function useSocket(projectId: string) {
 
     const s = io("http://localhost:3001");
     socketRef.current = s;
-    s.emit("join-doc", projectId);
 
-    s.on("chat-history", (msgs: ChatMessage[]) => setChatMessages(msgs));
-    s.on("chat-message", (m: ChatMessage) => setChatMessages((p) => [...p, m]));
+    s.on("chat-history", (msgs: ChatMessage[]) => {
+      console.log("📥 Received chat history:", msgs.length, "messages");
+      // Always replace the entire message list when receiving history
+      setChatMessages(msgs);
+    });
+
+    s.on("chat-message", (m: ChatMessage) => {
+      console.log("💬 Received new chat message:", m.message);
+      setChatMessages((prev) => {
+        // Check if this exact message is already in the list to prevent duplicates
+        const messageExists = prev.some(
+          (existing) =>
+            existing.senderEmail === m.senderEmail &&
+            existing.message === m.message &&
+            Math.abs(existing.timestamp - m.timestamp) < 1000, // Within 1 second
+        );
+
+        if (messageExists) {
+          console.log("⚠️ Duplicate message detected, skipping");
+          return prev; // Don't add duplicate
+        }
+
+        console.log("✅ Adding new message to chat");
+        return [...prev, m];
+      });
+    });
+
+    // Emit join-doc after setting up listeners
+    s.emit("join-doc", projectId);
 
     return () => {
       s.disconnect();
