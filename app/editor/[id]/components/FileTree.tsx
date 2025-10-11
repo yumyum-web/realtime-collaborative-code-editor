@@ -37,9 +37,9 @@ export function FileTree({
       if (node.type === "folder") {
         const isExpanded = expandedFolders.has(path);
         return (
-          <div key={path} className="pl-2">
+          <div key={path} className="pl-1">
             <div
-              className="cursor-pointer flex items-center gap-2 px-2 py-1 hover:bg-gray-700 rounded select-none"
+              className="cursor-pointer flex items-center gap-2 px-2 py-1 hover:bg-gray-700 rounded-lg select-none"
               onClick={() => {
                 const n = new Set(expandedFolders);
                 if (n.has(path)) {
@@ -50,8 +50,16 @@ export function FileTree({
                 setExpandedFolders(n);
               }}
             >
-              {isExpanded ? <VscChevronDown /> : <VscChevronRight />}
-              {isExpanded ? <VscFolderOpened /> : <VscFolder />}
+              {isExpanded ? (
+                <VscChevronDown className="text-amber-400" />
+              ) : (
+                <VscChevronRight className="text-amber-400" />
+              )}
+              {isExpanded ? (
+                <VscFolderOpened className="text-amber-400" />
+              ) : (
+                <VscFolder className="text-amber-400" />
+              )}
               <span className="truncate">{node.name}</span>
               <div className="ml-auto flex gap-1">
                 <button
@@ -86,7 +94,7 @@ export function FileTree({
               </div>
             </div>
             {isExpanded && node.children && (
-              <div className="pl-6 border-l border-gray-700 ml-2">
+              <div className="pl-4 border-l border-gray-700 ml-1">
                 {renderTree(node.children, path)}
               </div>
             )}
@@ -96,14 +104,14 @@ export function FileTree({
       return (
         <div
           key={path}
-          className={`cursor-pointer flex items-center gap-2 px-2 py-1 rounded text-sm select-none ${
+          className={`cursor-pointer flex items-center gap-2 px-2 py-1 rounded-lg text-sm select-none ${
             activeFile === path
               ? "bg-gray-700 text-white"
               : "hover:bg-gray-700 text-gray-300"
           }`}
           onClick={() => setActiveFile(path)}
         >
-          <VscFile />
+          <VscFile className="text-blue-400" />
           <span className="truncate">{node.name}</span>
           <button
             onClick={(e) => {
@@ -119,5 +127,5 @@ export function FileTree({
     });
   }
 
-  return <div>{renderTree(fileTree)}</div>;
+  return <div className="overflow-y-auto h-full">{renderTree(fileTree)}</div>;
 }

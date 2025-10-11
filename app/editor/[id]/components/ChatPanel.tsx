@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { VscSend, VscAccount, VscComment } from "react-icons/vsc";
 import type { ChatMessage, User } from "../types";
-import { colorFromString } from "../utils/colorHelpers";
 
 interface ChatPanelProps {
   chatMessages: ChatMessage[];
@@ -72,10 +71,10 @@ export function ChatPanel({
   }, [chatMessages, isUserAtBottom, isInitialLoad]);
 
   return (
-    <div className="h-full bg-gray-800 border-l border-gray-700 flex flex-col relative">
+    <div className="h-full bg-sidebar border-l border-gray-700 flex flex-col relative">
       {/* Header */}
-      <div className="flex justify-between items-center p-3 border-b border-gray-700 flex-shrink-0 bg-gray-800/50">
-        <div className="flex items-center gap-3 h-9">
+      <div className="flex justify-between items-center p-3 border-b border-gray-700 flex-shrink-0 bg-card">
+        <div className="flex items-center gap-3 h-8">
           <VscComment className="w-5 h-5 text-white" />
           <h3 className="text-lg font-bold text-white">Chat</h3>
         </div>
@@ -84,7 +83,7 @@ export function ChatPanel({
           onClick={onClose}
         >
           <svg
-            className="w-4 h-4"
+            className="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -123,8 +122,8 @@ export function ChatPanel({
                     className={`flex items-center gap-2 mb-1 ${isCurrentUser ? "justify-end" : "justify-start"}`}
                   >
                     {!isCurrentUser && (
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0 bg-black">
-                        <VscAccount className="w-4 h-4" />
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0 bg-orange-500">
+                        <VscAccount className="w-3.5 h-3.5" />
                       </div>
                     )}
                     <div
@@ -138,7 +137,7 @@ export function ChatPanel({
                       {new Date(m.timestamp).toLocaleTimeString()}
                     </div>
                     {isCurrentUser && (
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0 bg-black">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0 bg-blue-500">
                         <VscAccount className="w-3.5 h-3.5" />
                       </div>
                     )}
@@ -162,7 +161,7 @@ export function ChatPanel({
       </div>
 
       {/* Message Input - Absolutely positioned at bottom */}
-      <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-gray-700 bg-gray-800">
+      <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-gray-700 bg-card">
         <div className="flex gap-2">
           <input
             className="flex-1 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"

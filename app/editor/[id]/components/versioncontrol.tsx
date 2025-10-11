@@ -4,14 +4,11 @@ import {
   VscGitMerge,
   VscAdd,
   VscTrash,
-  VscArrowRight,
-  VscArrowLeft,
   VscCheck,
   VscWarning,
   VscHistory,
   VscRepoPush,
   VscRepoPull,
-  VscSourceControl,
 } from "react-icons/vsc";
 
 type StructureNode = {
@@ -654,33 +651,11 @@ export default function VersionControlPanel({
   };
 
   return (
-    <div className="h-full bg-gray-900 text-gray-100 flex flex-col overflow-hidden">
-      {/* Header */}
-      {/* <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800/50">
-        <div className="flex items-center gap-3">
-          {operationInProgress && (
-            <div className="flex items-center gap-2 text-sm text-yellow-400 bg-yellow-400/10 px-3 py-1.5 rounded-full">
-              <div className="animate-spin w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full"></div>
-              <span>Working...</span>
-            </div>
-          )}
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-        </div>
-      </div> */}
-
+    <div className="h-full bg-sidebar text-gray-100 flex flex-col overflow-hidden">
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Current Branch Status */}
-        <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-3">
+        <div className="bg-card/50 border border-gray-700 rounded-xl p-3">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wide">
               Current Branch
@@ -739,7 +714,7 @@ export default function VersionControlPanel({
         </div>
 
         {/* Create Branch */}
-        <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-3">
+        <div className="bg-card/50 border border-gray-700 rounded-xl p-3">
           <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wide mb-2">
             Create Branch
           </h3>
@@ -768,7 +743,7 @@ export default function VersionControlPanel({
         </div>
 
         {/* Branches */}
-        <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-3">
+        <div className="bg-card/50 border border-gray-700 rounded-xl p-3">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wide">
               Branches
@@ -857,7 +832,7 @@ export default function VersionControlPanel({
         </div>
 
         {/* Commit Section */}
-        <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-3">
+        <div className="bg-card/50 border border-gray-700 rounded-xl p-3">
           <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wide mb-2">
             Create Commit
           </h3>
@@ -881,7 +856,7 @@ export default function VersionControlPanel({
         </div>
 
         {/* Commits History */}
-        <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-3">
+        <div className="bg-card/50 border border-gray-700 rounded-xl p-3">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
               <VscHistory className="w-3 h-3" />
