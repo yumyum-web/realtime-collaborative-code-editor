@@ -3,7 +3,10 @@ import mongoose from "mongoose";
 import Invitation from "@/app/models/Invitation";
 import connectDB from "@/app/lib/connectDB";
 
-export async function GET(req: Request, context: { params: { id: string } }) {
+export async function GET(
+  req: Request,
+  context: { params: Promise<{ id: string }> },
+) {
   await connectDB();
   const { id: projectId } = await context.params; // Await the params properly
   if (!projectId) {
@@ -25,7 +28,7 @@ export async function GET(req: Request, context: { params: { id: string } }) {
 
 export async function DELETE(
   req: Request,
-  context: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   await connectDB();
   const { id: projectId } = await context.params; // Await the params properly

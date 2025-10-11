@@ -1,18 +1,15 @@
 // src/app/api/projects/[id]/version-control/branch/update/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/app/lib/mongoose";
-import VersionControl, { Branch } from "@/app/models/VersionControl";
-import { FileEntity } from "@/app/models/project";
+import { getGitRepo, writeFilesToRepo } from "@/app/lib/gitUtils";
 
 // PATCH: Update a branch's working structure (used by frontend autosave/manual save on non-main branch)
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await connectDB();
-    const projectId = params.id;
+    const { id: projectId } = await params;
     const { branchName, structure } = await req.json();
 
     if (!branchName || structure === undefined) {
@@ -22,23 +19,24 @@ export async function PATCH(
       );
     }
 
-    const vcDoc = await VersionControl.findOne({ projectId });
-    if (!vcDoc)
-      return NextResponse.json(
-        { error: "Version control not initialized" },
-        { status: 404 },
-      );
+    const git = await getGitRepo(projectId);
+    const currentBranch = (await git.branchLocal()).current;
 
-    const branch = vcDoc.branches.find((b: Branch) => b.name === branchName);
-    if (!branch)
-      return NextResponse.json({ error: "Branch not found" }, { status: 404 });
+    // Ensure we are on the correct branch before writing files
+    if (currentBranch !== branchName) {
+      const allBranches = await git.branchLocal();
+      if (allBranches.all.includes(branchName)) {
+        await git.checkout(branchName);
+      } else {
+        return NextResponse.json(
+          { error: `Branch ${branchName} not found in repository.` },
+          { status: 404 },
+        );
+      }
+    }
 
-    // Update the working copy of the branch (lastStructure)
-    branch.lastStructure = structure as FileEntity;
-
-    // Mark the branches array modified to ensure Mongoose saves nested changes
-    vcDoc.markModified("branches");
-    await vcDoc.save();
+    // Write the updated structure to the filesystem for this branch
+    await writeFilesToRepo(projectId, structure);
 
     return NextResponse.json({
       success: true,

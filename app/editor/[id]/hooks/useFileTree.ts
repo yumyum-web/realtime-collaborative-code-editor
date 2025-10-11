@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FileNode } from "../types";
 import { findFirstFile } from "../utils/fileTreeHelpers";
 
-export function useFileTree(projectId: string) {
+export function useFileTree(projectId: string, currentBranch?: string) {
   const [fileTree, setFileTree] = useState<FileNode[]>([]);
   const [initialFiles, setInitialFiles] = useState<Record<string, string>>({});
   const filesRef = useRef<Record<string, string>>({});
@@ -15,26 +15,35 @@ export function useFileTree(projectId: string) {
     const loadProject = async () => {
       setIsLoading(true);
 
+      // Clear current state when branch changes
+      setFileTree([]);
+      setInitialFiles({});
+      filesRef.current = {};
+
       try {
-        // First, get the current active branch
-        let activeBranch = "main";
-        try {
-          const branchRes = await fetch(
-            `/api/projects/${projectId}/version-control/branch`,
-          );
-          if (branchRes.ok) {
-            const branchData = await branchRes.json();
-            activeBranch = branchData.activeBranch || "main";
-            console.log(`📂 Active branch detected: ${activeBranch}`);
+        // Use the currentBranch prop if provided, otherwise detect from API
+        let activeBranch = currentBranch || "main";
+
+        if (!currentBranch) {
+          try {
+            const branchRes = await fetch(
+              `/api/projects/${projectId}/version-control/branch`,
+            );
+            if (branchRes.ok) {
+              const branchData = await branchRes.json();
+              activeBranch = branchData.activeBranch || "main";
+              console.log(`📂 Active branch detected: ${activeBranch}`);
+            }
+          } catch (err) {
+            console.warn(
+              "Could not fetch active branch, defaulting to main:",
+              err,
+            );
           }
-        } catch (err) {
-          console.warn(
-            "Could not fetch active branch, defaulting to main:",
-            err,
-          );
         }
 
         // Fetch project data with branch context
+        console.log(`📡 Fetching project data for branch: ${activeBranch}`);
         const projectRes = await fetch(
           `/api/projects/${projectId}?branch=${activeBranch}`,
         );
@@ -44,10 +53,12 @@ export function useFileTree(projectId: string) {
         }
 
         const data = await projectRes.json();
+        console.log(`📦 Received project data:`, data);
+
         const root = data.structure ?? data;
         setProjectTitle(data.title ?? "Untitled");
 
-        console.log(`📦 Loading structure for branch: ${activeBranch}`, root);
+        console.log(`� Loading structure for branch: ${activeBranch}`, root);
 
         const flat: Record<string, string> = {};
         function walk(node: FileNode & { content?: string }, path = "") {
@@ -76,6 +87,7 @@ export function useFileTree(projectId: string) {
     };
 
     loadProject();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   const getFirstFile = () => findFirstFile(fileTree);
