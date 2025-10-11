@@ -784,8 +784,8 @@ export default function EditorPage() {
 
         {/* Version Control Button */}
         <button
-          className={`w-12 h-12 bg-purple-600 hover:bg-purple-500 text-white rounded-full shadow-lg transition-all duration-200 transform hover:scale-110 active:scale-95 flex items-center justify-center group ${
-            vcOpen ? "ring-2 ring-purple-400" : ""
+          className={`w-12 h-12 bg-gradient-primary hover:bg-white text-white rounded-full shadow-lg transition-all duration-200 transform hover:scale-110 active:scale-95 flex items-center justify-center group ${
+            vcOpen ? "ring-2 ring-green-400" : ""
           }`}
           onClick={() => {
             setVcOpen(!vcOpen);
@@ -817,8 +817,8 @@ export default function EditorPage() {
           {vcOpen && (
             <div className="h-full flex flex-col">
               {/* Version Control Panel Header */}
-              <div className="flex justify-between items-center p-4 border-b border-gray-700 min-h-[60px] flex-shrink-0">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <div className="flex justify-between items-center p-3 border-b border-gray-700 min-h-[44px] flex-shrink-0">
+                <h3 className="text-base font-semibold text-white flex items-center gap-2">
                   <VscGitMerge className="w-5 h-5" />
                   Version Control
                 </h3>

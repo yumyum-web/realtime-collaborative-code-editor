@@ -1,6 +1,18 @@
-"use client";
-
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  VscGitCommit,
+  VscGitMerge,
+  VscAdd,
+  VscTrash,
+  VscArrowRight,
+  VscArrowLeft,
+  VscCheck,
+  VscWarning,
+  VscHistory,
+  VscRepoPush,
+  VscRepoPull,
+  VscSourceControl,
+} from "react-icons/vsc";
 
 type StructureNode = {
   name: string;
@@ -642,200 +654,296 @@ export default function VersionControlPanel({
   };
 
   return (
-    <div className="p-4 h-full text-gray-200 flex flex-col">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-xl font-semibold text-purple-400">
-          Version Control
-        </h3>
-        <div className="flex gap-2">
+    <div className="h-full bg-gray-900 text-gray-100 flex flex-col overflow-hidden">
+      {/* Header */}
+      {/* <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800/50">
+        <div className="flex items-center gap-3">
           {operationInProgress && (
-            <span className="text-xs text-yellow-400 flex items-center gap-1">
-              <span className="animate-spin">⚙️</span> Working...
-            </span>
-          )}
-          <button
-            onClick={onClose}
-            className="text-sm px-3 py-1 bg-red-600 hover:bg-red-700 rounded transition-colors"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-4 pb-2 border-b border-gray-700">
-        <div className="mb-2">
-          <strong>Active Branch:</strong>{" "}
-          <span className="text-green-400">{currentBranch}</span>
-        </div>
-
-        {/* Git Status Indicator */}
-        {gitStatus && (
-          <div className="mb-2 text-xs">
-            {gitStatus.isClean ? (
-              <span className="text-green-400">✓ Working tree clean</span>
-            ) : (
-              <div className="text-yellow-400">
-                <div>⚠️ {uncommittedCount} uncommitted change(s):</div>
-                {gitStatus.modified.length > 0 && (
-                  <div className="ml-2">
-                    • {gitStatus.modified.length} modified
-                  </div>
-                )}
-                {gitStatus.added.length > 0 && (
-                  <div className="ml-2">• {gitStatus.added.length} added</div>
-                )}
-                {gitStatus.deleted.length > 0 && (
-                  <div className="ml-2">
-                    • {gitStatus.deleted.length} deleted
-                  </div>
-                )}
-                {gitStatus.untracked.length > 0 && (
-                  <div className="ml-2">
-                    • {gitStatus.untracked.length} untracked
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          <input
-            placeholder="New branch name"
-            value={newBranchName}
-            onChange={(e) => setNewBranchName(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === "Enter") createBranch();
-            }}
-            className="flex-1 bg-gray-700 p-2 rounded text-white placeholder-gray-400"
-          />
-          <button
-            onClick={createBranch}
-            disabled={loading || operationInProgress || !newBranchName.trim()}
-            className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? "..." : "Create"}
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-4">
-        <h4 className="font-semibold mb-2">Branches ({branches.length})</h4>
-        <div className="space-y-2 max-h-36 overflow-y-auto mb-3 border border-gray-700 p-2 rounded">
-          {branches.map((b) => (
-            <div
-              key={b}
-              className="flex justify-between items-center bg-gray-800/50 p-2 rounded"
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className={`px-2 py-1 rounded text-xs font-medium ${b === currentBranch ? "bg-green-700" : "bg-gray-700"}`}
-                >
-                  {b}
-                </span>
-              </div>
-              <div className="flex gap-2">
-                {b !== currentBranch && (
-                  <button
-                    onClick={() => switchBranch(b)}
-                    disabled={loading || operationInProgress}
-                    className="text-sm bg-indigo-600 hover:bg-indigo-700 px-2 py-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Switch
-                  </button>
-                )}
-                {b !== "main" && b !== currentBranch && (
-                  <button
-                    onClick={() => deleteBranch(b)}
-                    disabled={loading || operationInProgress}
-                    className="text-sm bg-red-600 hover:bg-red-700 px-2 py-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Delete
-                  </button>
-                )}
-              </div>
+            <div className="flex items-center gap-2 text-sm text-yellow-400 bg-yellow-400/10 px-3 py-1.5 rounded-full">
+              <div className="animate-spin w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full"></div>
+              <span>Working...</span>
             </div>
-          ))}
+          )}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
+      </div> */}
 
-        <div className="flex gap-2 pt-2">
-          <button
-            onClick={handlePushToMain}
-            className="flex-1 bg-purple-700 hover:bg-purple-600 px-3 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={
-              currentBranch === "main" || loading || operationInProgress
-            }
-          >
-            Push → main
-          </button>
-          <button
-            onClick={handlePullFromMain}
-            className="flex-1 bg-purple-700 hover:bg-purple-600 px-3 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={
-              currentBranch === "main" || loading || operationInProgress
-            }
-          >
-            Pull ← main
-          </button>
-        </div>
-      </div>
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Current Branch Status */}
+        <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-3">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wide">
+              Current Branch
+            </h3>
+            <div className="flex items-center gap-2">
+              <VscGitMerge className="w-3 h-3 text-green-400" />
+              <span className="text-green-400 text-sm font-medium">
+                {currentBranch}
+              </span>
+            </div>
+          </div>
 
-      <div className="mb-4 pt-4 border-t border-gray-700">
-        <h4 className="font-semibold mb-2">Create Commit</h4>
-        <textarea
-          value={commitMessage}
-          onChange={(e) => setCommitMessage(e.target.value)}
-          placeholder="Commit message"
-          className="w-full bg-gray-700 p-2 rounded mb-2 text-white placeholder-gray-400"
-          rows={3}
-        />
-        <button
-          onClick={handleCommit}
-          className="w-full bg-green-600 hover:bg-green-700 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={loading || operationInProgress || !commitMessage.trim()}
-        >
-          {loading ? "Working..." : "Commit to branch"}
-        </button>
-      </div>
-
-      <div className="flex-1 pt-4 border-t border-gray-700 overflow-y-auto">
-        <div>
-          <h4 className="font-semibold mb-2">
-            Commits ({commits.length}) - {currentBranch}
-          </h4>
-          <div className="space-y-3">
-            {commits.length === 0 && (
-              <div className="text-gray-400 text-sm">No commits yet.</div>
-            )}
-            {commits.map((c) => (
-              <div
-                key={c._id || c.message + c.timestamp}
-                className="bg-gray-800 p-3 rounded border border-gray-700 flex justify-between items-start"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate">
-                    {c.message}
+          {/* Git Status */}
+          {gitStatus && (
+            <div className="space-y-2">
+              {gitStatus.isClean ? (
+                <div className="flex items-center gap-2 text-xs text-green-400 bg-green-400/10 px-2 py-1.5 rounded-lg">
+                  <VscCheck className="w-3 h-3" />
+                  <span>Working tree is clean</span>
+                </div>
+              ) : (
+                <div className="bg-yellow-400/10 border border-yellow-400/30 rounded p-2">
+                  <div className="flex items-center gap-2 text-xs text-yellow-400 mb-1.5">
+                    <VscWarning className="w-3 h-3" />
+                    <span>
+                      {uncommittedCount} uncommitted change
+                      {uncommittedCount !== 1 ? "s" : ""}
+                    </span>
                   </div>
-                  <div className="text-xs text-gray-400">
-                    {c.author} •{" "}
-                    {c.timestamp ? new Date(c.timestamp).toLocaleString() : ""}
+                  <div className="grid grid-cols-2 gap-1 text-xs">
+                    {gitStatus.modified.length > 0 && (
+                      <div className="text-orange-300">
+                        • {gitStatus.modified.length} modified
+                      </div>
+                    )}
+                    {gitStatus.added.length > 0 && (
+                      <div className="text-green-300">
+                        • {gitStatus.added.length} added
+                      </div>
+                    )}
+                    {gitStatus.deleted.length > 0 && (
+                      <div className="text-red-300">
+                        • {gitStatus.deleted.length} deleted
+                      </div>
+                    )}
+                    {gitStatus.untracked.length > 0 && (
+                      <div className="text-blue-300">
+                        • {gitStatus.untracked.length} untracked
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="flex flex-col gap-1 ml-4">
-                  <button
-                    onClick={() =>
-                      c._id
-                        ? restoreCommit(c._id)
-                        : showToast("Invalid commit ID", "error")
-                    }
-                    disabled={loading || operationInProgress}
-                    className="text-xs bg-yellow-600 hover:bg-yellow-700 px-2 py-1 rounded whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Create Branch */}
+        <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-3">
+          <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wide mb-2">
+            Create Branch
+          </h3>
+          <div className="flex gap-2">
+            <div className="flex-1 relative">
+              <VscAdd className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400" />
+              <input
+                placeholder="New branch name"
+                value={newBranchName}
+                onChange={(e) => setNewBranchName(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter") createBranch();
+                }}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-8 pr-3 py-2 text-sm text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+              />
+            </div>
+            <button
+              onClick={createBranch}
+              disabled={loading || operationInProgress || !newBranchName.trim()}
+              className="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg flex items-center gap-1.5"
+            >
+              <VscAdd className="w-3 h-3" />
+              <span className="text-sm">Create</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Branches */}
+        <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-3">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wide">
+              Branches
+            </h3>
+            <span className="text-xs text-gray-400 bg-gray-700 px-2 py-0.5 rounded-full">
+              {branches.length}
+            </span>
+          </div>
+
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {branches.map((branch) => (
+              <div
+                key={branch}
+                className={`flex items-center justify-between p-2 rounded-lg border transition-all ${
+                  branch === currentBranch
+                    ? "bg-blue-600/20 border-blue-500/50"
+                    : "bg-gray-700/50 border-gray-600 hover:border-gray-500"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <VscGitMerge
+                    className={`w-3 h-3 ${branch === currentBranch ? "text-blue-400" : "text-gray-400"}`}
+                  />
+                  <span
+                    className={`text-sm font-medium ${branch === currentBranch ? "text-blue-300" : "text-gray-300"}`}
                   >
-                    Restore
-                  </button>
+                    {branch}
+                  </span>
+                  {branch === currentBranch && (
+                    <span className="text-xs bg-blue-600 text-white px-1.5 py-0.5 rounded-xl font-medium">
+                      Active
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex gap-1.5">
+                  {branch !== currentBranch && (
+                    <button
+                      onClick={() => switchBranch(branch)}
+                      disabled={loading || operationInProgress}
+                      className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center gap-1"
+                    >
+                      <VscGitMerge className="w-3 h-3" />
+                      Switch
+                    </button>
+                  )}
+                  {branch !== "main" && branch !== currentBranch && (
+                    <button
+                      onClick={() => deleteBranch(branch)}
+                      disabled={loading || operationInProgress}
+                      className="bg-red-600 hover:bg-red-500 disabled:bg-gray-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center gap-1"
+                    >
+                      <VscTrash className="w-3 h-3" />
+                      Delete
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Push/Pull Actions */}
+          <div className="flex gap-2 mt-3 pt-3 border-t border-gray-600">
+            <button
+              onClick={handlePushToMain}
+              disabled={
+                currentBranch === "main" || loading || operationInProgress
+              }
+              className="flex-1 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-600 text-white py-2 rounded-lg font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg flex items-center justify-center gap-1.5"
+            >
+              <VscRepoPush className="w-3 h-3" />
+              <span className="text-sm">Push to main</span>
+              {/* <VscArrowRight className="w-3 h-3" /> */}
+            </button>
+            <button
+              onClick={handlePullFromMain}
+              disabled={
+                currentBranch === "main" || loading || operationInProgress
+              }
+              className="flex-1 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-600 text-white py-2 rounded-lg font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg flex items-center justify-center gap-1.5"
+            >
+              {/* <VscArrowLeft className="w-3 h-3" /> */}
+              <VscRepoPull className="w-3 h-3" />
+              <span className="text-sm">Pull from main</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Commit Section */}
+        <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-3">
+          <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wide mb-2">
+            Create Commit
+          </h3>
+          <div className="space-y-2">
+            <textarea
+              value={commitMessage}
+              onChange={(e) => setCommitMessage(e.target.value)}
+              placeholder="Describe your changes..."
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2 text-sm text-white placeholder-gray-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all resize-none"
+              rows={2}
+            />
+            <button
+              onClick={handleCommit}
+              disabled={loading || operationInProgress || !commitMessage.trim()}
+              className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-600 text-white py-2 rounded-lg font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg flex items-center justify-center gap-1.5"
+            >
+              <VscGitCommit className="w-3 h-3" />
+              <span className="text-sm">Commit Changes</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Commits History */}
+        <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-3">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+              <VscHistory className="w-3 h-3" />
+              Commit History
+            </h3>
+            <span className="text-xs text-gray-400 bg-gray-700 px-2 py-0.5 rounded-full">
+              {commits.length}
+            </span>
+          </div>
+
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {commits.length === 0 ? (
+              <div className="text-center py-6 text-gray-400">
+                <VscHistory className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-xs">No commits yet</p>
+                <p className="text-xs mt-0.5">
+                  Create your first commit to get started
+                </p>
+              </div>
+            ) : (
+              commits.map((commit) => (
+                <div
+                  key={commit._id || commit.message + commit.timestamp}
+                  className="bg-gray-700/50 border border-gray-600 rounded-lg p-2 hover:border-gray-500 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <VscGitCommit className="w-3 h-3 text-green-400 flex-shrink-0" />
+                        <h4 className="font-medium text-white text-xs leading-tight">
+                          {commit.message}
+                        </h4>
+                      </div>
+                      <div className="text-xs text-gray-400 ml-4.5">
+                        <span className="font-medium">{commit.author}</span>
+                        {commit.timestamp && (
+                          <>
+                            <span className="mx-1.5">•</span>
+                            <span>
+                              {new Date(commit.timestamp).toLocaleString()}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() =>
+                        commit._id
+                          ? restoreCommit(commit._id)
+                          : showToast("Invalid commit ID", "error")
+                      }
+                      disabled={loading || operationInProgress}
+                      className="bg-yellow-600 hover:bg-yellow-500 disabled:bg-gray-600 text-white px-2 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center gap-1 flex-shrink-0"
+                    >
+                      <VscHistory className="w-3 h-3" />
+                      Restore
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
