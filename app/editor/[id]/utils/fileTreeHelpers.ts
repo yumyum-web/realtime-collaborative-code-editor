@@ -7,6 +7,16 @@ export function addNode(
   const { type, parentPath, name } = payload;
   const newTree = JSON.parse(JSON.stringify(tree)) as FileNode[];
 
+  if (parentPath === "") {
+    // Add to root level
+    if (type === "file") {
+      newTree.push({ name, type: "file" });
+    } else {
+      newTree.push({ name, type: "folder", children: [] });
+    }
+    return newTree;
+  }
+
   function walk(nodes: FileNode[], curPath: string): boolean {
     for (const node of nodes) {
       const nodePath = curPath ? `${curPath}/${node.name}` : node.name;
@@ -71,7 +81,7 @@ export function reconstructTree(
   });
 }
 
-export function findFirstFile(nodes: FileNode[], base = ""): string | null {
+export function findFirstFile(nodes: FileNode[], base = ""): string {
   for (const node of nodes) {
     const path = base ? `${base}/${node.name}` : node.name;
     if (node.type === "file") return path;
@@ -80,5 +90,5 @@ export function findFirstFile(nodes: FileNode[], base = ""): string | null {
       if (found) return found;
     }
   }
-  return null;
+  return "";
 }
