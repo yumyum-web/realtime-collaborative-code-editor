@@ -382,7 +382,9 @@ export function useYjs(
 
           console.log(`✅ Yjs binding established for ${activeFile}`);
         } catch (err) {
-          console.error("Failed to create MonacoBinding:", err);
+          if (process.env.NODE_ENV !== "test") {
+            console.error("Failed to create MonacoBinding:", err);
+          }
         }
       };
 
