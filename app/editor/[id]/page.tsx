@@ -5,6 +5,7 @@ import Editor from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
 import { useParams } from "next/navigation";
 import { VscComment } from "react-icons/vsc";
+import { VscGitCommit, VscHistory, VscGitMerge } from "react-icons/vsc";
 
 import type {
   ChatMessage,
@@ -55,6 +56,18 @@ type StructureNode = {
   children?: StructureNode[];
 };
 
+type GitCommit = {
+  hash: string;
+  message: string;
+  author: string;
+  date: string;
+};
+
+type GitStatus = {
+  commits: GitCommit[];
+  // Add other properties as needed
+};
+
 export default function EditorPage() {
   const { id: projectId } = useParams() as { id: string };
   useMonaco();
@@ -79,6 +92,12 @@ export default function EditorPage() {
   const [currentBranch, setCurrentBranch] = useState<string>("main");
   const [forceRefresh, setForceRefresh] = useState<number>(0);
 
+  // New UI state variables
+  const [isMobile, setIsMobile] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showGitPanel, setShowGitPanel] = useState(false);
+  const [gitStatus] = useState<GitStatus | null>(null);
+
   const {
     fileTree,
     setFileTree,
@@ -100,6 +119,28 @@ export default function EditorPage() {
     currentBranch,
     forceRefresh,
   );
+
+  // Responsive handling
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 768);
+      // Auto-hide panels on very small screens
+      if (width < 1024 && (chatOpen || vcOpen || showGitPanel)) {
+        setChatOpen(false);
+        setVcOpen(false);
+        setShowGitPanel(false);
+      }
+      // Auto-collapse sidebar on small screens
+      if (width < 640) {
+        setSidebarCollapsed(true);
+      }
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [chatOpen, vcOpen, showGitPanel]);
 
   // Force editor to reload when activeFile, filesRef, OR currentBranch changes
   const [editorKey, setEditorKey] = useState(0);
@@ -481,18 +522,59 @@ export default function EditorPage() {
     [projectId, emitChatMessage, showToast],
   );
 
-  const openChat = () => {
-    setChatOpen(true);
-    setVcOpen(false);
-  };
+  const handleRestoreCommit = useCallback(
+    async (commitHash: string) => {
+      if (
+        !user?.email ||
+        !confirm(
+          "Are you sure you want to restore this commit? This will overwrite your current changes.",
+        )
+      ) {
+        return;
+      }
 
-  const openVc = () => {
-    setVcOpen(true);
-    setChatOpen(false);
-  };
+      try {
+        showToast("Restoring commit...", "success");
+
+        const response = await fetch(
+          `/api/projects/${projectId}/version-control/restore`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userEmail: user.email,
+              commitHash,
+              branch: currentBranch,
+            }),
+          },
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+
+          // Apply the restored structure to the editor
+          if (data.structure) {
+            applyStructureToEditor(data.structure);
+          }
+
+          showToast(
+            `Successfully restored commit ${commitHash.substring(0, 7)}`,
+            "success",
+          );
+        } else {
+          const error = await response.json();
+          showToast(error.error || "Failed to restore commit", "error");
+        }
+      } catch (error) {
+        console.error("Restore commit error:", error);
+        showToast("Failed to restore commit", "error");
+      }
+    },
+    [projectId, user?.email, currentBranch, showToast, applyStructureToEditor],
+  );
 
   return (
-    <div className="flex h-screen bg-gray-900 text-gray-200">
+    <div className="flex h-screen bg-gray-900 text-gray-200 overflow-hidden">
       {/* Toast notification */}
       {toast && (
         <div
@@ -504,73 +586,130 @@ export default function EditorPage() {
         </div>
       )}
 
-      {/* Sidebar */}
-      <aside className="w-64 bg-gray-800 p-4 overflow-y-auto text-sm border-r border-gray-700 flex-shrink-0">
-        <h2 className="text-xl font-bold mb-4 border-b border-gray-700 pb-2">
-          {projectTitle}
-        </h2>
-        <div className="mb-2 text-xs text-gray-400">
-          Branch:{" "}
-          <span className="text-blue-400 font-semibold">{currentBranch}</span>
-        </div>
-
-        <FileTree
-          fileTree={fileTree}
-          setFileTree={setFileTree}
-          activeFile={activeFile}
-          setActiveFile={setActiveFile}
-          expandedFolders={expandedFolders}
-          setExpandedFolders={setExpandedFolders}
-          onAddNode={handleAddNode}
-          onDeleteNode={handleDeleteNode}
-        />
-
-        <div className="mt-4 flex gap-2">
+      {/* Sidebar - File Tree */}
+      <aside
+        className={`${
+          sidebarCollapsed ? "w-12" : "w-64"
+        } bg-gray-800 border-r border-gray-700 flex flex-col transition-all duration-300 ease-in-out ${
+          isMobile && (chatOpen || vcOpen || showGitPanel) ? "hidden" : ""
+        }`}
+      >
+        {/* Sidebar Header */}
+        <div className="p-4 border-b border-gray-700 flex items-center justify-between min-h-[60px]">
+          {!sidebarCollapsed && (
+            <h2 className="text-lg font-bold truncate">{projectTitle}</h2>
+          )}
           <button
-            className="flex-1 bg-blue-800 hover:bg-blue-700 py-1 rounded"
-            onClick={() => handleAddNode("folder", "root")}
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="p-1 hover:bg-gray-700 rounded transition-colors"
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            + Folder
-          </button>
-          <button
-            className="flex-1 bg-blue-800 hover:bg-blue-700 py-1 rounded"
-            onClick={() => handleAddNode("file", "root")}
-          >
-            + File
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d={sidebarCollapsed ? "M9 5l7 7-7 7" : "M15 19l-7-7 7-7"}
+              />
+            </svg>
           </button>
         </div>
 
-        <button
-          className="mt-4 w-full flex items-center gap-2 px-2 py-1 bg-green-700 hover:bg-green-600 rounded"
-          onClick={() => (chatOpen ? setChatOpen(false) : openChat())}
-        >
-          <VscComment /> Chat
-        </button>
+        {/* File Tree Content */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {!sidebarCollapsed && (
+            <>
+              <FileTree
+                fileTree={fileTree}
+                setFileTree={setFileTree}
+                activeFile={activeFile}
+                setActiveFile={setActiveFile}
+                expandedFolders={expandedFolders}
+                setExpandedFolders={setExpandedFolders}
+                onAddNode={handleAddNode}
+                onDeleteNode={handleDeleteNode}
+              />
 
-        <button
-          className="mt-2 w-full flex items-center gap-2 px-2 py-1 bg-purple-700 hover:bg-purple-600 rounded"
-          onClick={() => (vcOpen ? setVcOpen(false) : openVc())}
-        >
-          🕒 Version Control
-        </button>
+              {/* File Operations */}
+              <div className="mt-4 flex gap-2">
+                <button
+                  className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95"
+                  onClick={() => handleAddNode("folder", "root")}
+                >
+                  + Folder
+                </button>
+                <button
+                  className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95"
+                  onClick={() => handleAddNode("file", "root")}
+                >
+                  + File
+                </button>
+              </div>
+            </>
+          )}
+        </div>
 
-        <PresenceList presence={presence} />
+        {/* Sidebar Footer */}
+        <div className="p-4 border-t border-gray-700 space-y-2">
+          {!sidebarCollapsed && (
+            <>
+              <PresenceList presence={presence} />
+            </>
+          )}
+        </div>
       </aside>
 
-      {/* Main Editor */}
+      {/* Main Editor Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex justify-between items-center bg-gray-800 px-4 py-2 border-b border-gray-700 z-10">
-          <div className="truncate">
-            Editing: <strong>{activeFile || "No file selected"}</strong>
+        {/* Fixed Navigation Bar */}
+        <div className="flex justify-between items-center bg-gray-800 px-4 py-3 border-b border-gray-700 min-h-[60px] flex-shrink-0">
+          <div className="flex items-center gap-4 min-w-0 flex-1">
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="md:hidden p-2 hover:bg-gray-700 rounded-lg transition-colors"
+              title="Toggle sidebar"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
+              </svg>
+            </button>
+
+            <div className="text-sm text-gray-300 truncate">
+              <span className="text-gray-400">Editing:</span>{" "}
+              <strong className="text-white">
+                {activeFile || "No file selected"}
+              </strong>
+            </div>
           </div>
-          <button
-            className="bg-blue-800 hover:bg-blue-600 px-4 py-1 rounded whitespace-nowrap ml-4 flex-shrink-0"
-            onClick={handleSaveProject}
-          >
-            Save Project
-          </button>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 flex-shrink-0">
+            <button
+              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg"
+              onClick={handleSaveProject}
+            >
+              Save Project
+            </button>
+          </div>
         </div>
 
+        {/* Editor Content */}
         <div className="flex-1 relative">
           {isLoading || editorMounting ? (
             <div className="flex items-center justify-center h-full bg-gray-900">
@@ -593,8 +732,8 @@ export default function EditorPage() {
               options={{
                 minimap: { enabled: false },
                 automaticLayout: true,
-                // Add these options to prevent DOM-related errors
-                readOnly: false,
+                fontSize: 14,
+                lineHeight: 1.5,
                 scrollBeyondLastLine: false,
                 wordWrap: "on",
               }}
@@ -603,34 +742,197 @@ export default function EditorPage() {
         </div>
       </div>
 
-      {/* Chat Panel */}
-      {chatOpen && (
-        <div className="w-96 bg-gray-800 border-l border-gray-700 overflow-y-auto flex-shrink-0">
-          <ChatPanel
-            chatMessages={chatMessages}
-            user={user}
-            onSendMessage={handleSendChatMessage}
-            onClose={() => setChatOpen(false)}
-          />
-        </div>
-      )}
+      {/* Floating Action Buttons */}
+      <div
+        className={`fixed z-30 transition-all duration-300 ${
+          chatOpen || vcOpen || showGitPanel
+            ? "bottom-6 right-[340px] flex flex-col gap-4 mb-2"
+            : "bottom-6 right-6 flex flex-col gap-4 mb-2"
+        }`}
+      >
+        {/* Chat Button */}
+        <button
+          className={`w-12 h-12 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-lg transition-all duration-200 transform hover:scale-110 active:scale-95 flex items-center justify-center group ${
+            chatOpen ? "ring-2 ring-blue-400" : ""
+          }`}
+          onClick={() => {
+            setChatOpen(!chatOpen);
+            setVcOpen(false);
+            setShowGitPanel(false);
+          }}
+          title="Open Chat"
+        >
+          <VscComment className="w-5 h-5" />
+        </button>
 
-      {/* Version Control Panel */}
-      {vcOpen && (
-        <div className="w-96 bg-gray-800 border-l border-gray-700 overflow-y-auto flex-shrink-0">
-          {user && (
-            <VersionControlPanel
-              projectId={projectId}
+        {/* Git History Button */}
+        {gitStatus && (
+          <button
+            className={`w-12 h-12 bg-orange-600 hover:bg-orange-500 text-white rounded-full shadow-lg transition-all duration-200 transform hover:scale-110 active:scale-95 flex items-center justify-center group ${
+              showGitPanel ? "ring-2 ring-orange-400" : ""
+            }`}
+            onClick={() => {
+              setShowGitPanel(!showGitPanel);
+              setChatOpen(false);
+              setVcOpen(false);
+            }}
+            title="Git History"
+          >
+            <VscHistory className="w-5 h-5" />
+          </button>
+        )}
+
+        {/* Version Control Button */}
+        <button
+          className={`w-12 h-12 bg-purple-600 hover:bg-purple-500 text-white rounded-full shadow-lg transition-all duration-200 transform hover:scale-110 active:scale-95 flex items-center justify-center group ${
+            vcOpen ? "ring-2 ring-purple-400" : ""
+          }`}
+          onClick={() => {
+            setVcOpen(!vcOpen);
+            setChatOpen(false);
+            setShowGitPanel(false);
+          }}
+          title="Version Control"
+        >
+          <VscGitMerge className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Right Sidebar Panel */}
+      {(chatOpen || vcOpen || showGitPanel) && (
+        <aside
+          className={`w-80 bg-gray-800 border-l border-gray-700 flex flex-col transition-all duration-300 ease-in-out ${
+            isMobile ? "fixed right-0 top-0 h-full z-50" : ""
+          }`}
+        >
+          {chatOpen && (
+            <ChatPanel
+              chatMessages={chatMessages}
               user={user}
-              onClose={() => setVcOpen(false)}
-              showToast={showToast}
-              applyStructureToEditor={applyStructureToEditor}
-              buildStructure={buildStructure}
-              currentBranch={currentBranch}
-              setCurrentBranch={setCurrentBranch}
+              onSendMessage={handleSendChatMessage}
+              onClose={() => setChatOpen(false)}
             />
           )}
-        </div>
+
+          {vcOpen && (
+            <div className="h-full flex flex-col">
+              {/* Version Control Panel Header */}
+              <div className="flex justify-between items-center p-4 border-b border-gray-700 min-h-[60px] flex-shrink-0">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <VscGitMerge className="w-5 h-5" />
+                  Version Control
+                </h3>
+                <button
+                  onClick={() => setVcOpen(false)}
+                  className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Version Control Panel Content */}
+              <div className="flex-1 overflow-y-auto">
+                {user && (
+                  <VersionControlPanel
+                    projectId={projectId}
+                    user={user}
+                    onClose={() => setVcOpen(false)}
+                    showToast={showToast}
+                    applyStructureToEditor={applyStructureToEditor}
+                    buildStructure={buildStructure}
+                    currentBranch={currentBranch}
+                    setCurrentBranch={setCurrentBranch}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+
+          {showGitPanel && gitStatus && (
+            <div className="h-full flex flex-col">
+              {/* Git Panel Header */}
+              <div className="flex justify-between items-center p-4 border-b border-gray-700 min-h-[60px] flex-shrink-0">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <VscHistory className="w-5 h-5" />
+                  Git History
+                </h3>
+                <button
+                  onClick={() => setShowGitPanel(false)}
+                  className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Git Panel Content */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {gitStatus?.commits && gitStatus.commits.length > 0 ? (
+                  <div className="space-y-4">
+                    {gitStatus.commits.map((commit: GitCommit) => (
+                      <div
+                        key={commit.hash}
+                        className="bg-gray-900 p-4 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors"
+                      >
+                        <div className="flex items-start gap-3">
+                          <VscGitCommit className="text-green-500 mt-1 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-white truncate mb-2">
+                              {commit.message}
+                            </p>
+                            <div className="flex items-center gap-4 text-xs text-gray-400">
+                              <span>{commit.author}</span>
+                              <span>
+                                {new Date(commit.date).toLocaleString()}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 font-mono mt-2">
+                              {commit.hash.substring(0, 7)}
+                            </p>
+                            <button
+                              onClick={() => handleRestoreCommit(commit.hash)}
+                              className="mt-2 text-xs bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded transition-colors"
+                            >
+                              Restore
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <VscHistory className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400">No commits yet</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </aside>
       )}
     </div>
   );
