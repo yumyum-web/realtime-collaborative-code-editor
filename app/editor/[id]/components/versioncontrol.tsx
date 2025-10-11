@@ -759,7 +759,7 @@ export default function VersionControlPanel({
             <button
               onClick={createBranch}
               disabled={loading || operationInProgress || !newBranchName.trim()}
-              className="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg flex items-center gap-1.5"
+              className="bg-gradient-primary disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg flex items-center gap-1.5"
             >
               <VscAdd className="w-3 h-3" />
               <span className="text-sm">Create</span>
@@ -822,7 +822,6 @@ export default function VersionControlPanel({
                       className="bg-red-600 hover:bg-red-500 disabled:bg-gray-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center gap-1"
                     >
                       <VscTrash className="w-3 h-3" />
-                      Delete
                     </button>
                   )}
                 </div>
