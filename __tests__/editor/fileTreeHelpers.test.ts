@@ -270,7 +270,6 @@ describe("fileTreeHelpers", () => {
         "src/file2.txt": "content2",
         "src/components/Button.tsx": "content3",
       };
-
       // First create a basic tree structure
       const nodes: FileNode[] = [
         { name: "file1.txt", type: "file" },
@@ -289,6 +288,7 @@ describe("fileTreeHelpers", () => {
       ];
 
       const result = reconstructTree(nodes, "", files);
+      expect((result[0] as FileNodeWithContent).content).toBe("content1");
 
       expect(result).toHaveLength(2);
       expect(result[0].name).toBe("file1.txt");
