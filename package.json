@@ -12,6 +12,10 @@
     "prepare": "husky",
     "start": "next start",
     "start:all": "concurrently 'next start' 'tsx server/socketServer.ts' 'y-websocket-server'",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:e2e": "playwright test",
+    "test:watch": "jest --watch",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -81,7 +85,12 @@
     "yjs": "^13.6.27"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.0",
     "@tailwindcss/postcss": "^4.1.11",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20",
     "@types/nodemailer": "^7.0.1",
@@ -95,11 +104,17 @@
     "eslint": "^9",
     "eslint-config-next": "15.4.4",
     "husky": "^9.1.7",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
     "lint-staged": "^16.1.2",
+    "mongodb-memory-server": "^10.2.3",
+    "playwright": "^1.56.0",
     "postcss": "^8.5.6",
     "prettier": "^3.6.2",
     "sort-package-json": "^3.4.0",
+    "supertest": "^7.1.4",
     "tailwindcss": "^4.1.11",
+    "ts-jest": "^29.4.5",
     "tsx": "^4.20.5",
     "typescript": "^5"
   }
