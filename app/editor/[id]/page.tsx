@@ -553,17 +553,10 @@ export default function EditorPage() {
 
   const handleSendChatMessage = useCallback(
     (message: ChatMessage) => {
-      fetch(`/api/projects/${projectId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(message),
-      }).catch((err) => {
-        console.error(err);
-        showToast("Failed to send chat message.", "error");
-      });
+      // Only emit via socket - the socket server will save to DB and broadcast
       emitChatMessage(message);
     },
-    [projectId, emitChatMessage, showToast],
+    [emitChatMessage],
   );
 
   const handleRestoreCommit = useCallback(
