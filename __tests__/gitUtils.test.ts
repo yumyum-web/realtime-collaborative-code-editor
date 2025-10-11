@@ -109,8 +109,4 @@ describe("gitUtils", () => {
       expect(files).toEqual({});
     });
   });
-
-  // Note: Async functions like getGitRepo, writeFilesToRepo, readFilesFromRepo
-  // would require more complex mocking of fs and simple-git.
-  // For unit tests, focus on synchronous functions and mock the async ones separately if needed.
 });
