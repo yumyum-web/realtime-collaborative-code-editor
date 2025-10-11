@@ -12,7 +12,7 @@
     "prepare": "husky",
     "start": "next start",
     "start:all": "concurrently 'next start' 'tsx server/socketServer.ts' 'y-websocket-server'",
-    "test": "jest",
+    "test": "jest --verbose",
     "test:coverage": "jest --coverage",
     "test:e2e": "playwright test",
     "test:watch": "jest --watch",
