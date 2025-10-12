@@ -51,8 +51,52 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Deploy on Railway
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This application is designed to be deployed on Railway, which supports running multiple services (Next.js, Socket.IO, and Y.js WebSocket) together.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Quick Deploy to Railway
+
+1. **Fork/Clone this repository** to your GitHub account
+2. **Sign up** at [Railway.app](https://railway.app)
+3. **Follow the deployment guide**: See [RAILWAY_DEPLOYMENT_GUIDE.md](./RAILWAY_DEPLOYMENT_GUIDE.md)
+4. **Use the checklist**: Follow [DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md)
+
+### What You'll Need
+
+- Railway account (free tier available)
+- MongoDB database (provided by Railway)
+- Firebase project (for authentication)
+- Gmail account (for email invitations)
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│           Railway Application Instance          │
+│                                                  │
+│  ┌────────────┐  ┌──────────┐  ┌────────────┐  │
+│  │  Next.js   │  │ Socket.IO│  │ Y.js WS    │  │
+│  │  :3000     │  │ :3001    │  │ Server     │  │
+│  └────────────┘  └──────────┘  └────────────┘  │
+└─────────────────────────────────────────────────┘
+                      │
+                      ▼
+          ┌───────────────────────┐
+          │   MongoDB Database    │
+          │   (Railway Service)   │
+          └───────────────────────┘
+```
+
+For detailed deployment instructions, see [RAILWAY_DEPLOYMENT_GUIDE.md](./RAILWAY_DEPLOYMENT_GUIDE.md).
+
+## Alternative Deployment Options
+
+### Deploy on Vercel
+
+⚠️ **Note**: Vercel deployment requires additional configuration for Socket.IO and Y.js WebSocket servers, as Vercel is optimized for serverless functions. Railway is recommended for this full-stack application.
+
+For Vercel deployment, you would need to:
+
+- Deploy WebSocket servers separately (e.g., on Railway or Heroku)
+- Update environment variables to point to external WebSocket servers

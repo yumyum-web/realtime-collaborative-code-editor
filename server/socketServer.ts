@@ -110,6 +110,6 @@ io.on("connection", (socket: ClientSocket) => {
 });
 
 const PORT = process.env.SOCKET_PORT ? Number(process.env.SOCKET_PORT) : 3001;
-httpServer.listen(PORT, () =>
-  console.log(`Socket.IO server running on http://localhost:${PORT}`),
+httpServer.listen(PORT, "0.0.0.0", () =>
+  console.log(`Socket.IO server running on port ${PORT}`),
 );
