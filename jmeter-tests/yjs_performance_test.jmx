@@ -63,7 +63,20 @@
           <stringProp name="WebSocketOpenConnection.message_backlog">10</stringProp>
           <stringProp name="WebSocketOpenConnection.connection_close">false</stringProp>
         </WebSocketOpenConnection>
-        <hashTree/>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Connection Assertion" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49586">101</stringProp>
+              <stringProp name="49587">200</stringProp>
+              <stringProp name="49588">500</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.custom_message">Expected 101/200 (WebSocket success) or 500 (server unavailable)</stringProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">1</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
         <WebSocketSingleWriteSampler guiclass="WebSocketSamplerGui" testclass="WebSocketSingleWriteSampler" testname="Send Yjs Sync Message" enabled="true">
           <stringProp name="WebSocketSingleWriteSampler.connectionId">yjs_conn_${__threadNum}</stringProp>
           <stringProp name="WebSocketSingleWriteSampler.request_data">{"type":"sync","data":[0,"test${__threadNum}"]}</stringProp>
@@ -72,11 +85,35 @@
           <stringProp name="WebSocketSingleWriteSampler.response_pattern"></stringProp>
           <stringProp name="WebSocketSingleWriteSampler.message_backlog">10</stringProp>
         </WebSocketSingleWriteSampler>
-        <hashTree/>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Message Assertion" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49586">200</stringProp>
+              <stringProp name="49587">500</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.custom_message">Expected 200 (message sent) or 500 (connection failed)</stringProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">1</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
         <WebSocketCloseConnection guiclass="WebSocketSamplerGui" testclass="WebSocketCloseConnection" testname="Close Yjs Connection" enabled="true">
           <stringProp name="WebSocketCloseConnection.connectionId">yjs_conn_${__threadNum}</stringProp>
         </WebSocketCloseConnection>
-        <hashTree/>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Close Assertion" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49586">200</stringProp>
+              <stringProp name="49587">500</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.custom_message">Expected 200 (connection closed) or 500 (connection failed)</stringProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">1</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
         <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
           <boolProp name="ResultCollector.error_logging">false</boolProp>
           <objProp>
