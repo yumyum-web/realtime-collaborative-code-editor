@@ -24,17 +24,7 @@
       "2h",
       "1d"
     ],
-    "time_options": [
-      "5m",
-      "15m",
-      "1h",
-      "6h",
-      "12h",
-      "24h",
-      "2d",
-      "7d",
-      "30d"
-    ]
+    "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d", "30d"]
   },
   "templating": {
     "list": [
@@ -133,9 +123,7 @@
       {
         "allValue": ".*",
         "current": {
-          "value": [
-            "$__all"
-          ],
+          "value": ["$__all"],
           "text": "All"
         },
         "datasource": "jmeterdb",
@@ -253,15 +241,11 @@
               "dsType": "influxdb",
               "groupBy": [
                 {
-                  "params": [
-                    "$granularity"
-                  ],
+                  "params": ["$granularity"],
                   "type": "time"
                 },
                 {
-                  "params": [
-                    "null"
-                  ],
+                  "params": ["null"],
                   "type": "fill"
                 }
               ],
@@ -273,9 +257,7 @@
               "select": [
                 [
                   {
-                    "params": [
-                      "meanAT"
-                    ],
+                    "params": ["meanAT"],
                     "type": "field"
                   },
                   {
@@ -366,9 +348,7 @@
               "dsType": "influxdb",
               "groupBy": [
                 {
-                  "params": [
-                    "$granularity"
-                  ],
+                  "params": ["$granularity"],
                   "type": "time"
                 }
               ],
@@ -381,9 +361,7 @@
               "select": [
                 [
                   {
-                    "params": [
-                      "hit"
-                    ],
+                    "params": ["hit"],
                     "type": "field"
                   },
                   {
@@ -391,9 +369,7 @@
                     "type": "last"
                   },
                   {
-                    "params": [
-                      " / 5"
-                    ],
+                    "params": [" / 5"],
                     "type": "math"
                   }
                 ]
@@ -494,9 +470,7 @@
               "select": [
                 [
                   {
-                    "params": [
-                      "countError"
-                    ],
+                    "params": ["countError"],
                     "type": "field"
                   },
                   {
@@ -504,9 +478,7 @@
                     "type": "sum"
                   },
                   {
-                    "params": [
-                      " / sum(\"count\")"
-                    ],
+                    "params": [" / sum(\"count\")"],
                     "type": "math"
                   }
                 ]
@@ -576,15 +548,11 @@
               "dsType": "influxdb",
               "groupBy": [
                 {
-                  "params": [
-                    "$granularity"
-                  ],
+                  "params": ["$granularity"],
                   "type": "time"
                 },
                 {
-                  "params": [
-                    "null"
-                  ],
+                  "params": ["null"],
                   "type": "fill"
                 }
               ],
@@ -596,9 +564,7 @@
               "select": [
                 [
                   {
-                    "params": [
-                      "hit"
-                    ],
+                    "params": ["hit"],
                     "type": "field"
                   },
                   {
@@ -606,9 +572,7 @@
                     "type": "last"
                   },
                   {
-                    "params": [
-                      " / 5"
-                    ],
+                    "params": [" / 5"],
                     "type": "math"
                   }
                 ]
@@ -724,9 +688,7 @@
               "select": [
                 [
                   {
-                    "params": [
-                      "hit"
-                    ],
+                    "params": ["hit"],
                     "type": "field"
                   }
                 ]
@@ -796,15 +758,11 @@
               "dsType": "influxdb",
               "groupBy": [
                 {
-                  "params": [
-                    "$granularity"
-                  ],
+                  "params": ["$granularity"],
                   "type": "time"
                 },
                 {
-                  "params": [
-                    "0"
-                  ],
+                  "params": ["0"],
                   "type": "fill"
                 }
               ],
@@ -817,9 +775,7 @@
               "select": [
                 [
                   {
-                    "params": [
-                      "countError"
-                    ],
+                    "params": ["countError"],
                     "type": "field"
                   },
                   {
@@ -827,9 +783,7 @@
                     "type": "mean"
                   },
                   {
-                    "params": [
-                      " / 5"
-                    ],
+                    "params": [" / 5"],
                     "type": "math"
                   }
                 ]
@@ -931,15 +885,11 @@
               "dsType": "influxdb",
               "groupBy": [
                 {
-                  "params": [
-                    "$granularity"
-                  ],
+                  "params": ["$granularity"],
                   "type": "time"
                 },
                 {
-                  "params": [
-                    "transaction"
-                  ],
+                  "params": ["transaction"],
                   "type": "tag"
                 }
               ],
@@ -953,9 +903,7 @@
               "select": [
                 [
                   {
-                    "params": [
-                      "avg"
-                    ],
+                    "params": ["avg"],
                     "type": "field"
                   },
                   {
@@ -1058,15 +1006,11 @@
               "dsType": "influxdb",
               "groupBy": [
                 {
-                  "params": [
-                    "30s"
-                  ],
+                  "params": ["30s"],
                   "type": "time"
                 },
                 {
-                  "params": [
-                    "transaction"
-                  ],
+                  "params": ["transaction"],
                   "type": "tag"
                 }
               ],
@@ -1079,9 +1023,7 @@
               "select": [
                 [
                   {
-                    "params": [
-                      "count"
-                    ],
+                    "params": ["count"],
                     "type": "field"
                   },
                   {
@@ -1089,9 +1031,7 @@
                     "type": "sum"
                   },
                   {
-                    "params": [
-                      " / 30"
-                    ],
+                    "params": [" / 30"],
                     "type": "math"
                   }
                 ]
@@ -1195,21 +1135,15 @@
               "dsType": "influxdb",
               "groupBy": [
                 {
-                  "params": [
-                    "30s"
-                  ],
+                  "params": ["30s"],
                   "type": "time"
                 },
                 {
-                  "params": [
-                    "transaction"
-                  ],
+                  "params": ["transaction"],
                   "type": "tag"
                 },
                 {
-                  "params": [
-                    "null"
-                  ],
+                  "params": ["null"],
                   "type": "fill"
                 }
               ],
@@ -1222,9 +1156,7 @@
               "select": [
                 [
                   {
-                    "params": [
-                      "count"
-                    ],
+                    "params": ["count"],
                     "type": "field"
                   },
                   {
@@ -1232,9 +1164,7 @@
                     "type": "sum"
                   },
                   {
-                    "params": [
-                      " / 30"
-                    ],
+                    "params": [" / 30"],
                     "type": "math"
                   }
                 ]
@@ -1333,33 +1263,23 @@
               "dsType": "influxdb",
               "groupBy": [
                 {
-                  "params": [
-                    "30s"
-                  ],
+                  "params": ["30s"],
                   "type": "time"
                 },
                 {
-                  "params": [
-                    "responseMessage"
-                  ],
+                  "params": ["responseMessage"],
                   "type": "tag"
                 },
                 {
-                  "params": [
-                    "responseCode"
-                  ],
+                  "params": ["responseCode"],
                   "type": "tag"
                 },
                 {
-                  "params": [
-                    "transaction"
-                  ],
+                  "params": ["transaction"],
                   "type": "tag"
                 },
                 {
-                  "params": [
-                    "null"
-                  ],
+                  "params": ["null"],
                   "type": "fill"
                 }
               ],
@@ -1372,9 +1292,7 @@
               "select": [
                 [
                   {
-                    "params": [
-                      "count"
-                    ],
+                    "params": ["count"],
                     "type": "field"
                   },
                   {
@@ -1382,9 +1300,7 @@
                     "type": "sum"
                   },
                   {
-                    "params": [
-                      " / 30"
-                    ],
+                    "params": [" / 30"],
                     "type": "math"
                   }
                 ]

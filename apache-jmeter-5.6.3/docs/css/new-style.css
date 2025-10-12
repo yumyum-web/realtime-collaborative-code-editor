@@ -15,21 +15,24 @@
    limitations under the License.
 */
 .main {
-  font-family: DejaVu Sans, Helvetica, sans-serif;
+  font-family:
+    DejaVu Sans,
+    Helvetica,
+    sans-serif;
   width: 60em;
 }
 
 #topButton {
-    position: fixed;
-    bottom: 0rem;
-    right: 0rem;
-    background: #dedede;
-    margin: 1rem;
-    padding: .5rem;
-    border-radius: 10px;
-    border-color: #a0a0a0;
-    display: none;
-    z-index: 999;
+  position: fixed;
+  bottom: 0rem;
+  right: 0rem;
+  background: #dedede;
+  margin: 1rem;
+  padding: 0.5rem;
+  border-radius: 10px;
+  border-color: #a0a0a0;
+  display: none;
+  z-index: 999;
 }
 
 .social-media {
@@ -59,14 +62,19 @@
   padding: 0.3rem;
 }
 
-.social-media-links a, .share-links a,
-.social-media-links :visited, .share-links :visited,
-.social-media-links :hover, .share-links :hover,
-.social-media-links :link, .share-links :link {
+.social-media-links a,
+.share-links a,
+.social-media-links :visited,
+.share-links :visited,
+.social-media-links :hover,
+.share-links :hover,
+.social-media-links :link,
+.share-links :link {
   color: white !important;
 }
 
-.social-media-links i, .share-links i {
+.social-media-links i,
+.share-links i {
   padding-right: 0.2rem;
 }
 
@@ -109,16 +117,27 @@ img.asf-logo {
   max-height: 88px;
 }
 
-
-.menu, h1, h2, h3, h4, h5, .go-top, .title {
+.menu,
+h1,
+h2,
+h3,
+h4,
+h5,
+.go-top,
+.title {
   font-family: "Merriweather";
 }
 
-h1, h2, h3, h4, h5, .title {
+h1,
+h2,
+h3,
+h4,
+h5,
+.title {
   border-bottom: 0.2rem solid orange;
 }
 
-.title>.title {
+.title > .title {
   border-bottom: 0px;
 }
 
@@ -140,7 +159,7 @@ h1, h2, h3, h4, h5, .title {
   font-size: 90%;
 }
 
-.menu+.menu {
+.menu + .menu {
   margin-top: 1.5em;
 }
 
@@ -161,15 +180,15 @@ h1, h2, h3, h4, h5, .title {
   font-size: 105%;
 }
 
-.banner>iframe {
+.banner > iframe {
   width: 270px;
   height: 70px;
 }
-.banner>iframe>body {
+.banner > iframe > body {
   margin: 0px;
   padding: 0px;
 }
-.banner>iframe img {
+.banner > iframe img {
   width: auto;
   max-width: 100%;
   height: auto;
@@ -180,13 +199,17 @@ body {
   padding: 0px;
 }
 
-.section pre, .source {
+.section pre,
+.source {
   background: none repeat scroll 0 0 black;
   color: orange;
   border: 1px solid gray;
   padding: 0.3rem;
   margin: 0.3rem;
-  font-family: dejavu sans mono, monospace, sans-serif;
+  font-family:
+    dejavu sans mono,
+    monospace,
+    sans-serif;
   overflow: auto;
 }
 
@@ -194,14 +217,18 @@ body {
   padding: 0.1em;
   font-weight: bold;
   color: brown;
-  font-family: dejavu sans mono, monospace, sans-serif;
+  font-family:
+    dejavu sans mono,
+    monospace,
+    sans-serif;
 }
 
-.required-Yes>span {
+.required-Yes > span {
   font-weight: bold;
 }
 
-.deprecated, .note {
+.deprecated,
+.note {
   background: none repeat scroll 0 0 #fee;
   border: 1px solid #dbb;
   margin: 1em;
@@ -234,7 +261,8 @@ figcaption {
   font-style: italic;
 }
 
-figure>a>img, .screenshot>a>img {
+figure > a > img,
+.screenshot > a > img {
   overflow: auto;
   max-width: 100%;
   height: auto;
@@ -288,7 +316,7 @@ figure>a>img, .screenshot>a>img {
   vertical-align: top;
 }
 
-.property+.property {
+.property + .property {
   margin-top: 0.5em;
 }
 
@@ -322,7 +350,7 @@ td {
   vertical-align: top;
 }
 
-tr+tr {
+tr + tr {
   margin-top: 0.2em;
 }
 
@@ -355,14 +383,13 @@ table {
   border-bottom: 1px solid lightgray;
 }
 
-.header>div {
+.header > div {
   display: table-cell;
   vertical-align: middle;
   text-align: center;
-
 }
 
-.header>div+.header>div {
+.header > div + .header > div {
   text-align: center;
 }
 
@@ -370,7 +397,7 @@ table {
   display: none;
 }
 
-:hover>.sectionlink {
+:hover > .sectionlink {
   display: inline;
   color: orange;
 }
@@ -384,7 +411,7 @@ table {
   margin: 1em;
 }
 
-.pagelinks>li {
+.pagelinks > li {
   border: 1px solid lightgray;
   padding: 0.5em 1em;
 }
@@ -400,7 +427,7 @@ table {
   list-style: none;
 }
 
-.section-index>li {
+.section-index > li {
   margin: 1em;
   padding: 1em;
   border: 1px solid lightgray;
@@ -430,58 +457,58 @@ table {
 
 @media screen and (max-width: 1000px) {
   .nav {
-  width: 100%;
-  max-width: 100%;
-  border-bottom: 1px solid lightgray;
-  box-shadow: 0px 20px 15px -15px rgba(20,20,20,0.1);
-}
-.header {
-  box-shadow: none;
-  margin-bottom: 0px;
-}
-.menu {
-  display: inline-block;
-  width: auto;
-  border: 0px;
-  box-shadow: none;
-  margin: 0px;
-}
-.menu + .menu {
-  margin-top: 0.2rem;
-}
-.menu ul {
-  display: none;
-  position: absolute;
-  padding: 1rem;
-  box-shadow: 10px 10px 10px rgba(20,20,20,0.2);
-  border: 1px solid #808080;
-  list-style: none;
-}
+    width: 100%;
+    max-width: 100%;
+    border-bottom: 1px solid lightgray;
+    box-shadow: 0px 20px 15px -15px rgba(20, 20, 20, 0.1);
+  }
+  .header {
+    box-shadow: none;
+    margin-bottom: 0px;
+  }
+  .menu {
+    display: inline-block;
+    width: auto;
+    border: 0px;
+    box-shadow: none;
+    margin: 0px;
+  }
+  .menu + .menu {
+    margin-top: 0.2rem;
+  }
+  .menu ul {
+    display: none;
+    position: absolute;
+    padding: 1rem;
+    box-shadow: 10px 10px 10px rgba(20, 20, 20, 0.2);
+    border: 1px solid #808080;
+    list-style: none;
+  }
 
-.menu li:hover ul {
-  display: block;
-  background: white;
-}
+  .menu li:hover ul {
+    display: block;
+    background: white;
+  }
 
-.social {
-  display: block;
-}
+  .social {
+    display: block;
+  }
 
-.social > div {
-  display: inline-block;
-  margin-right: 0.2em;
-}
+  .social > div {
+    display: inline-block;
+    margin-right: 0.2em;
+  }
 
-.social div img {
-  vertical-align: inherit !important;
-}
+  .social div img {
+    vertical-align: inherit !important;
+  }
 
-.main {
- width: auto;
- max-width: 95%;
- margin: 0.5rem;
- }
- .header {
+  .main {
+    width: auto;
+    max-width: 95%;
+    margin: 0.5rem;
+  }
+  .header {
     display: block;
   }
   .header span {
@@ -490,12 +517,12 @@ table {
   .pagelinks li {
     margin: 0.5rem;
   }
-  .header>div {
+  .header > div {
     display: inline-block;
     vertical-align: middle;
-    width: 32%
+    width: 32%;
   }
-  .header>div+.header>div {
+  .header > div + .header > div {
     text-align: center;
   }
 }
@@ -514,7 +541,7 @@ table {
     width: 100%;
     max-width: 100%;
     border-bottom: 1px solid lightgray;
-    box-shadow: 0px 15px 10px -10px rgba(20,20,20,0.1);
+    box-shadow: 0px 15px 10px -10px rgba(20, 20, 20, 0.1);
   }
   .menu {
     box-shadow: none;
@@ -533,7 +560,8 @@ table {
     max-width: 95%;
     margin-left: 0.5em;
   }
-  .section-index, pagelinks {
+  .section-index,
+  pagelinks {
     padding-left: 0px;
     margin-left: 0px;
   }
@@ -543,7 +571,7 @@ table {
   .properties {
     margin: 1rem 0px;
   }
-  .property .name, 
+  .property .name,
   .property .description,
   .property .required {
     display: block;
@@ -555,13 +583,13 @@ table {
     border-bottom: 1px solid #ddd;
   }
   .property .required::before {
-    content: 'R: ';
+    content: "R: ";
   }
   .property .name::before {
-    content: 'N: ';
+    content: "N: ";
   }
   .property .description::before {
-    content: 'D: ';
+    content: "D: ";
   }
   .header {
     display: block;
@@ -572,12 +600,12 @@ table {
   .pagelinks li {
     margin: 0.5rem;
   }
-  .header>div {
+  .header > div {
     display: inline-block;
     vertical-align: middle;
-    width: 47%
+    width: 47%;
   }
-  .header>div+.header>div {
+  .header > div + .header > div {
     text-align: center;
   }
   .menu ul {
@@ -587,13 +615,13 @@ table {
     border: 0px;
     padding: 0.1rem 1rem;
   }
-  .menu li:hover>ul {
+  .menu li:hover > ul {
     display: block;
   }
   .section-index ul {
     display: none;
   }
-  .section-index li:hover>ul {
+  .section-index li:hover > ul {
     display: block;
   }
   .subsection {
@@ -601,8 +629,8 @@ table {
     margin: 0.1rem;
   }
   .header > .twitter {
-   width: 100%;
-   text-align: center;
+    width: 100%;
+    text-align: center;
   }
   .header > .twitter > div {
     display: inline;
@@ -613,13 +641,20 @@ table {
     text-align: center;
   }
 
-  .share-links li, .social-media-links li {
+  .share-links li,
+  .social-media-links li {
     margin-right: 0.5rem;
   }
 }
 
 @media print {
-  .nav, .header, .footer, .pagelinks, .go-top, .social-media, .share-links {
+  .nav,
+  .header,
+  .footer,
+  .pagelinks,
+  .go-top,
+  .social-media,
+  .share-links {
     display: none;
   }
 
@@ -633,12 +668,16 @@ table {
     max-width: 70rem;
   }
 
-  .section pre, .source {
+  .section pre,
+  .source {
     background-color: none;
     color: brown;
   }
 
-  .menu, figure > a > img, .screenshot > a > img, .section-index > li {
+  .menu,
+  figure > a > img,
+  .screenshot > a > img,
+  .section-index > li {
     box-shadow: none;
   }
 

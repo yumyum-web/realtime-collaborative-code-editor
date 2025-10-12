@@ -35,7 +35,7 @@ a[name]:hover:after{
 :hover > .sectionlink {
   display: inline;
   /* Green so shows up on section headings too */
-  color: rgb(0,255,0);
+  color: rgb(0, 255, 0);
 }
 
 .keysym {

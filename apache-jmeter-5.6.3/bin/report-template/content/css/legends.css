@@ -15,47 +15,41 @@
    limitations under the License.
 */
 .legend {
-    margin-left: -40px;
-    font-size: 12px;
-    display: inline;
-    font-family: 'Open Sans';
-    font-weight: bold;
+  margin-left: -40px;
+  font-size: 12px;
+  display: inline;
+  font-family: "Open Sans";
+  font-weight: bold;
 }
 
-.panel-footer
-{
-
+.panel-footer {
 }
 
-.subLegend
-{
-
+.subLegend {
 }
 
 .legend li > div {
-    display: inline-block;
-    margin-right: 3px;
-    margin-left: 5px;
+  display: inline-block;
+  margin-right: 3px;
+  margin-left: 5px;
 }
 
 .legend li label {
-    margin-left: 1px;
-    margin-right: 10px;
-    color: black;
-    font-family: Open sans;
-    /*width: 200px;*/
+  margin-left: 1px;
+  margin-right: 10px;
+  color: black;
+  font-family: Open sans;
+  /*width: 200px;*/
 }
-li
-{
-    list-style-type:none;
-    display: inline-block;
+li {
+  list-style-type: none;
+  display: inline-block;
 }
 
-.nav-third-level
-{
-    font-size: 12px;
+.nav-third-level {
+  font-size: 12px;
 }
 
 .legend-disabled {
-    border-color: #818181 !important;
+  border-color: #818181 !important;
 }

@@ -2,14 +2,9 @@
   "name": "startbootstrap-sb-admin-2",
   "version": "1.0.7",
   "homepage": "http://startbootstrap.com/template-overviews/sb-admin-2/",
-  "authors": [
-    "David Miller"
-  ],
+  "authors": ["David Miller"],
   "description": "A free, open source, Bootstrap admin theme created by Start Bootstrap",
-  "keywords": [
-    "bootstrap",
-    "theme"
-  ],
+  "keywords": ["bootstrap", "theme"],
   "license": "Apache",
   "ignore": [
     "**/.*",
@@ -21,10 +16,7 @@
     "index.html",
     "/js"
   ],
-  "main": [
-    "dist/css/sb-admin-2.css",
-    "dist/js/sb-admin-2.js"
-  ],
+  "main": ["dist/css/sb-admin-2.css", "dist/js/sb-admin-2.js"],
   "dependencies": {
     "bootstrap": "~3.3.1",
     "datatables": "~1.10.4",

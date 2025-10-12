@@ -46,7 +46,7 @@ Ability to load and performance test many applications/server/protocol types:
 ### IDE
 
 Fully featured Test IDE that allows fast Test Plan **recording**
- (from Browsers or native applications), **building** and **debugging**.
+(from Browsers or native applications), **building** and **debugging**.
 
 ### Command Line
 
@@ -103,12 +103,13 @@ The following requirements exist for running Apache JMeter:
   - JDBC - available from the database supplier
   - JMS - available from the JMS provider
   - [Bouncy Castle](https://www.bouncycastle.org/) -
-  only needed for SMIME Assertion
+    only needed for SMIME Assertion
 
-- Java Compiler (*OPTIONAL*):
+- Java Compiler (_OPTIONAL_):
 
   A Java compiler is not needed since the distribution includes a
   precompiled Java binary archive.
+
   > **Note** that a compiler is required to build plugins for Apache JMeter.
 
 ## Installation Instructions
@@ -210,7 +211,7 @@ The following command would compile the application and enable you to run `jmete
 from the `bin` directory.
 
 > **Note** that it completely refreshes `lib/` contents,
-so it would remove custom plugins should you have them installed to `lib/`. However, it would keep `lib/ext/` plugins intact.
+> so it would remove custom plugins should you have them installed to `lib/`. However, it would keep `lib/ext/` plugins intact.
 
 ```sh
 ./gradlew createDist
@@ -283,8 +284,8 @@ Apache JMeter does not include any implementation of JSSE or JCE.
 
 ### Third party notices
 
-* Notice for mxparser:
+- Notice for mxparser:
 
-  >  This product includes software developed by the Indiana
-  >  University Extreme! Lab.  For further information please visit
-  >  http://www.extreme.indiana.edu/
+  > This product includes software developed by the Indiana
+  > University Extreme! Lab. For further information please visit
+  > http://www.extreme.indiana.edu/

@@ -14,35 +14,28 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-#stats td, th
-{
-
-    width: 9%; /*140px*/
-    height: 30px;
+#stats td,
+th {
+  width: 9%; /*140px*/
+  height: 30px;
 }
-#stats td
-{
-    text-align: center;
+#stats td {
+  text-align: center;
 }
-#stats th
-{
-    font-weight:bold;
+#stats th {
+  font-weight: bold;
 }
-.blue
-{
-    background-color: #dff0d8;
+.blue {
+  background-color: #dff0d8;
 }
-#errors td, th
-{
-    text-align: center;
-    width: 400px;
-    height: 30px;
+#errors td,
+th {
+  text-align: center;
+  width: 400px;
+  height: 30px;
 }
-#errors td
-{
-
+#errors td {
 }
-#errors th
-{
-    font-weight:bold;
+#errors th {
+  font-weight: bold;
 }
