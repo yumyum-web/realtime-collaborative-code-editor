@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Socket.IO Performance Testing Plan" enabled="true">
+      <stringProp name="TestPlan.comments"></stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="projectId" elementType="Argument">
+            <stringProp name="Argument.name">projectId</stringProp>
+            <stringProp name="Argument.value">507f1f77bcf86cd799439011</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <boolProp name="Argument.use_equals">true</boolProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+      <stringProp name="TestPlan.user_define_classpath"></stringProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Socket.IO Performance Tests" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControllerGui" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">5</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">20</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">10</stringProp>
+        <longProp name="ThreadGroup.start_time">1</longProp>
+        <longProp name="ThreadGroup.end_time">1</longProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <WebSocketOpenConnection guiclass="WebSocketSamplerGui" testclass="WebSocketOpenConnection" testname="Connect to Socket.IO" enabled="true">
+          <stringProp name="WebSocketOpenConnection.connectionId">socketio_conn_${__threadNum}</stringProp>
+          <stringProp name="WebSocketOpenConnection.server">localhost</stringProp>
+          <stringProp name="WebSocketOpenConnection.port">3001</stringProp>
+          <stringProp name="WebSocketOpenConnection.path">/socket.io/?EIO=4&amp;transport=websocket</stringProp>
+          <stringProp name="WebSocketOpenConnection.protocol">ws</stringProp>
+          <stringProp name="WebSocketOpenConnection.content_encoding"></stringProp>
+          <stringProp name="WebSocketOpenConnection.read_timeout"></stringProp>
+          <stringProp name="WebSocketOpenConnection.connect_timeout"></stringProp>
+          <stringProp name="WebSocketOpenConnection.request_data">2probe</stringProp>
+          <stringProp name="WebSocketOpenConnection.binary_data">false</stringProp>
+          <stringProp name="WebSocketOpenConnection.response_pattern"></stringProp>
+          <stringProp name="WebSocketOpenConnection.close_conncection_pattern"></stringProp>
+          <stringProp name="WebSocketOpenConnection.message_backlog">10</stringProp>
+          <stringProp name="WebSocketOpenConnection.connection_close">false</stringProp>
+        </WebSocketOpenConnection>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Connection Assertion" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49586">101</stringProp>
+              <stringProp name="49587">200</stringProp>
+              <stringProp name="49588">500</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.custom_message">Expected 101/200 (WebSocket success) or 500 (server unavailable)</stringProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">1</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
+        <WebSocketSingleWriteSampler guiclass="WebSocketSamplerGui" testclass="WebSocketSingleWriteSampler" testname="Join Document Room" enabled="true">
+          <stringProp name="WebSocketSingleWriteSampler.connectionId">socketio_conn_${__threadNum}</stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.server"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.port"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.path"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.protocol"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.content_encoding"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.read_timeout"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.connect_timeout"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.request_data">42["join-doc","${projectId}"]</stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.binary_data">false</stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.response_pattern"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.close_conncection_pattern"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.message_backlog">10</stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.connection_close">false</stringProp>
+        </WebSocketSingleWriteSampler>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Message Assertion" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49586">200</stringProp>
+              <stringProp name="49587">500</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.custom_message">Expected 200 (message sent) or 500 (connection failed)</stringProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">1</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
+        <WebSocketSingleWriteSampler guiclass="WebSocketSamplerGui" testclass="WebSocketSingleWriteSampler" testname="Send Chat Message" enabled="true">
+          <stringProp name="WebSocketSingleWriteSampler.connectionId">socketio_conn_${__threadNum}</stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.server"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.port"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.path"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.protocol"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.content_encoding"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.read_timeout"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.connect_timeout"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.request_data">42["chat-message",{"senderEmail":"user${__threadNum}@example.com","senderUsername":"User${__threadNum}","message":"Hello from user ${__threadNum}"}]</stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.binary_data">false</stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.response_pattern"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.close_conncection_pattern"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.message_backlog">10</stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.connection_close">false</stringProp>
+        </WebSocketSingleWriteSampler>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Message Assertion" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49586">200</stringProp>
+              <stringProp name="49587">500</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.custom_message">Expected 200 (message sent) or 500 (connection failed)</stringProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">1</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
+        <WebSocketSingleWriteSampler guiclass="WebSocketSamplerGui" testclass="WebSocketSingleWriteSampler" testname="Add File Node" enabled="true">
+          <stringProp name="WebSocketSingleWriteSampler.connectionId">socketio_conn_${__threadNum}</stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.server"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.port"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.path"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.protocol"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.content_encoding"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.read_timeout"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.connect_timeout"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.request_data">42["node-added",{"type":"file","parentPath":"src","name":"test${__threadNum}.js"}]</stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.binary_data">false</stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.response_pattern"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.close_conncection_pattern"></stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.message_backlog">10</stringProp>
+          <stringProp name="WebSocketSingleWriteSampler.connection_close">false</stringProp>
+        </WebSocketSingleWriteSampler>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Message Assertion" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49586">200</stringProp>
+              <stringProp name="49587">500</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.custom_message">Expected 200 (message sent) or 500 (connection failed)</stringProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">1</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
+        <WebSocketCloseConnection guiclass="WebSocketSamplerGui" testclass="WebSocketCloseConnection" testname="Close Connection" enabled="true">
+          <stringProp name="WebSocketCloseConnection.connectionId">socketio_conn_${__threadNum}</stringProp>
+          <stringProp name="WebSocketCloseConnection.server"></stringProp>
+          <stringProp name="WebSocketCloseConnection.port"></stringProp>
+          <stringProp name="WebSocketCloseConnection.path"></stringProp>
+          <stringProp name="WebSocketCloseConnection.protocol"></stringProp>
+          <stringProp name="WebSocketCloseConnection.content_encoding"></stringProp>
+          <stringProp name="WebSocketCloseConnection.read_timeout"></stringProp>
+          <stringProp name="WebSocketCloseConnection.connect_timeout"></stringProp>
+          <stringProp name="WebSocketCloseConnection.request_data"></stringProp>
+          <stringProp name="WebSocketCloseConnection.binary_data">false</stringProp>
+          <stringProp name="WebSocketCloseConnection.response_pattern"></stringProp>
+          <stringProp name="WebSocketCloseConnection.close_conncection_pattern"></stringProp>
+          <stringProp name="WebSocketCloseConnection.message_backlog">10</stringProp>
+          <stringProp name="WebSocketCloseConnection.connection_close">true</stringProp>
+        </WebSocketCloseConnection>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Close Assertion" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49586">200</stringProp>
+              <stringProp name="49587">500</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.custom_message">Expected 200 (connection closed) or 500 (connection failed)</stringProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">1</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
+        <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+        <ResultCollector guiclass="RespTimeGraphVisualizer" testclass="ResultCollector" testname="Response Time Graph" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

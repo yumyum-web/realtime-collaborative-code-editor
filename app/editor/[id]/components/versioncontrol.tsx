@@ -39,7 +39,6 @@ type Commit = {
 export default function VersionControlPanel({
   projectId,
   user,
-  onClose,
   showToast,
   applyStructureToEditor,
   buildStructure,

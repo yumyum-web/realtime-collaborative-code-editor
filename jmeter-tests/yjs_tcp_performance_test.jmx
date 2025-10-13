@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Yjs WebSocket Performance Testing Plan (TCP)" enabled="true">
+      <stringProp name="TestPlan.comments">Testing Yjs WebSocket server performance using TCP samplers</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="projectId" elementType="Argument">
+            <stringProp name="Argument.name">projectId</stringProp>
+            <stringProp name="Argument.value">507f1f77bcf86cd799439011</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <boolProp name="Argument.use_equals">true</boolProp>
+          </elementProp>
+          <elementProp name="branch" elementType="Argument">
+            <stringProp name="Argument.name">branch</stringProp>
+            <stringProp name="Argument.value">main</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <boolProp name="Argument.use_equals">true</boolProp>
+          </elementProp>
+          <elementProp name="file" elementType="Argument">
+            <stringProp name="Argument.name">file</stringProp>
+            <stringProp name="Argument.value">index.js</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <boolProp name="Argument.use_equals">true</boolProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+      <stringProp name="TestPlan.user_define_classpath"></stringProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Yjs WebSocket Performance Tests" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControllerGui" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">3</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">15</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">5</stringProp>
+        <longProp name="ThreadGroup.start_time">1</longProp>
+        <longProp name="ThreadGroup.end_time">1</longProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <TCPSampler guiclass="TCPSamplerGui" testclass="TCPSampler" testname="Yjs Connection Test" enabled="true">
+          <stringProp name="TCPSampler.server">localhost</stringProp>
+          <stringProp name="TCPSampler.port">1234</stringProp>
+          <stringProp name="TCPSampler.connectTimeout">5000</stringProp>
+          <stringProp name="TCPSampler.responseTimeout">5000</stringProp>
+          <stringProp name="TCPSampler.reUseConnection">false</stringProp>
+          <stringProp name="TCPSampler.closeConnection">false</stringProp>
+          <stringProp name="TCPSampler.nodelay">false</stringProp>
+          <stringProp name="TCPSampler.request">GET /${projectId}-${branch}--${file} HTTP/1.1&#xd;&#xa;Host: localhost:1234&#xd;&#xa;Connection: Upgrade&#xd;&#xa;Upgrade: websocket&#xd;&#xa;Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==&#xd;&#xa;Sec-WebSocket-Version: 13&#xd;&#xa;&#xd;&#xa;</stringProp>
+          <stringProp name="TCPSampler.classname">TCPClientImpl</stringProp>
+        </TCPSampler>
+        <hashTree/>
+        <TCPSampler guiclass="TCPSamplerGui" testclass="TCPSampler" testname="Send Yjs Sync Message" enabled="true">
+          <stringProp name="TCPSampler.server">localhost</stringProp>
+          <stringProp name="TCPSampler.port">1234</stringProp>
+          <stringProp name="TCPSampler.connectTimeout">5000</stringProp>
+          <stringProp name="TCPSampler.responseTimeout">5000</stringProp>
+          <stringProp name="TCPSampler.reUseConnection">true</stringProp>
+          <stringProp name="TCPSampler.closeConnection">false</stringProp>
+          <stringProp name="TCPSampler.nodelay">false</stringProp>
+          <stringProp name="TCPSampler.request">{"type":"sync","data":[0,"test${__threadNum}"]}</stringProp>
+          <stringProp name="TCPSampler.classname">TCPClientImpl</stringProp>
+        </TCPSampler>
+        <hashTree/>
+        <TCPSampler guiclass="TCPSamplerGui" testclass="TCPSampler" testname="Send Yjs Update Message" enabled="true">
+          <stringProp name="TCPSampler.server">localhost</stringProp>
+          <stringProp name="TCPSampler.port">1234</stringProp>
+          <stringProp name="TCPSampler.connectTimeout">5000</stringProp>
+          <stringProp name="TCPSampler.responseTimeout">5000</stringProp>
+          <stringProp name="TCPSampler.reUseConnection">true</stringProp>
+          <stringProp name="TCPSampler.closeConnection">false</stringProp>
+          <stringProp name="TCPSampler.nodelay">false</stringProp>
+          <stringProp name="TCPSampler.request">{"type":"update","data":{"clock":${__threadNum},"changes":[{"insert":"User ${__threadNum} edit"}]}}</stringProp>
+          <stringProp name="TCPSampler.classname">TCPClientImpl</stringProp>
+        </TCPSampler>
+        <hashTree/>
+        <TCPSampler guiclass="TCPSamplerGui" testclass="TCPSampler" testname="Close Yjs Connection" enabled="true">
+          <stringProp name="TCPSampler.server">localhost</stringProp>
+          <stringProp name="TCPSampler.port">1234</stringProp>
+          <stringProp name="TCPSampler.connectTimeout">5000</stringProp>
+          <stringProp name="TCPSampler.responseTimeout">5000</stringProp>
+          <stringProp name="TCPSampler.reUseConnection">true</stringProp>
+          <stringProp name="TCPSampler.closeConnection">true</stringProp>
+          <stringProp name="TCPSampler.nodelay">false</stringProp>
+          <stringProp name="TCPSampler.request"></stringProp>
+          <stringProp name="TCPSampler.classname">TCPClientImpl</stringProp>
+        </TCPSampler>
+        <hashTree/>
+        <TCPSampler guiclass="TCPSamplerGui" testclass="TCPSampler" testname="Close Connection" enabled="true">
+          <stringProp name="TCPSampler.server">localhost</stringProp>
+          <stringProp name="TCPSampler.port">3001</stringProp>
+          <stringProp name="TCPSampler.connectTimeout">5000</stringProp>
+          <stringProp name="TCPSampler.responseTimeout">5000</stringProp>
+          <stringProp name="TCPSampler.reUseConnection">true</stringProp>
+          <stringProp name="TCPSampler.closeConnection">true</stringProp>
+          <stringProp name="TCPSampler.nodelay">false</stringProp>
+          <stringProp name="TCPSampler.request">42["disconnect",{"projectId":"${projectId}","userId":"user_${__threadNum}"}]</stringProp>
+          <stringProp name="TCPSampler.classname">TCPClientImpl</stringProp>
+        </TCPSampler>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
