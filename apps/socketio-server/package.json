@@ -1,0 +1,17 @@
+{
+  "name": "socketio-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Socket.io server for the real-time collaborative code editor application.",
+  "scripts": {
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "@repo/database": "file:../../packages/database",
+    "socket.io": "^4.8.1",
+    "tsx": "^4.20.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

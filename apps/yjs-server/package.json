@@ -1,0 +1,12 @@
+{
+  "name": "yjs-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Y.js server for the real-time collaborative code editor application.",
+  "scripts": {
+    "dev": "y-websocket-server"
+  },
+  "dependencies": {
+    "y-websocket-server": "^1.0.2"
+  }
+}

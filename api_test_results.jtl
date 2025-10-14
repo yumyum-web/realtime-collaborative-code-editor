@@ -1,6 +1,0 @@
-timeStamp,elapsed,label,responseCode,responseMessage,threadName,dataType,success,failureMessage,bytes,sentBytes,grpThreads,allThreads,URL,Latency,IdleTime,Connect
-1760249735786,523,Signup User,500,Internal Server Error,API Tests 1-1,text,false,Test failed: code expected to match /200/,349,279,1,1,http://localhost:3000/api/auth/signup,511,0,23
-1760249736318,260,Login User,500,Internal Server Error,API Tests 1-1,text,false,Test failed: code expected to match /200/,349,260,1,1,http://localhost:3000/api/auth/login,260,0,0
-1760249736617,350,Create Project,500,Internal Server Error,API Tests 1-1,text,false,Test failed: code expected to match /200/,313,291,1,1,http://localhost:3000/api/projects,350,0,0
-1760249736969,1425,Get Projects,200,OK,API Tests 1-1,text,true,,262,211,1,1,http://localhost:3000/api/projects?userEmail=test@example.com,1425,0,0
-1760249738397,427,Get Project Status,404,Not Found,API Tests 1-1,text,false,Test failed: code expected to match /200/,15720,207,1,1,http://localhost:3000/api/projects//version-control/status,423,0,0
