@@ -1,12 +1,7 @@
 import { jest, describe, beforeEach, it, expect } from "@jest/globals";
 
 // Mock mongoose
-jest.mock("mongoose", () => {
-  const mockConnect = jest.fn();
-  return {
-    connect: mockConnect,
-  };
-});
+jest.mock("mongoose");
 
 describe("mongoose utility", () => {
   beforeEach(() => {
@@ -24,7 +19,7 @@ describe("mongoose utility", () => {
         const mockConnect = jest.fn();
         return { connect: mockConnect };
       });
-      const { default: connectDB } = await import("@/app/lib/mongoose");
+      const { default: connectDB } = await import("../connectDB");
       const mongoose = (await import("mongoose")) as jest.Mocked<
         typeof import("mongoose")
       >;
@@ -47,20 +42,19 @@ describe("mongoose utility", () => {
     it("should throw error if MONGO_URI is not defined", async () => {
       process.env.MONGO_URI = "";
 
-      await expect(import("@/app/lib/mongoose")).rejects.toThrow(
+      await expect(import("../connectDB")).rejects.toThrow(
         "Please define the MONGO_URI environment variable.",
       );
     });
 
     it("should handle connection errors", async () => {
       jest.doMock("mongoose", () => {
-        const mockConnect = jest.fn();
+        const mockConnect = jest.fn<() => Promise<never>>();
+        mockConnect.mockRejectedValue((new Error("Connection failed")));
         return { connect: mockConnect };
       });
-      const { default: connectDB } = await import("@/app/lib/mongoose");
+      const { default: connectDB } = await import("../connectDB");
       const mongoose = await import("mongoose");
-      const error = new Error("Connection failed");
-      (mongoose.connect as jest.Mock).mockRejectedValue(error);
 
       await expect(connectDB()).rejects.toThrow("Connection failed");
     });

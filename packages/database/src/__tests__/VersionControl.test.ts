@@ -1,34 +1,8 @@
-import { VersionControl } from "@repo/database";
+import VersionControl from "../models/VersionControl";
 import { jest, describe, it, expect, beforeEach } from "@jest/globals";
 
-// Mock the entire @repo/database module before importing
-jest.mock("@repo/database", () => {
-  const mockVC = jest.fn();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  mockVC.mockImplementation((data: any) => {
-    if (!data.projectId) {
-      throw new Error("ValidationError: projectId is required");
-    }
-    const defaults = {
-      branches: [],
-      activeBranch: "main",
-    };
-    return {
-      ...defaults,
-      ...data,
-      save: jest.fn(),
-      validate: jest.fn(),
-    };
-  });
-
-  return {
-    VersionControl: mockVC,
-    connectDB: jest.fn(),
-    User: jest.fn(),
-    Project: jest.fn(),
-    Invitation: jest.fn(),
-  };
-});
+// Mock mongoose to avoid actual DB connections
+jest.mock("mongoose");
 
 describe("VersionControl Model", () => {
   beforeEach(() => {

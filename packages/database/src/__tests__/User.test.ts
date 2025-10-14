@@ -1,50 +1,9 @@
+import mongoose from "mongoose";
+import User from "../models/User";
 import { jest, describe, it, expect, beforeEach } from "@jest/globals";
 
 // Mock mongoose to avoid actual DB connections
-jest.mock("mongoose", () => ({
-  connect: jest.fn(),
-  connection: {
-    readyState: 1,
-  },
-  models: {},
-  Types: {
-    ObjectId: class MockObjectId {},
-  },
-  Schema: jest.fn(() => ({
-    Types: {
-      ObjectId: class MockObjectId {},
-    },
-  })),
-}));
-
-import mongoose from "mongoose";
-import { User } from "@repo/database";
-
-// Mock the User model
-jest.mock("@/app/models/User", () => {
-  const mockUser = jest.fn();
-  mockUser.mockImplementation((data) => {
-    if (!data.username) {
-      throw new Error("ValidationError: username is required");
-    }
-    if (!data.email) {
-      throw new Error("ValidationError: email is required");
-    }
-    if (!data.password) {
-      throw new Error("ValidationError: password is required");
-    }
-    const defaults = {
-      projects: [],
-    };
-    return {
-      ...defaults,
-      ...data,
-      save: jest.fn(),
-      validate: jest.fn(),
-    };
-  });
-  return mockUser;
-});
+jest.mock("mongoose");
 
 describe("User Model", () => {
   beforeEach(() => {

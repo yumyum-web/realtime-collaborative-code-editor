@@ -1,55 +1,8 @@
-import { Invitation } from "@repo/database";
+import Invitation from "../models/Invitation";
 import { jest, describe, it, expect, beforeEach } from "@jest/globals";
 
-// Mock mongoose
-jest.mock("mongoose", () => ({
-  connect: jest.fn(),
-  connection: {
-    readyState: 1,
-  },
-  models: {},
-  model: jest.fn(),
-  Schema: jest.fn(() => ({
-    Types: {
-      ObjectId: jest.fn(),
-    },
-  })),
-}));
-
-// Mock the Invitation model
-jest.mock("@/app/models/Invitation", () => {
-  const mockInvitation = jest.fn();
-  mockInvitation.mockImplementation((data) => {
-    if (!data.projectId) {
-      throw new Error("ValidationError: projectId is required");
-    }
-    if (!data.projectTitle) {
-      throw new Error("ValidationError: projectTitle is required");
-    }
-    if (!data.ownerEmail) {
-      throw new Error("ValidationError: ownerEmail is required");
-    }
-    if (!data.collaboratorEmail) {
-      throw new Error("ValidationError: collaboratorEmail is required");
-    }
-    if (
-      data.status &&
-      !["pending", "accepted", "declined"].includes(data.status)
-    ) {
-      throw new Error("ValidationError: invalid status");
-    }
-    const defaults = {
-      status: "pending",
-    };
-    return {
-      ...defaults,
-      ...data,
-      save: jest.fn(),
-      validate: jest.fn(),
-    };
-  });
-  return mockInvitation;
-});
+// Mock mongoose to avoid actual DB connections
+jest.mock("mongoose");
 
 describe("Invitation Model", () => {
   beforeEach(() => {

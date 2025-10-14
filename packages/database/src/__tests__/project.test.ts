@@ -1,53 +1,8 @@
-import { Project } from "@repo/database";
+import Project from "../models/project";
 import { jest, describe, it, expect, beforeEach } from "@jest/globals";
 
-// Mock mongoose
-jest.mock("mongoose", () => ({
-  connect: jest.fn(),
-  connection: {
-    readyState: 1,
-  },
-  models: {},
-  model: jest.fn(),
-  Schema: jest.fn(() => ({
-    Types: {
-      ObjectId: jest.fn(),
-      Mixed: jest.fn(),
-    },
-  })),
-}));
-
-// Mock the Project model
-jest.mock("@/app/models/project", () => {
-  const mockProject = jest.fn();
-  mockProject.mockImplementation((data) => {
-    if (!data.title) {
-      throw new Error("ValidationError: title is required");
-    }
-    if (!data.members) {
-      throw new Error("ValidationError: members is required");
-    }
-    if (
-      data.members &&
-      (data.members as { role: string }[]).some(
-        (m) => !["owner", "editor"].includes(m.role),
-      )
-    ) {
-      throw new Error("ValidationError: invalid role");
-    }
-    const defaults = {
-      structure: { name: "root", type: "folder", children: [] },
-      chats: [],
-    };
-    return {
-      ...defaults,
-      ...data,
-      save: jest.fn(),
-      validate: jest.fn(),
-    };
-  });
-  return mockProject;
-});
+// Mock mongoose to avoid actual DB connections
+jest.mock("mongoose");
 
 describe("Project Model", () => {
   beforeEach(() => {
