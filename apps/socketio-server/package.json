@@ -4,11 +4,14 @@
   "private": true,
   "description": "The Socket.io server for the real-time collaborative code editor application.",
   "scripts": {
+    "build": "tsc",
     "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@repo/database": "file:../../packages/database",
+    "dotenv": "^16.4.5",
     "socket.io": "^4.8.1",
     "tsx": "^4.20.6"
   },
