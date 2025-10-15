@@ -1,6 +1,6 @@
-# JMeter Testing for Real-time Collaborative Code Editor
+# JMeter Performance Testing
 
-This directory contains JMeter test plans for API testing, performance testing, load testing, and real-time collaboration testing of the application.
+This directory contains Apache JMeter test plans for testing the real-time collaborative code editor's performance, load handling, and API functionality. This directory contains JMeter test plans for API testing, performance testing, load testing, and real-time collaboration testing of the application.
 
 ## Prerequisites
 
@@ -10,6 +10,21 @@ This directory contains JMeter test plans for API testing, performance testing, 
 - Yjs WebSocket server running on port 1234
 - A test user registered with email `test@example.com` and password `password123`
 - A test project with ID (update in test plans if needed)
+
+## Directory Structure
+
+```
+jmeter-tests/
+├── test-plans/              # JMeter test plan files (.jmx)
+│   ├── api_test.jmx
+│   ├── performance_test.jmx
+│   ├── load_test.jmx
+│   ├── socketio_tcp_performance_test.jmx
+│   └── yjs_tcp_performance_test.jmx
+├── results/                 # Test results (*.jtl, HTML reports) - gitignored
+├── logs/                    # JMeter logs - gitignored
+└── README.md
+```
 
 ## Test Plans
 
@@ -65,6 +80,60 @@ This directory contains JMeter test plans for API testing, performance testing, 
   - Send sync messages
   - Close connections
 
+## Running Tests
+
+All tests are run from the **root directory** of the monorepo using npm scripts:
+
+### Individual Tests
+
+```bash
+# API functional testing
+npm run test:jmeter:api
+
+# Performance testing (moderate load)
+npm run test:jmeter:performance
+
+# Load testing (high concurrency)
+npm run test:jmeter:load
+
+# Socket.IO real-time collaboration testing
+npm run test:jmeter:socketio
+
+# Yjs WebSocket synchronization testing
+npm run test:jmeter:yjs
+```
+
+### Run All Tests
+
+```bash
+npm run test:jmeter:all
+```
+
+### Clean Test Artifacts
+
+```bash
+npm run test:jmeter:clean
+```
+
+## Test Execution Commands
+
+```bash
+# API Test
+jmeter -n -t api_test.jmx -l api_test_results.jtl
+
+# Performance Test
+jmeter -n -t performance_test.jmx -l performance_results.jtl
+
+# Load Test
+jmeter -n -t load_test.jmx -l load_results.jtl
+
+# Socket.IO Performance Test (TCP)
+jmeter -n -t socketio_tcp_performance_test.jmx -l socketio_tcp_results.jtl
+
+# Yjs Performance Test (TCP)
+jmeter -n -t yjs_tcp_performance_test.jmx -l yjs_tcp_results.jtl
+```
+
 ## Test Results Summary
 
 All JMeter tests have been successfully executed against the running application servers. Here are the key results:
@@ -101,24 +170,39 @@ All JMeter tests have been successfully executed against the running application
 - **Throughput**: 24.1 requests/second
 - **Notes**: High concurrency testing with 50 threads; significant load on the system
 
-## Test Execution Commands
+## Viewing Results
 
-```bash
-# API Test
-jmeter -n -t api_test.jmx -l api_test_results.jtl
+After running tests, results are saved to `jmeter-tests/results/`:
 
-# Performance Test
-jmeter -n -t performance_test.jmx -l performance_results.jtl
+### CSV Results Files
 
-# Load Test
-jmeter -n -t load_test.jmx -l load_results.jtl
+- `api_test_results.jtl`
+- `performance_results.jtl`
+- `load_results.jtl`
+- `socketio_results.jtl`
+- `yjs_results.jtl`
 
-# Socket.IO Performance Test (TCP)
-jmeter -n -t socketio_tcp_performance_test.jmx -l socketio_tcp_results.jtl
+### HTML Reports
 
-# Yjs Performance Test (TCP)
-jmeter -n -t yjs_tcp_performance_test.jmx -l yjs_tcp_results.jtl
-```
+Each test generates an HTML report in:
+
+- `jmeter-tests/results/api_test_report/`
+- `jmeter-tests/results/performance_report/`
+- `jmeter-tests/results/load_report/`
+- `jmeter-tests/results/socketio_report/`
+- `jmeter-tests/results/yjs_report/`
+
+Open `index.html` in any report directory to view detailed metrics.
+
+### Logs
+
+JMeter logs are saved to `jmeter-tests/logs/`:
+
+- `api_test.log`
+- `performance.log`
+- `load.log`
+- `socketio.log`
+- `yjs.log`
 
 ## Interpreting Results
 
@@ -156,6 +240,75 @@ For production WebSocket testing, consider:
 - Custom WebSocket test implementations
 - Browser-based testing tools like Selenium with WebDriver
 
+## Customizing Tests
+
+Test plans are located in `jmeter-tests/test-plans/`. To modify:
+
+1. Open JMeter GUI:
+   ```bash
+   jmeter
+   ```
+
+2. Open the test plan file (File → Open)
+
+3. Modify as needed:
+   - Thread counts
+   - Ramp-up periods
+   - Loop counts
+   - Server URLs/ports
+   - Request parameters
+   - User credentials
+
+4. Save the test plan
+
+## Key Metrics to Monitor
+
+- **Response Time**: Average, median, 90th, 95th, 99th percentile
+- **Throughput**: Requests per second
+- **Error Rate**: Percentage of failed requests
+- **Concurrent Users**: Number of simultaneous connections
+- **Latency**: Network and processing delays
+
+## Best Practices
+
+1. **Start servers before testing**:
+   ```bash
+   npm run dev:all
+   ```
+
+2. **Clean previous results**:
+   ```bash
+   npm run test:jmeter:clean
+   ```
+
+3. **Run tests sequentially** to avoid resource contention
+
+4. **Monitor system resources** during tests (CPU, memory, network)
+
+5. **Adjust thread counts** based on your system capabilities
+
+## Troubleshooting
+
+### JMeter command not found
+Install Apache JMeter and ensure it's in your PATH.
+
+### Connection refused errors
+- Verify all servers are running
+- Check ports are not blocked
+- Confirm URLs in test plans match your setup
+
+### High error rates
+- Check server logs for issues
+- Reduce thread count/ramp-up time
+- Verify test data (users, projects) exists
+- Check authentication tokens/sessions
+
+### Out of memory
+Increase JMeter heap size:
+```bash
+export JVM_ARGS="-Xms512m -Xmx2048m"
+```
+
 ## Notes
 
 - Tests assume the application is running on localhost:3000
@@ -167,11 +320,21 @@ For production WebSocket testing, consider:
 - Adjust thread counts and ramp-up times based on your environment
 - Clean up test data after running load tests
 
-## Troubleshooting
+## CI/CD Integration
 
-- If tests fail due to authentication, ensure the test user exists
-- For WebSocket tests, ensure both Socket.IO and Yjs servers are running
-- Check application logs for errors during testing
-- Verify database connections and network connectivity
-- For high load tests, consider running on a separate machine
-- WebSocket connections may require JMeter WebSocket plugin for full functionality
+To run JMeter tests in CI/CD pipelines:
+
+```yaml
+# Example GitHub Actions workflow
+- name: Run JMeter Performance Tests
+  run: |
+    npm run dev:all &
+    sleep 30  # Wait for servers to start
+    npm run test:jmeter:all
+```
+
+## Additional Resources
+
+- [Apache JMeter Documentation](https://jmeter.apache.org/usermanual/index.html)
+- [JMeter Best Practices](https://jmeter.apache.org/usermanual/best-practices.html)
+- [Performance Testing Guide](https://jmeter.apache.org/usermanual/build-web-test-plan.html)

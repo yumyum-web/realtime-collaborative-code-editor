@@ -20,7 +20,14 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
-    "test:e2e:headed": "playwright test --headed"
+    "test:e2e:headed": "playwright test --headed",
+    "test:jmeter:api": "jmeter -n -t jmeter-tests/test-plans/api_test.jmx -l jmeter-tests/results/api_test_results.jtl -j jmeter-tests/logs/api_test.log -e -o jmeter-tests/results/api_test_report",
+    "test:jmeter:performance": "jmeter -n -t jmeter-tests/test-plans/performance_test.jmx -l jmeter-tests/results/performance_results.jtl -j jmeter-tests/logs/performance.log -e -o jmeter-tests/results/performance_report",
+    "test:jmeter:load": "jmeter -n -t jmeter-tests/test-plans/load_test.jmx -l jmeter-tests/results/load_results.jtl -j jmeter-tests/logs/load.log -e -o jmeter-tests/results/load_report",
+    "test:jmeter:socketio": "jmeter -n -t jmeter-tests/test-plans/socketio_tcp_performance_test.jmx -l jmeter-tests/results/socketio_results.jtl -j jmeter-tests/logs/socketio.log -e -o jmeter-tests/results/socketio_report",
+    "test:jmeter:yjs": "jmeter -n -t jmeter-tests/test-plans/yjs_tcp_performance_test.jmx -l jmeter-tests/results/yjs_results.jtl -j jmeter-tests/logs/yjs.log -e -o jmeter-tests/results/yjs_report",
+    "test:jmeter:all": "npm run test:jmeter:api && npm run test:jmeter:performance && npm run test:jmeter:load && npm run test:jmeter:socketio && npm run test:jmeter:yjs",
+    "test:jmeter:clean": "rm -rf jmeter-tests/results/*.jtl jmeter-tests/results/*_report jmeter-tests/logs/*.log"
   },
   "devDependencies": {
     "@playwright/test": "^1.48.2",
