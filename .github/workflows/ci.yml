@@ -5,28 +5,79 @@ on:
     branches: [main]
 
 jobs:
-  check:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "23"
-      - name: Cache NPM dependencies
+          node-version: "24"
+      - name: Cache dependencies and build outputs
         uses: actions/cache@v4
         with:
           path: |
             ~/.npm
-            package-lock.json
-          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+            node_modules
+            .turbo
+            apps/*/.turbo
+            packages/*/.turbo
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-npm-
+            ${{ runner.os }}-node-
       - name: Install dependencies
         run: npm install
-      - name: TypeScript type check
-        run: npm run typecheck
       - name: Lint
-        run: npm run lint
+        run: npx turbo run lint
       - name: Prettier formatting check
-        run: npm run format:check
+        run: npx turbo run format:check
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Cache dependencies and build outputs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            .turbo
+            apps/*/.turbo
+            packages/*/.turbo
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      - name: Install dependencies
+        run: npm install
+      - name: Run tests
+        run: npx turbo run test
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Cache dependencies and build outputs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            .turbo
+            apps/*/.turbo
+            packages/*/.turbo
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      - name: Install dependencies
+        run: npm install
+      - name: Type check
+        run: npx turbo run typecheck
