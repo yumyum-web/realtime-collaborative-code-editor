@@ -238,6 +238,22 @@ export async function PUT(
     try {
       console.log(`[SWITCH] Checking out branch: ${branchName}`);
       await git.checkout(branchName);
+
+      // CRITICAL: Wait for filesystem to sync after checkout
+      // Git operations are asynchronous at the filesystem level,
+      // especially on Windows. We need to ensure the working directory
+      // is fully updated before reading the file structure.
+      console.log(`[SWITCH] Waiting for filesystem sync...`);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // Verify the checkout was successful by checking the current branch
+      const verifyBranch = await git.revparse(["--abbrev-ref", "HEAD"]);
+      if (verifyBranch.trim() !== branchName) {
+        throw new Error(
+          `Branch verification failed: expected ${branchName}, got ${verifyBranch.trim()}`,
+        );
+      }
+      console.log(`[SWITCH] Verified branch: ${verifyBranch.trim()}`);
     } catch (checkoutErr) {
       console.error(`[SWITCH] Checkout failed:`, checkoutErr);
       const errMsg =
@@ -260,7 +276,8 @@ export async function PUT(
       throw checkoutErr;
     }
 
-    // Read structure from new branch
+    // Read structure from new branch (with additional delay for safety)
+    console.log(`[SWITCH] Reading file structure from ${branchName}...`);
     const structure = await readFilesFromRepo(projectId);
 
     console.log(` Switched from ${currentBranch} to ${branchName}`);

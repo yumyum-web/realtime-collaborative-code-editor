@@ -310,6 +310,18 @@ export async function readFilesFromRepo(
 ): Promise<FileEntity> {
   const repoPath = getRepoPath(projectId);
 
+  // Get current branch for logging
+  let currentBranch = "unknown";
+  try {
+    const git = simpleGit(repoPath);
+    currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
+    console.log(
+      `📖 Reading file structure from project ${projectId}, branch: ${currentBranch}`,
+    );
+  } catch {
+    console.warn(`⚠️ Could not determine current branch for ${projectId}`);
+  }
+
   async function readNode(
     nodePath: string,
     relativePath: string,
@@ -351,7 +363,19 @@ export async function readFilesFromRepo(
     .then(() => true)
     .catch(() => false);
 
+  let fileCount = 0;
+  let folderCount = 0;
+
+  const countNodes = (node: FileEntity) => {
+    if (node.type === "file") fileCount++;
+    else if (node.type === "folder") {
+      folderCount++;
+      node.children?.forEach(countNodes);
+    }
+  };
+
   if (useRootPath) {
+    console.log(`📂 Reading from root path: ${rootPath}`);
     const entries = await fs.readdir(rootPath);
     const children: FileEntity[] = [];
 
@@ -362,12 +386,20 @@ export async function readFilesFromRepo(
       children.push(await readNode(childPath, entry));
     }
 
-    return {
+    const result: FileEntity = {
       name: "root",
       type: "folder",
       children,
     };
+
+    countNodes(result);
+    console.log(
+      `✅ Read structure: ${fileCount} files, ${folderCount} folders (branch: ${currentBranch})`,
+    );
+
+    return result;
   } else {
+    console.log(`📂 Reading from repo base: ${repoPath}`);
     // Read from repo base, excluding .git and .gitignore
     const entries = await fs.readdir(repoPath);
     const children: FileEntity[] = [];
@@ -379,11 +411,18 @@ export async function readFilesFromRepo(
       children.push(await readNode(childPath, entry));
     }
 
-    return {
+    const result: FileEntity = {
       name: "root",
       type: "folder",
       children,
     };
+
+    countNodes(result);
+    console.log(
+      `✅ Read structure: ${fileCount} files, ${folderCount} folders (branch: ${currentBranch})`,
+    );
+
+    return result;
   }
 }
 

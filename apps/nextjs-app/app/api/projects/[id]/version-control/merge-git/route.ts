@@ -166,7 +166,7 @@ export async function POST(
     // Successful merge - read the final structure
     const finalStructure = await readFilesFromRepo(projectId);
 
-    console.log(`✅ Successfully merged ${sourceBranch} into ${currentTarget}`);
+    console.log(` Successfully merged ${sourceBranch} into ${currentTarget}`);
     console.log(`[MERGE] Merge summary:`, mergeResult.summary);
 
     // Switch back to original branch if we changed it
@@ -181,7 +181,7 @@ export async function POST(
       targetBranch: currentTarget,
       structure: finalStructure,
     }).catch((err) =>
-      console.error("⚠️ Socket broadcast failed (non-fatal):", err),
+      console.error(" Socket broadcast failed (non-fatal):", err),
     );
 
     return NextResponse.json({
@@ -195,7 +195,7 @@ export async function POST(
       activeBranch: originalBranch, // Return the active branch after operation
     });
   } catch (err) {
-    console.error("❌ Merge error:", err);
+    console.error(" Merge error:", err);
 
     // Attempt to switch back to original branch on error
     try {
@@ -269,14 +269,14 @@ export async function PUT(
     const message = commitMessage || "Merge: Resolved conflicts";
     await git.commit(message);
 
-    console.log(`✅ Merge conflicts resolved`);
+    console.log(` Merge conflicts resolved`);
 
     // Broadcast conflict resolution (non-blocking)
     emitSocketEvent(projectId, "conflicts-resolved", {
       structure: resolvedStructure,
       message,
     }).catch((err) =>
-      console.error("⚠️ Socket broadcast failed (non-fatal):", err),
+      console.error(" Socket broadcast failed (non-fatal):", err),
     );
 
     return NextResponse.json({

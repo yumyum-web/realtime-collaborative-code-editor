@@ -89,6 +89,19 @@ export async function GET(
 
             // Checkout the requested branch
             await git.checkout(branchQuery);
+
+            // CRITICAL: Wait for filesystem to sync after checkout
+            console.log(`[GET] Waiting for filesystem sync after checkout...`);
+            await new Promise((resolve) => setTimeout(resolve, 200));
+
+            // Verify the checkout was successful
+            const verifyBranch = await git.revparse(["--abbrev-ref", "HEAD"]);
+            if (verifyBranch.trim() !== branchQuery) {
+              throw new Error(
+                `Branch verification failed: expected ${branchQuery}, got ${verifyBranch.trim()}`,
+              );
+            }
+
             console.log(`[GET] Successfully checked out ${branchQuery}`);
           } catch (checkoutErr) {
             console.error(
@@ -117,7 +130,12 @@ export async function GET(
       );
     }
 
-    // Read files from currently checked out branch (NO checkout happens here!)
+    // CRITICAL: Small delay to ensure filesystem is stable before reading
+    // This is especially important after any Git operations or on page refresh
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Read files from currently checked out branch
+    console.log(`[GET] Reading file structure for project ${id}...`);
     const structure = await readFilesFromRepo(id);
     const finalBranchInfo = await git.branchLocal();
     const activeBranch = finalBranchInfo.current;
