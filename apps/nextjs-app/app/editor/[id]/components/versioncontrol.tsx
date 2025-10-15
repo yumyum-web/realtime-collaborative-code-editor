@@ -11,6 +11,7 @@ import {
   VscRepoPull,
 } from "react-icons/vsc";
 import { useVersionControlSocket } from "../hooks/useVersionControlSocket";
+import { ExpandableCommit } from "./ExpandableCommit";
 
 type StructureNode = {
   name: string;
@@ -31,10 +32,10 @@ type Props = {
 };
 
 type Commit = {
-  _id: string | null;
+  _id?: string;
   message: string;
   author: string;
-  timestamp?: string;
+  timestamp: string;
 };
 
 export default function VersionControlPanel({
@@ -1064,7 +1065,7 @@ export default function VersionControlPanel({
             </span>
           </div>
 
-          <div className="space-y-2 max-h-64 overflow-y-auto">
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
             {commits.length === 0 ? (
               <div className="text-center py-6 text-gray-400">
                 <VscHistory className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -1075,44 +1076,28 @@ export default function VersionControlPanel({
               </div>
             ) : (
               commits.map((commit) => (
-                <div
+                <ExpandableCommit
                   key={commit._id || commit.message + commit.timestamp}
-                  className="bg-gray-700/50 border border-gray-600 rounded-lg p-2 hover:border-gray-500 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <VscGitCommit className="w-3 h-3 text-green-400 flex-shrink-0" />
-                        <h4 className="font-medium text-white text-xs leading-tight">
-                          {commit.message}
-                        </h4>
-                      </div>
-                      <div className="text-xs text-gray-400 ml-4.5">
-                        <span className="font-medium">{commit.author}</span>
-                        {commit.timestamp && (
-                          <>
-                            <span className="mx-1.5">•</span>
-                            <span>
-                              {new Date(commit.timestamp).toLocaleString()}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() =>
-                        commit._id
-                          ? restoreCommit(commit._id)
-                          : showToast("Invalid commit ID", "error")
+                  commit={commit}
+                  onRestore={(commitId) => restoreCommit(commitId)}
+                  onExpand={async (commitId) => {
+                    try {
+                      const res = await fetch(
+                        `/api/projects/${projectId}/version-control/commit-git/${commitId}`,
+                      );
+                      if (!res.ok) {
+                        throw new Error("Failed to fetch commit details");
                       }
-                      disabled={loading || operationInProgress}
-                      className="bg-yellow-600 hover:bg-yellow-500 disabled:bg-gray-600 text-white px-2 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center gap-1 flex-shrink-0"
-                    >
-                      <VscHistory className="w-3 h-3" />
-                      Restore
-                    </button>
-                  </div>
-                </div>
+                      return await res.json();
+                    } catch (error) {
+                      console.error("Error fetching commit details:", error);
+                      showToast("Failed to load commit details", "error");
+                      return null;
+                    }
+                  }}
+                  loading={loading}
+                  disabled={operationInProgress}
+                />
               ))
             )}
           </div>

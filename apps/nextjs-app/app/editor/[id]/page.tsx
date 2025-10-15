@@ -23,6 +23,7 @@ import { addNode, deleteNode, reconstructTree } from "./utils/fileTreeHelpers";
 import { FileTree } from "./components/FileTree";
 import { ChatPanel } from "./components/ChatPanel";
 import VersionControlPanel from "./components/versioncontrol";
+import { ResizablePanel } from "./components/ResizablePanel";
 
 // --- Minimal Local Toast Implementation ---
 type ToastMessage = {
@@ -91,6 +92,7 @@ export default function EditorPage() {
   const [vcOpen, setVcOpen] = useState(false);
   const [currentBranch, setCurrentBranch] = useState<string>("main");
   const [forceRefresh, setForceRefresh] = useState<number>(0);
+  const [panelWidth, setPanelWidth] = useState(320);
 
   // Tab management functions
   const openFileInTab = useCallback((filePath: string) => {
@@ -847,9 +849,15 @@ export default function EditorPage() {
       <div
         className={`fixed z-30 transition-all duration-300 ${
           chatOpen || vcOpen || showGitPanel
-            ? "bottom-6 right-[340px] flex flex-col gap-4 mb-2"
+            ? "bottom-6 flex flex-col gap-4 mb-2"
             : "bottom-6 right-6 flex flex-col gap-4 mb-2"
         }`}
+        style={{
+          right:
+            chatOpen || vcOpen || showGitPanel
+              ? `${panelWidth + 24}px`
+              : "24px",
+        }}
       >
         {/* Chat Button */}
         <button
@@ -900,141 +908,143 @@ export default function EditorPage() {
       </div>
 
       {/* Right Sidebar Panel */}
-      {(chatOpen || vcOpen || showGitPanel) && (
-        <aside
-          className={`w-80 bg-sidebar border-l border-gray-700 flex flex-col transition-all duration-300 ease-in-out ${
-            isMobile ? "fixed right-0 top-0 h-full z-50" : ""
-          }`}
-        >
-          {chatOpen && (
-            <ChatPanel
-              chatMessages={chatMessages}
-              user={user}
-              onSendMessage={handleSendChatMessage}
-              onClose={() => setChatOpen(false)}
-            />
-          )}
+      <ResizablePanel
+        isOpen={chatOpen || vcOpen || showGitPanel}
+        minWidth={280}
+        maxWidth={800}
+        defaultWidth={320}
+        storageKey={`editor-panel-width-${projectId}`}
+        side="right"
+        onWidthChange={setPanelWidth}
+      >
+        {chatOpen && (
+          <ChatPanel
+            chatMessages={chatMessages}
+            user={user}
+            onSendMessage={handleSendChatMessage}
+            onClose={() => setChatOpen(false)}
+          />
+        )}
 
-          {vcOpen && (
-            <div className="h-full flex flex-col">
-              {/* Version Control Panel Header */}
-              <div className="flex justify-between items-center p-3 min-h-[44px] flex-shrink-0 border-b border-gray-700 bg-card h-14">
-                <h3 className="text-base font-semibold text-white flex items-center gap-2">
-                  <VscGitMerge className="w-5 h-5" />
-                  Version Control
-                </h3>
-                <button
-                  onClick={() => setVcOpen(false)}
-                  className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
+        {vcOpen && (
+          <div className="h-full flex flex-col">
+            {/* Version Control Panel Header */}
+            <div className="flex justify-between items-center p-3 min-h-[44px] flex-shrink-0 border-b border-gray-700 bg-card h-14">
+              <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                <VscGitMerge className="w-5 h-5" />
+                Version Control
+              </h3>
+              <button
+                onClick={() => setVcOpen(false)}
+                className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Version Control Panel Content */}
-              <div className="flex-1 overflow-y-auto">
-                {user && (
-                  <VersionControlPanel
-                    projectId={projectId}
-                    user={user}
-                    onClose={() => setVcOpen(false)}
-                    showToast={showToast}
-                    applyStructureToEditor={applyStructureToEditor}
-                    buildStructure={buildStructure}
-                    currentBranch={currentBranch}
-                    setCurrentBranch={setCurrentBranch}
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
                   />
-                )}
-              </div>
+                </svg>
+              </button>
             </div>
-          )}
 
-          {showGitPanel && gitStatus && (
-            <div className="h-full flex flex-col">
-              {/* Git Panel Header */}
-              <div className="flex justify-between items-center p-4 min-h-[60px] flex-shrink-0 border-b border-gray-700 bg-card">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <VscHistory className="w-5 h-5" />
-                  Git History
-                </h3>
-                <button
-                  onClick={() => setShowGitPanel(false)}
-                  className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
+            {/* Version Control Panel Content */}
+            <div className="flex-1 overflow-y-auto">
+              {user && (
+                <VersionControlPanel
+                  projectId={projectId}
+                  user={user}
+                  onClose={() => setVcOpen(false)}
+                  showToast={showToast}
+                  applyStructureToEditor={applyStructureToEditor}
+                  buildStructure={buildStructure}
+                  currentBranch={currentBranch}
+                  setCurrentBranch={setCurrentBranch}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {showGitPanel && gitStatus && (
+          <div className="h-full flex flex-col">
+            {/* Git Panel Header */}
+            <div className="flex justify-between items-center p-4 min-h-[60px] flex-shrink-0 border-b border-gray-700 bg-card">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <VscHistory className="w-5 h-5" />
+                Git History
+              </h3>
+              <button
+                onClick={() => setShowGitPanel(false)}
+                className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
 
-              {/* Git Panel Content */}
-              <div className="flex-1 overflow-y-auto p-4">
-                {gitStatus?.commits && gitStatus.commits.length > 0 ? (
-                  <div className="space-y-4">
-                    {gitStatus.commits.map((commit: GitCommit) => (
-                      <div
-                        key={commit.hash}
-                        className="bg-gray-900 p-4 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors"
-                      >
-                        <div className="flex items-start gap-3">
-                          <VscGitCommit className="text-green-500 mt-1 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-white truncate mb-2">
-                              {commit.message}
-                            </p>
-                            <div className="flex items-center gap-4 text-xs text-gray-400">
-                              <span>{commit.author}</span>
-                              <span>
-                                {new Date(commit.date).toLocaleString()}
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-500 font-mono mt-2">
-                              {commit.hash.substring(0, 7)}
-                            </p>
-                            <button
-                              onClick={() => handleRestoreCommit(commit.hash)}
-                              className="mt-2 text-xs bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded transition-colors"
-                            >
-                              Restore
-                            </button>
+            {/* Git Panel Content */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {gitStatus?.commits && gitStatus.commits.length > 0 ? (
+                <div className="space-y-4">
+                  {gitStatus.commits.map((commit: GitCommit) => (
+                    <div
+                      key={commit.hash}
+                      className="bg-gray-900 p-4 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors"
+                    >
+                      <div className="flex items-start gap-3">
+                        <VscGitCommit className="text-green-500 mt-1 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white truncate mb-2">
+                            {commit.message}
+                          </p>
+                          <div className="flex items-center gap-4 text-xs text-gray-400">
+                            <span>{commit.author}</span>
+                            <span>
+                              {new Date(commit.date).toLocaleString()}
+                            </span>
                           </div>
+                          <p className="text-xs text-gray-500 font-mono mt-2">
+                            {commit.hash.substring(0, 7)}
+                          </p>
+                          <button
+                            onClick={() => handleRestoreCommit(commit.hash)}
+                            className="mt-2 text-xs bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded transition-colors"
+                          >
+                            Restore
+                          </button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <VscHistory className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-400">No commits yet</p>
-                  </div>
-                )}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <VscHistory className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400">No commits yet</p>
+                </div>
+              )}
             </div>
-          )}
-        </aside>
-      )}
+          </div>
+        )}
+      </ResizablePanel>
     </div>
   );
 }
