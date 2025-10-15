@@ -4,7 +4,8 @@
   "private": true,
   "description": "The Y.js server for the real-time collaborative code editor application.",
   "scripts": {
-    "dev": "y-websocket-server"
+    "dev": "y-websocket-server",
+    "start": "y-websocket-server"
   },
   "dependencies": {
     "y-websocket-server": "^1.0.2"
