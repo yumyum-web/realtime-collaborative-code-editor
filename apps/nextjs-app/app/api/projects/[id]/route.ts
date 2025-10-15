@@ -68,15 +68,40 @@ export async function GET(
       // User requested specific branch via query parameter
       if (availableBranches.includes(branchQuery)) {
         if (currentBranch !== branchQuery) {
-          // Branch mismatch! Git is on different branch than requested
+          // Need to checkout the requested branch
           console.log(
-            `[GET] WARNING: Branch mismatch - requested ${branchQuery}, Git on ${currentBranch}`,
+            `[GET] Checking out requested branch: ${branchQuery} (currently on ${currentBranch})`,
           );
-          console.log(`[GET] Falling back to MongoDB to avoid race conditions`);
-          return await loadFromMongoDBVC(id, branchQuery, project);
+
+          try {
+            // Check if there are uncommitted changes
+            const status = await git.status();
+            if (!status.isClean()) {
+              console.log(
+                `[GET] Uncommitted changes detected, stashing before checkout`,
+              );
+              // Commit changes before switching
+              await git.add(".");
+              await git.commit(`Auto-save before reading ${branchQuery}`, {
+                "--allow-empty": null,
+              });
+            }
+
+            // Checkout the requested branch
+            await git.checkout(branchQuery);
+            console.log(`[GET] Successfully checked out ${branchQuery}`);
+          } catch (checkoutErr) {
+            console.error(
+              `[GET] Failed to checkout ${branchQuery}:`,
+              checkoutErr,
+            );
+            console.log(`[GET] Falling back to MongoDB`);
+            return await loadFromMongoDBVC(id, branchQuery, project);
+          }
+        } else {
+          // Git is already on requested branch
+          console.log(`[GET] Already on requested branch: ${branchQuery}`);
         }
-        // Git is already on requested branch - just read from it
-        console.log(`[GET] Reading from requested branch: ${branchQuery}`);
       } else {
         // Branch doesn't exist in Git, fall back to MongoDB VC
         console.log(

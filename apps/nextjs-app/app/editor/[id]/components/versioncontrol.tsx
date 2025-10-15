@@ -127,19 +127,42 @@ export default function VersionControlPanel({
     async (branchName?: string) => {
       try {
         const b = branchName || currentBranch;
-        const res = await fetch(
-          `/api/projects/${projectId}/version-control/commit-git?branch=${encodeURIComponent(b)}`,
-        );
-        const data = await res.json();
-        if (!res.ok) {
-          console.error(data);
-          showToast(data.error || "Failed to fetch commits.", "error");
+
+        if (!b) {
+          console.warn("fetchCommits called without branch name");
           return;
         }
-        setCommits(data.commits || []);
+
+        console.log(`📜 Fetching commits for branch: ${b}`);
+
+        const res = await fetch(
+          `/api/projects/${projectId}/version-control/commit-git?branch=${encodeURIComponent(b)}`,
+          {
+            cache: "no-store", // Prevent stale cache
+            headers: {
+              "Cache-Control": "no-cache",
+            },
+          },
+        );
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          console.error("fetchCommits error response:", data);
+          throw new Error(data.error || "Failed to fetch commits");
+        }
+
+        const commits = data.commits || [];
+        console.log(`✅ Fetched ${commits.length} commits for ${b}`);
+        setCommits(commits);
+
+        return commits;
       } catch (err) {
-        console.error("fetchCommits error", err);
-        showToast("Network error fetching commits.", "error");
+        console.error("fetchCommits error:", err);
+        const errorMsg =
+          err instanceof Error ? err.message : "Network error fetching commits";
+        showToast(errorMsg, "error");
+        throw err; // Re-throw for retry logic
       }
     },
     [currentBranch, projectId, showToast],
@@ -349,39 +372,111 @@ export default function VersionControlPanel({
         // Step 6: Update the frontend state
         setCurrentBranch(target);
 
-        // Step 7: Apply the new file structure
-        if (data.structure) {
-          console.log("[SWITCH] Applying structure from response.");
-          // Wait a bit before applying to ensure Yjs is fully disconnected
-          await new Promise((resolve) => setTimeout(resolve, 200));
-          applyStructureToEditor(data.structure as StructureNode);
-          // Cache the new structure
-          localStorage.setItem(
-            `vc_structure:${projectId}:${target}`,
-            JSON.stringify(data.structure),
-          );
-        } else {
+        // Step 7: Apply the new file structure with retry logic
+        let structureApplied = false;
+        let structure = data.structure;
+
+        if (!structure) {
           console.warn(
             "[SWITCH] No structure in response, fetching separately.",
           );
-          const refRes = await fetch(
-            `/api/projects/${projectId}?branch=${target}`,
-          );
-          const refData = await refRes.json();
-          if (refRes.ok && refData.structure) {
-            await new Promise((resolve) => setTimeout(resolve, 200));
-            applyStructureToEditor(refData.structure as StructureNode);
-          } else {
-            throw new Error("Failed to load branch structure after switch.");
+
+          // Retry fetching structure up to 3 times
+          for (let attempt = 1; attempt <= 3 && !structureApplied; attempt++) {
+            try {
+              console.log(
+                `[SWITCH] Fetch attempt ${attempt}/3 for branch ${target}`,
+              );
+              const refRes = await fetch(
+                `/api/projects/${projectId}?branch=${target}`,
+                {
+                  cache: "no-store",
+                  headers: { "Cache-Control": "no-cache" },
+                },
+              );
+              const refData = await refRes.json();
+
+              if (refRes.ok && refData.structure) {
+                structure = refData.structure;
+                structureApplied = true;
+                console.log(
+                  `[SWITCH] Structure fetched successfully on attempt ${attempt}`,
+                );
+              } else {
+                console.warn(
+                  `[SWITCH] Attempt ${attempt} failed:`,
+                  refData.error,
+                );
+                if (attempt < 3) {
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                }
+              }
+            } catch (fetchErr) {
+              console.error(
+                `[SWITCH] Fetch attempt ${attempt} error:`,
+                fetchErr,
+              );
+              if (attempt < 3) {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+              }
+            }
+          }
+
+          if (!structure) {
+            throw new Error(
+              "Failed to load branch structure after multiple attempts.",
+            );
           }
         }
 
-        // Step 8: Refresh auxiliary data
+        // Apply the structure
+        console.log("[SWITCH] Applying structure from response.");
+        // Wait a bit before applying to ensure Yjs is fully disconnected
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        applyStructureToEditor(structure as StructureNode);
+
+        // Cache the new structure
+        try {
+          localStorage.setItem(
+            `vc_structure:${projectId}:${target}`,
+            JSON.stringify(structure),
+          );
+        } catch (cacheErr) {
+          console.warn("[SWITCH] Failed to cache structure:", cacheErr);
+        }
+
+        // Step 8: Refresh auxiliary data with retry logic
+        console.log("[SWITCH] Fetching metadata for new branch:", target);
+
+        // Ensure fetchCommits uses the new branch
+        const maxRetries = 3;
+        let commitsFetched = false;
+
+        for (let i = 0; i < maxRetries && !commitsFetched; i++) {
+          try {
+            await fetchCommits(target);
+            commitsFetched = true;
+          } catch (err) {
+            console.warn(`Retry ${i + 1}/${maxRetries} for fetchCommits:`, err);
+            if (i < maxRetries - 1) {
+              await new Promise((resolve) => setTimeout(resolve, 500));
+            }
+          }
+        }
+
+        // Fetch branches and status in parallel
         await Promise.all([
-          fetchBranches(),
-          fetchCommits(target),
-          fetchGitStatus(),
+          fetchBranches().catch((err) =>
+            console.error("fetchBranches failed:", err),
+          ),
+          fetchGitStatus().catch((err) =>
+            console.error("fetchGitStatus failed:", err),
+          ),
         ]);
+
+        if (!commitsFetched) {
+          console.warn("⚠️ Failed to fetch commits after retries");
+        }
 
         showToast(`Switched to branch "${target}".`, "success");
       } catch (err) {

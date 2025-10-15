@@ -121,22 +121,48 @@ export async function GET(
     const url = new URL(req.url);
     const branchName = url.searchParams.get("branch") || "main";
 
+    console.log(
+      `📜 Fetching commits for branch: ${branchName} (project: ${projectId})`,
+    );
+
     const git = await getGitRepo(projectId);
 
-    // Get commit log for the branch
-    const log = await git.log([branchName]);
+    // Verify branch exists
+    const branches = await git.branchLocal();
+    if (!branches.all.includes(branchName)) {
+      console.error(
+        `Branch ${branchName} not found. Available: ${branches.all.join(", ")}`,
+      );
+      return NextResponse.json(
+        { error: `Branch "${branchName}" not found`, commits: [] },
+        { status: 404 },
+      );
+    }
 
-    const commits = log.all.map((commit) => ({
-      _id: commit.hash,
-      message: commit.message,
-      author: commit.author_name,
-      timestamp: commit.date,
-    }));
+    // Get commit log for the specific branch
+    try {
+      const log = await git.log([branchName, "--max-count=50"]);
 
-    return NextResponse.json({ commits });
+      const commits = log.all.map((commit) => ({
+        _id: commit.hash,
+        message: commit.message,
+        author: commit.author_name,
+        timestamp: commit.date,
+      }));
+
+      console.log(`✅ Found ${commits.length} commits for ${branchName}`);
+      return NextResponse.json({ commits });
+    } catch (logErr) {
+      console.error(`Failed to get log for ${branchName}:`, logErr);
+
+      // If log fails, the branch might be empty or have issues
+      // Return empty array instead of failing
+      return NextResponse.json({ commits: [] });
+    }
   } catch (err) {
     console.error("GET commits error:", err);
-    return NextResponse.json({ commits: [] });
+    const errorMsg = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: errorMsg, commits: [] }, { status: 500 });
   }
 }
 
