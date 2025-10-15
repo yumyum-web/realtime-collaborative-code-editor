@@ -22,6 +22,7 @@ import { useMonaco } from "./hooks/useMonaco";
 import { addNode, deleteNode, reconstructTree } from "./utils/fileTreeHelpers";
 import { FileTree } from "./components/FileTree";
 import { ChatPanel } from "./components/ChatPanel";
+import { AiChatPanel } from "./components/AiChatPanel";
 import VersionControlPanel from "./components/versioncontrol";
 import { ResizablePanel } from "./components/ResizablePanel";
 
@@ -90,6 +91,7 @@ export default function EditorPage() {
   );
   const [chatOpen, setChatOpen] = useState(false);
   const [vcOpen, setVcOpen] = useState(false);
+  const [aiChatOpen, setAiChatOpen] = useState(false);
   const [currentBranch, setCurrentBranch] = useState<string>("main");
   const [forceRefresh, setForceRefresh] = useState<number>(0);
   const [panelWidth, setPanelWidth] = useState(320);
@@ -164,10 +166,11 @@ export default function EditorPage() {
       const width = window.innerWidth;
       setIsMobile(width < 768);
       // Auto-hide panels on very small screens
-      if (width < 1024 && (chatOpen || vcOpen || showGitPanel)) {
+      if (width < 1024 && (chatOpen || vcOpen || showGitPanel || aiChatOpen)) {
         setChatOpen(false);
         setVcOpen(false);
         setShowGitPanel(false);
+        setAiChatOpen(false);
       }
       // Auto-collapse sidebar on small screens
       if (width < 640) {
@@ -201,13 +204,13 @@ export default function EditorPage() {
     (structure: StructureNode | null) => {
       // Handle null structure (branch switch signal - clear editor)
       if (!structure) {
-        console.log("🔄 Clearing editor for branch switch");
+        console.log(" Clearing editor for branch switch");
         setActiveFile(""); // This triggers Yjs cleanup
         setEditorMounting(true);
         return;
       }
 
-      console.log("🔄 Applying structure to editor:", structure);
+      console.log(" Applying structure to editor:", structure);
 
       // Step 1: Clear active file to trigger Yjs cleanup
       setActiveFile("");
@@ -242,7 +245,7 @@ export default function EditorPage() {
         setExpandedFolders(newExpanded);
 
         console.log(
-          `✅ Applied structure: ${Object.keys(newFilesRef).length} files`,
+          ` Applied structure: ${Object.keys(newFilesRef).length} files`,
         );
 
         // Step 3: Set new active file after a delay and trigger force refresh
@@ -281,7 +284,7 @@ export default function EditorPage() {
         if (res.ok) {
           const data = await res.json();
           const branch = data.activeBranch || "main";
-          console.log(`🔀 Setting current branch to: ${branch}`);
+          console.log(` Setting current branch to: ${branch}`);
           setCurrentBranch(branch);
         }
       } catch (err) {
@@ -474,7 +477,7 @@ export default function EditorPage() {
   ); // ---- Cleanup on unmount ----
   useEffect(() => {
     return () => {
-      console.log("🛑 Editor page unmounting");
+      console.log(" Editor page unmounting");
       // Cleanup will be handled by useYjs
     };
   }, []);
@@ -485,7 +488,7 @@ export default function EditorPage() {
 
     const firstFile = getFirstFile();
     if (firstFile) {
-      console.log(`📄 Setting initial active file: ${firstFile}`);
+      console.log(` Setting initial active file: ${firstFile}`);
       openFileInTab(firstFile);
       if (fileTree[0] && fileTree[0].name) {
         setExpandedFolders(new Set([fileTree[0].name]));
@@ -850,7 +853,7 @@ export default function EditorPage() {
         className="fixed z-30 bottom-6 flex flex-col gap-4 mb-2 transition-all duration-300 ease-in-out"
         style={{
           right:
-            chatOpen || vcOpen || showGitPanel
+            chatOpen || vcOpen || showGitPanel || aiChatOpen
               ? `${panelWidth + 24}px`
               : "24px",
         }}
@@ -864,10 +867,27 @@ export default function EditorPage() {
             setChatOpen(!chatOpen);
             setVcOpen(false);
             setShowGitPanel(false);
+            setAiChatOpen(false);
           }}
           title="Open Chat"
         >
           <VscComment className="w-5 h-5" />
+        </button>
+
+        {/* AI Chat Button */}
+        <button
+          className={`w-12 h-12 bg-purple-600 hover:bg-purple-500 text-white rounded-full shadow-lg transition-all duration-200 transform hover:scale-110 active:scale-95 flex items-center justify-center group ${
+            aiChatOpen ? "ring-2 ring-purple-400" : ""
+          }`}
+          onClick={() => {
+            setAiChatOpen(!aiChatOpen);
+            setChatOpen(false);
+            setVcOpen(false);
+            setShowGitPanel(false);
+          }}
+          title="Open AI Assistant"
+        >
+          <span className="font-bold text-lg">AI</span>
         </button>
 
         {/* Git History Button */}
@@ -905,7 +925,7 @@ export default function EditorPage() {
 
       {/* Right Sidebar Panel */}
       <ResizablePanel
-        isOpen={chatOpen || vcOpen || showGitPanel}
+        isOpen={chatOpen || vcOpen || showGitPanel || aiChatOpen}
         minWidth={280}
         maxWidth={800}
         defaultWidth={320}
@@ -921,6 +941,8 @@ export default function EditorPage() {
             onClose={() => setChatOpen(false)}
           />
         )}
+
+        {aiChatOpen && <AiChatPanel onClose={() => setAiChatOpen(false)} />}
 
         {vcOpen && (
           <div className="h-full flex flex-col">
