@@ -5,3 +5,7 @@
 
 # Ignore Turbo's output
 .turbo
+
+# Playwright test results
+/playwright-report/
+/test-results/
