@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/app/lib/mongoose";
 import { getGitRepo, readFilesFromRepo } from "@/app/lib/gitUtils";
+import { emitSocketEvent } from "@/app/lib/socketio";
 
 // GET: List all branches
 export async function GET(
@@ -95,6 +96,16 @@ export async function POST(
 
     console.log(`✅ Created branch ${branchName} from ${base}`);
 
+    // Broadcast branch creation event to all connected clients (non-blocking)
+    const updatedBranches = await git.branchLocal();
+    emitSocketEvent(projectId, "branch-created", {
+      branchName,
+      baseBranch: base,
+      allBranches: updatedBranches.all,
+    }).catch((err) =>
+      console.error("⚠️ Socket broadcast failed (non-fatal):", err),
+    );
+
     return NextResponse.json({
       success: true,
       branch: branchName,
@@ -123,7 +134,7 @@ export async function PUT(
   try {
     await connectDB();
     const { id: projectId } = await params;
-    const { branchName } = await req.json();
+    const { branchName, forceSwitch } = await req.json();
 
     if (!branchName) {
       return NextResponse.json(
@@ -133,29 +144,108 @@ export async function PUT(
     }
 
     const git = await getGitRepo(projectId);
+    const branches = await git.branchLocal();
+    const currentBranch = branches.current;
 
     // Check if branch exists
-    const branches = await git.branchLocal();
     if (!branches.all.includes(branchName)) {
       return NextResponse.json({ error: "Branch not found" }, { status: 404 });
     }
 
-    // Checkout branch
-    await git.checkout(branchName);
+    // If already on the target branch, just return current state
+    if (currentBranch === branchName) {
+      const structure = await readFilesFromRepo(projectId);
+      return NextResponse.json({
+        success: true,
+        activeBranch: branchName,
+        structure,
+        message: "Already on this branch",
+      });
+    }
+
+    // Check for uncommitted changes
+    const status = await git.status();
+    if (!status.isClean() && !forceSwitch) {
+      console.log(`[SWITCH] Uncommitted changes detected on ${currentBranch}`);
+
+      // Automatically commit pending changes before switching
+      try {
+        await git.add(".");
+        await git.commit(`Auto-save before switching to ${branchName}`, {
+          "--allow-empty": null,
+        });
+        console.log(`[SWITCH] Auto-committed changes on ${currentBranch}`);
+      } catch (commitErr) {
+        console.error("[SWITCH] Failed to auto-commit:", commitErr);
+        return NextResponse.json(
+          {
+            error:
+              "Uncommitted changes present. Please commit or stash changes before switching.",
+            hasUncommittedChanges: true,
+            modifiedFiles: [
+              ...status.modified,
+              ...status.created,
+              ...status.deleted,
+            ],
+          },
+          { status: 400 },
+        );
+      }
+    }
+
+    // Checkout branch with error handling
+    try {
+      console.log(`[SWITCH] Checking out branch: ${branchName}`);
+      await git.checkout(branchName);
+    } catch (checkoutErr) {
+      console.error(`[SWITCH] Checkout failed:`, checkoutErr);
+      const errMsg =
+        checkoutErr instanceof Error
+          ? checkoutErr.message
+          : String(checkoutErr);
+
+      // Handle specific checkout errors
+      if (errMsg.includes("would be overwritten")) {
+        return NextResponse.json(
+          {
+            error:
+              "Checkout would overwrite local changes. Please commit or stash your changes first.",
+            requiresCommit: true,
+          },
+          { status: 400 },
+        );
+      }
+
+      throw checkoutErr;
+    }
 
     // Read structure from new branch
     const structure = await readFilesFromRepo(projectId);
 
-    console.log(`✅ Switched to branch ${branchName}`);
+    console.log(`✅ Switched from ${currentBranch} to ${branchName}`);
+
+    // Broadcast branch switch event to all connected clients (non-blocking)
+    emitSocketEvent(projectId, "branch-switched", {
+      fromBranch: currentBranch,
+      toBranch: branchName,
+      structure,
+    }).catch((err) =>
+      console.error("⚠️ Socket broadcast failed (non-fatal):", err),
+    );
 
     return NextResponse.json({
       success: true,
       activeBranch: branchName,
+      previousBranch: currentBranch,
       structure,
     });
   } catch (err) {
     console.error("PUT branch error:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    const errorMessage = err instanceof Error ? err.message : "Server error";
+    return NextResponse.json(
+      { error: "Failed to switch branch", details: errorMessage },
+      { status: 500 },
+    );
   }
 }
 
@@ -167,7 +257,7 @@ export async function DELETE(
   try {
     await connectDB();
     const { id: projectId } = await params;
-    const { branchName } = await req.json();
+    const { branchName, force } = await req.json();
 
     if (!branchName) {
       return NextResponse.json(
@@ -200,20 +290,67 @@ export async function DELETE(
       return NextResponse.json({ error: "Branch not found" }, { status: 404 });
     }
 
-    // Delete branch
-    await git.deleteLocalBranch(branchName);
-
-    console.log(`✅ Deleted branch ${branchName}`);
+    // Delete branch - use force delete if requested to handle unmerged branches
+    try {
+      if (force) {
+        // Force delete even if branch has unmerged commits
+        await git.deleteLocalBranch(branchName, true);
+        console.log(`✅ Force deleted branch ${branchName}`);
+      } else {
+        // Try normal delete first
+        try {
+          await git.deleteLocalBranch(branchName);
+          console.log(`✅ Deleted branch ${branchName}`);
+        } catch (deleteErr) {
+          // If delete fails due to unmerged commits, inform the user
+          const errMsg =
+            deleteErr instanceof Error ? deleteErr.message : String(deleteErr);
+          if (
+            errMsg.includes("not fully merged") ||
+            errMsg.includes("unmerged")
+          ) {
+            return NextResponse.json(
+              {
+                error:
+                  "Branch has unmerged commits. Use force delete to proceed.",
+                requiresForce: true,
+                branchName,
+              },
+              { status: 400 },
+            );
+          }
+          throw deleteErr;
+        }
+      }
+    } catch (deleteErr) {
+      console.error(`❌ Failed to delete branch ${branchName}:`, deleteErr);
+      throw deleteErr;
+    }
 
     // Get updated branch list
     const updatedBranches = await git.branchLocal();
 
+    // Broadcast branch deletion event to all connected clients (non-blocking)
+    emitSocketEvent(projectId, "branch-deleted", {
+      branchName,
+      remainingBranches: updatedBranches.all,
+      activeBranch: branchInfo.current,
+    }).catch((err) =>
+      console.error("⚠️ Socket broadcast failed (non-fatal):", err),
+    );
+
     return NextResponse.json({
       success: true,
       branches: updatedBranches.all,
+      activeBranch: branchInfo.current,
+      deletedBranch: branchName,
     });
   } catch (err) {
     console.error("DELETE branch error:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    const errorMessage = err instanceof Error ? err.message : "Server error";
+    return NextResponse.json(
+      { error: "Failed to delete branch", details: errorMessage },
+      { status: 500 },
+    );
   }
 }

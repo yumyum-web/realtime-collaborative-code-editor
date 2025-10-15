@@ -29,6 +29,22 @@ interface VersionControlEvents {
     structure: FileNode;
     commit: string;
   }) => void;
+  onBranchCreated?: (data: {
+    branchName: string;
+    baseBranch: string;
+    allBranches: string[];
+  }) => void;
+  onBranchDeleted?: (data: {
+    branchName: string;
+    remainingBranches: string[];
+    activeBranch: string;
+  }) => void;
+  onBranchSwitched?: (data: {
+    fromBranch?: string;
+    toBranch: string;
+    branchName?: string;
+    structure: FileNode;
+  }) => void;
 }
 
 export const useVersionControlSocket = (
@@ -105,13 +121,61 @@ export const useVersionControlSocket = (
     socket.on(
       "changes-pulled",
       (data: { branch: string; structure: FileNode; commit: string }) => {
-        console.log("⬇ Changes pulled from branch:", data.branch);
+        console.log("⬇️ Changes pulled from branch:", data.branch);
         eventsRef.current.onChangesPulled?.(data);
       },
     );
 
+    socket.on(
+      "branch-created",
+      (data: {
+        branchName: string;
+        baseBranch: string;
+        allBranches: string[];
+      }) => {
+        console.log(
+          "🌿 Branch created:",
+          data.branchName,
+          "from",
+          data.baseBranch,
+        );
+        eventsRef.current.onBranchCreated?.(data);
+      },
+    );
+
+    socket.on(
+      "branch-deleted",
+      (data: {
+        branchName: string;
+        remainingBranches: string[];
+        activeBranch: string;
+      }) => {
+        console.log("🗑️ Branch deleted:", data.branchName);
+        eventsRef.current.onBranchDeleted?.(data);
+      },
+    );
+
+    socket.on(
+      "branch-switched",
+      (data: {
+        fromBranch?: string;
+        toBranch: string;
+        branchName?: string;
+        structure: FileNode;
+      }) => {
+        const targetBranch = data.toBranch || data.branchName;
+        console.log(
+          "🔀 Branch switched:",
+          data.fromBranch || "unknown",
+          "→",
+          targetBranch,
+        );
+        eventsRef.current.onBranchSwitched?.(data);
+      },
+    );
+
     socket.on("disconnect", () => {
-      console.log(" VC Socket disconnected");
+      console.log("❌ VC Socket disconnected");
     });
 
     socket.on("connect_error", (error: Error) => {

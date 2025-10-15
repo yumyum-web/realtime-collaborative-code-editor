@@ -10,6 +10,7 @@ import {
   VscRepoPush,
   VscRepoPull,
 } from "react-icons/vsc";
+import { useVersionControlSocket } from "../hooks/useVersionControlSocket";
 
 type StructureNode = {
   name: string;
@@ -158,6 +159,51 @@ export default function VersionControlPanel({
     const interval = setInterval(fetchGitStatus, 5000);
     return () => clearInterval(interval);
   }, [fetchGitStatus]);
+
+  // Setup version control socket listeners
+  useVersionControlSocket(projectId, {
+    onBranchCreated: (data) => {
+      console.log("🌿 Remote branch created:", data.branchName);
+      showToast(`Branch "${data.branchName}" was created`, "success");
+      fetchBranches();
+    },
+    onBranchDeleted: (data) => {
+      console.log("🗑️ Remote branch deleted:", data.branchName);
+      showToast(`Branch "${data.branchName}" was deleted`, "success");
+      fetchBranches();
+    },
+    onBranchSwitched: (data) => {
+      const targetBranch = data.toBranch || data.branchName;
+      console.log("🔀 Remote branch switched to:", targetBranch);
+      // Only show toast if it's not our own switch
+      if (targetBranch && targetBranch !== currentBranch) {
+        showToast(
+          `Another user switched to branch "${targetBranch}"`,
+          "success",
+        );
+      }
+    },
+    onCommitCreated: (data) => {
+      console.log("📝 Remote commit created:", data.commitHash);
+      showToast(`New commit: ${data.message}`, "success");
+      fetchCommits(currentBranch);
+      fetchGitStatus();
+    },
+    onBranchMerged: (data) => {
+      console.log(
+        "🔀 Remote merge:",
+        data.sourceBranch,
+        "→",
+        data.targetBranch,
+      );
+      showToast(
+        `Branches merged: ${data.sourceBranch} → ${data.targetBranch}`,
+        "success",
+      );
+      fetchCommits(currentBranch);
+      fetchGitStatus();
+    },
+  });
 
   const createBranch = async () => {
     const name = newBranchName.trim();
@@ -347,9 +393,11 @@ export default function VersionControlPanel({
     });
   };
 
-  const deleteBranch = async (branchName: string) => {
-    if (!confirm(`Delete branch "${branchName}"? This cannot be undone.`)) {
-      return;
+  const deleteBranch = async (branchName: string, forceDelete = false) => {
+    if (!forceDelete) {
+      if (!confirm(`Delete branch "${branchName}"? This cannot be undone.`)) {
+        return;
+      }
     }
 
     await withLock(async () => {
@@ -360,21 +408,35 @@ export default function VersionControlPanel({
           {
             method: "DELETE",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ branchName }),
+            body: JSON.stringify({ branchName, force: forceDelete }),
           },
         );
         const data = await res.json();
         setLoading(false);
+
         if (!res.ok) {
+          // If branch has unmerged commits, ask user if they want to force delete
+          if (data.requiresForce && !forceDelete) {
+            const shouldForce = confirm(
+              `Branch "${branchName}" has unmerged commits.\n\nForce delete anyway? This will permanently lose those commits.`,
+            );
+            if (shouldForce) {
+              await deleteBranch(branchName, true);
+              return;
+            }
+          }
           showToast(data.error || "Failed to delete branch.", "error");
           return;
         }
-        showToast(`Branch '${branchName}' deleted.`, "success");
+
+        showToast(`Branch '${branchName}' deleted successfully.`, "success");
+
+        // Refresh branch list
         await fetchBranches();
       } catch (err) {
         setLoading(false);
         console.error(err);
-        showToast("Delete failed.", "error");
+        showToast("Delete failed: " + (err as Error).message, "error");
       }
     });
   };
@@ -442,10 +504,25 @@ export default function VersionControlPanel({
     if (currentBranch === "main")
       return showToast("You're already on main.", "error");
 
-    // Check for uncommitted changes
+    // Check for uncommitted changes and commit them
     if (uncommittedCount > 0) {
-      showToast("Please commit your changes before pushing to main.", "error");
-      return;
+      const shouldCommit = confirm(
+        `You have ${uncommittedCount} uncommitted change(s).\n\nCommit them before pushing?\n\nOK = Commit and push\nCancel = Abort`,
+      );
+
+      if (!shouldCommit) {
+        return;
+      }
+
+      if (!commitMessage.trim()) {
+        showToast("Please enter a commit message before pushing.", "error");
+        return;
+      }
+
+      // Commit the changes first
+      await handleCommit();
+      // Wait for commit to complete
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
     if (
@@ -490,9 +567,13 @@ export default function VersionControlPanel({
           setLoading(false);
           if (data.hasConflicts) {
             showToast(
-              "Merge conflicts detected. Please resolve manually.",
+              `Merge conflicts detected in: ${data.conflicts?.join(", ") || "files"}. Please resolve manually.`,
               "error",
             );
+            // Optionally show conflicted files in the editor
+            if (data.structure) {
+              console.log("📦 Conflicted structure available for resolution");
+            }
           } else {
             showToast(data.error || "Push failed.", "error");
           }
@@ -516,8 +597,12 @@ export default function VersionControlPanel({
           console.error("Failed to clear cache", err);
         }
 
-        // Step 3: Refresh metadata
-        await Promise.all([fetchBranches(), fetchGitStatus()]);
+        // Step 3: Refresh metadata and commits
+        await Promise.all([
+          fetchBranches(),
+          fetchGitStatus(),
+          fetchCommits(currentBranch),
+        ]);
 
         setLoading(false);
         showToast(
@@ -598,9 +683,17 @@ export default function VersionControlPanel({
           setLoading(false);
           if (data.hasConflicts) {
             showToast(
-              "Merge conflicts detected. Please resolve manually.",
+              `Merge conflicts detected in: ${data.conflicts?.join(", ") || "files"}. Please resolve manually.`,
               "error",
             );
+
+            // If conflicts exist, apply the conflicted structure for user to resolve
+            if (data.structure) {
+              console.log("📦 Applying conflicted structure for resolution");
+              applyStructureToEditor(null);
+              await new Promise((resolve) => setTimeout(resolve, 300));
+              applyStructureToEditor(data.structure as StructureNode);
+            }
           } else {
             showToast(data.error || "Pull failed.", "error");
           }
@@ -631,6 +724,16 @@ export default function VersionControlPanel({
           );
         } else {
           console.warn("⚠️ No structure in pull response");
+          // Fetch structure separately if not in response
+          const refRes = await fetch(
+            `/api/projects/${projectId}?branch=${currentBranch}`,
+          );
+          const refData = await refRes.json();
+          if (refRes.ok && refData.structure) {
+            applyStructureToEditor(null);
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            applyStructureToEditor(refData.structure as StructureNode);
+          }
         }
 
         // Step 3: Refresh metadata
