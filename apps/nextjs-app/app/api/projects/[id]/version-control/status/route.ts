@@ -1,7 +1,7 @@
 // Git Status API - Track uncommitted changes
 
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/app/lib/mongoose";
+import { connectDB } from "@repo/database";
 import { getGitRepo } from "@/app/lib/gitUtils";
 
 // GET: Get current Git status

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/app/lib/mongoose";
-import { VersionControl, Project } from "@repo/database";
+import { connectDB, VersionControl, Project } from "@repo/database";
 import type { Branch, Commit, ProjectDocument } from "@repo/database";
 
 export async function POST(
