@@ -16,7 +16,7 @@ test.describe("Authentication Flow", () => {
     await page.waitForURL("**/projects");
 
     // Verify we're logged in
-    await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible();
   });
 
   test("should show error for invalid credentials", async ({ page }) => {

@@ -17,13 +17,13 @@ export function useSocket(projectId: string) {
     socketRef.current = s;
 
     s.on("chat-history", (msgs: ChatMessage[]) => {
-      console.log("📥 Received chat history:", msgs.length, "messages");
+      console.log("Received chat history:", msgs.length, "messages");
       // Always replace the entire message list when receiving history
       setChatMessages(msgs);
     });
 
     s.on("chat-message", (m: ChatMessage) => {
-      console.log("💬 Received new chat message:", m.message);
+      console.log(" Received new chat message:", m.message);
       setChatMessages((prev) => {
         // Check if this exact message is already in the list to prevent duplicates
         const messageExists = prev.some(
@@ -34,11 +34,11 @@ export function useSocket(projectId: string) {
         );
 
         if (messageExists) {
-          console.log("⚠️ Duplicate message detected, skipping");
+          console.log(" Duplicate message detected, skipping");
           return prev; // Don't add duplicate
         }
 
-        console.log("✅ Adding new message to chat");
+        console.log(" Adding new message to chat");
         return [...prev, m];
       });
     });

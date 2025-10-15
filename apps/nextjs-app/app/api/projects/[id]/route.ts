@@ -64,17 +64,11 @@ export async function GET(
       });
     }
 
-    // CRITICAL: NEVER checkout branches in GET endpoint!
-    // Only the PUT /branch-git endpoint should change Git state
-    // This prevents race conditions when multiple requests come in
-
     if (branchQuery) {
       // User requested specific branch via query parameter
       if (availableBranches.includes(branchQuery)) {
         if (currentBranch !== branchQuery) {
           // Branch mismatch! Git is on different branch than requested
-          // This means the branch-git endpoint hasn't switched yet,
-          // or there's a race condition with multiple requests
           console.log(
             `[GET] WARNING: Branch mismatch - requested ${branchQuery}, Git on ${currentBranch}`,
           );

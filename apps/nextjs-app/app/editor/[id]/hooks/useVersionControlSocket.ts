@@ -51,7 +51,7 @@ export const useVersionControlSocket = (
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      console.log("✅ VC Socket connected:", socket.id);
+      console.log(" VC Socket connected:", socket.id);
       socket.emit("join-doc", projectId);
     });
 
@@ -64,7 +64,7 @@ export const useVersionControlSocket = (
         author: string;
         timestamp: string;
       }) => {
-        console.log("📦 New commit created:", data.commitHash);
+        console.log(" New commit created:", data.commitHash);
         eventsRef.current.onCommitCreated?.(data);
       },
     );
@@ -72,7 +72,7 @@ export const useVersionControlSocket = (
     socket.on(
       "commit-restored",
       (data: { commitHash: string; structure: FileNode }) => {
-        console.log("⏪ Commit restored:", data.commitHash);
+        console.log(" Commit restored:", data.commitHash);
         eventsRef.current.onCommitRestored?.(data);
       },
     );
@@ -85,7 +85,7 @@ export const useVersionControlSocket = (
         structure: FileNode;
       }) => {
         console.log(
-          "🔀 Branch merged:",
+          " Branch merged:",
           data.sourceBranch,
           "→",
           data.targetBranch,
@@ -97,7 +97,7 @@ export const useVersionControlSocket = (
     socket.on(
       "conflicts-resolved",
       (data: { structure: FileNode; message: string }) => {
-        console.log("✅ Conflicts resolved");
+        console.log(" Conflicts resolved");
         eventsRef.current.onConflictsResolved?.(data);
       },
     );
@@ -105,13 +105,13 @@ export const useVersionControlSocket = (
     socket.on(
       "changes-pulled",
       (data: { branch: string; structure: FileNode; commit: string }) => {
-        console.log("⬇️ Changes pulled from branch:", data.branch);
+        console.log("⬇ Changes pulled from branch:", data.branch);
         eventsRef.current.onChangesPulled?.(data);
       },
     );
 
     socket.on("disconnect", () => {
-      console.log("❌ VC Socket disconnected");
+      console.log(" VC Socket disconnected");
     });
 
     socket.on("connect_error", (error: Error) => {

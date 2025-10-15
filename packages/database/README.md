@@ -11,7 +11,13 @@ Shared database package containing MongoDB connection utilities and Mongoose mod
 ## Usage
 
 ```typescript
-import { connectDB, User, Project, Invitation, VersionControl } from "@repo/database";
+import {
+  connectDB,
+  User,
+  Project,
+  Invitation,
+  VersionControl,
+} from "@repo/database";
 import type { ProjectDocument, FileEntity } from "@repo/database";
 
 // Connect to database

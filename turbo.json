@@ -12,13 +12,9 @@
       "persistent": true,
       "cache": false
     },
-    "lint": {
-    },
-    "test": {
-    },
-    "format:check": {
-    },
-    "format:write": {
-    }
+    "lint": {},
+    "test": {},
+    "format:check": {},
+    "format:write": {}
   }
 }
