@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/app/lib/mongoose";
 import { Project } from "@repo/database";
 import { getGitRepo, readFilesFromRepo } from "@/app/lib/gitUtils";
+import { emitSocketEvent } from "@/app/lib/socketio";
 
 // GET: Check for new commits on current branch
 export async function GET(
@@ -78,14 +79,11 @@ export async function POST(
     });
 
     // Broadcast pull event to notify other users
-    const io = global.socketIOServer;
-    if (io) {
-      io.to(projectId).emit("changes-pulled", {
-        branch: currentBranch,
-        structure,
-        commit: afterCommit,
-      });
-    }
+    await emitSocketEvent(projectId, "changes-pulled", {
+      branch: currentBranch,
+      structure,
+      commit: afterCommit,
+    });
 
     return NextResponse.json({
       success: true,

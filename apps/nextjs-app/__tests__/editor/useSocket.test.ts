@@ -57,9 +57,9 @@ describe("useSocket", () => {
         },
       ];
 
-      mockSocket.on = jest.fn((event, callback) => {
+      mockSocket.on = jest.fn((event: unknown, callback: unknown) => {
         if (event === "chat-history") {
-          callback(mockMessages);
+          (callback as (messages: unknown) => void)(mockMessages);
         }
       });
 
@@ -87,11 +87,11 @@ describe("useSocket", () => {
 
       let chatMessageCallback: (message: unknown) => void;
 
-      mockSocket.on = jest.fn((event, callback) => {
+      mockSocket.on = jest.fn((event: unknown, callback: unknown) => {
         if (event === "chat-history") {
-          callback(initialMessages);
+          (callback as (data: unknown) => void)(initialMessages);
         } else if (event === "chat-message") {
-          chatMessageCallback = callback;
+          chatMessageCallback = callback as (message: unknown) => void;
         }
       });
 

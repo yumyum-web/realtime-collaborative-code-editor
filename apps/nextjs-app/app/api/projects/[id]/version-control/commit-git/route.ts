@@ -4,12 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/app/lib/mongoose";
 import { Project } from "@repo/database";
 import { getGitRepo, writeFilesToRepo } from "@/app/lib/gitUtils";
-import { Server as SocketIOServer } from "socket.io";
-
-// Get Socket.IO instance (you'll need to export this from your socket server)
-function getSocketIO(): SocketIOServer | null {
-  return global.socketIOServer || null;
-}
+import { emitSocketEvent } from "@/app/lib/socketio";
 
 // POST: Create a commit using Git
 export async function POST(
@@ -66,18 +61,15 @@ export async function POST(
     console.log(`✅ Git commit created: ${commitResult.commit}`);
 
     // 🔔 NOTIFY OTHER USERS via Socket.IO
-    const io = getSocketIO();
-    if (io) {
-      io.to(projectId).emit("commit-created", {
-        projectId,
-        branchName: targetBranch,
-        commitHash: commitResult.commit,
-        message,
-        author,
-        timestamp: new Date().toISOString(),
-      });
-      console.log(`📢 Broadcasted commit notification to project ${projectId}`);
-    }
+    await emitSocketEvent(projectId, "commit-created", {
+      projectId,
+      branchName: targetBranch,
+      commitHash: commitResult.commit,
+      message,
+      author,
+      timestamp: new Date().toISOString(),
+    });
+    console.log(`📢 Broadcasted commit notification to project ${projectId}`);
 
     return NextResponse.json({
       success: true,
@@ -165,15 +157,12 @@ export async function PUT(
     console.log(`✅ Restored commit ${commitHash} on ${targetBranch}`);
 
     // Notify other users
-    const io = getSocketIO();
-    if (io) {
-      io.to(projectId).emit("commit-restored", {
-        projectId,
-        branchName: targetBranch,
-        commitHash,
-        timestamp: new Date().toISOString(),
-      });
-    }
+    await emitSocketEvent(projectId, "commit-restored", {
+      projectId,
+      branchName: targetBranch,
+      commitHash,
+      timestamp: new Date().toISOString(),
+    });
 
     return NextResponse.json({
       success: true,

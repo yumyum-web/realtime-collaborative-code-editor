@@ -224,7 +224,7 @@ describe("useYjs", () => {
       });
 
       const mockProvider = (WebsocketProvider as jest.Mock).mock.results[0]
-        .value;
+        .value as { awareness: { setLocalStateField: jest.Mock } };
       expect(mockProvider.awareness.setLocalStateField).toHaveBeenCalledWith(
         "user",
         {
@@ -258,7 +258,7 @@ describe("useYjs", () => {
         awareness: {
           setLocalStateField: jest.fn(),
           getStates: jest.fn(() => mockStates),
-          on: jest.fn((event, callback) => {
+          on: jest.fn((event, callback: () => void) => {
             if (event === "change") callback();
           }),
           off: jest.fn(),
@@ -313,7 +313,9 @@ describe("useYjs", () => {
 
       // Get the callback that was passed to onDidChangeCursorPosition
       const cursorCallback = (mockEditor.onDidChangeCursorPosition as jest.Mock)
-        .mock.calls[0][0];
+        .mock.calls[0][0] as (event: {
+        position: { lineNumber: number; column: number };
+      }) => void;
       cursorCallback({
         position: { lineNumber: 5, column: 10 },
       });

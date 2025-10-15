@@ -3,18 +3,41 @@ import { createServer } from "http";
 import { Server, Socket } from "socket.io";
 import { connectDB, Project } from "@repo/database";
 
-// Declare global type for Socket.IO server
-declare global {
-  var socketIOServer: Server | undefined;
-}
+const httpServer = createServer((req, res) => {
+  // Handle HTTP requests for triggering socket events
+  if (req.method === "POST" && req.url === "/emit") {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk.toString();
+    });
+    req.on("end", () => {
+      try {
+        const { room, event, data } = JSON.parse(body);
+        if (room && event && data) {
+          io.to(room).emit(event, data);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ success: true }));
+        } else {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Missing room, event, or data" }));
+        }
+      } catch (error) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid JSON" }));
+      }
+    });
+  } else if (req.method === "GET" && req.url === "/health") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "ok" }));
+  } else {
+    res.writeHead(404, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "Not found" }));
+  }
+});
 
-const httpServer = createServer();
 const io = new Server(httpServer, {
   cors: { origin: "*", methods: ["GET", "POST"] },
 });
-
-// Make io globally accessible for API routes
-global.socketIOServer = io;
 
 interface ClientSocket extends Socket {
   room?: string;

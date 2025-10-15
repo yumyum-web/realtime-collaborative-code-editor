@@ -57,8 +57,8 @@ describe("email utility", () => {
       const { sendEmail } = await import("@/app/lib/email");
       const nodemailer = await import("nodemailer");
       const transporter = jest.mocked(nodemailer).createTransport();
-      const sendMail = transporter.sendMail as jest.Mock;
-      sendMail.mockResolvedValue({
+      // @ts-expect-error - Mock type assertion
+      transporter.sendMail.mockResolvedValue({
         messageId: "123",
       });
 
@@ -89,7 +89,8 @@ describe("email utility", () => {
       const { sendEmail } = await import("@/app/lib/email");
       const nodemailer = await import("nodemailer");
       const transporter = jest.mocked(nodemailer).createTransport();
-      (transporter.sendMail as jest.Mock).mockResolvedValue({
+      // @ts-expect-error - Mock type assertion
+      transporter.sendMail.mockResolvedValue({
         messageId: "123",
       });
 
@@ -120,7 +121,8 @@ describe("email utility", () => {
       const { sendEmail } = await import("@/app/lib/email");
       const nodemailer = await import("nodemailer");
       const transporter = jest.mocked(nodemailer).createTransport();
-      (transporter.sendMail as jest.Mock).mockResolvedValue({
+      // @ts-expect-error - Mock type assertion
+      transporter.sendMail.mockResolvedValue({
         messageId: "123",
       });
 
@@ -152,7 +154,8 @@ describe("email utility", () => {
       const { sendEmail } = await import("@/app/lib/email");
       const nodemailer = await import("nodemailer");
       const transporter = jest.mocked(nodemailer).createTransport();
-      (transporter.sendMail as jest.Mock).mockResolvedValue({
+      // @ts-expect-error - Mock type assertion
+      transporter.sendMail.mockResolvedValue({
         messageId: "123",
       });
 
@@ -198,9 +201,8 @@ describe("email utility", () => {
       const { sendEmail } = await import("@/app/lib/email");
       const nodemailer = await import("nodemailer");
       const transporter = jest.mocked(nodemailer).createTransport();
-      (transporter.sendMail as jest.Mock).mockRejectedValue(
-        new Error("Send failed"),
-      );
+      // @ts-expect-error - Mock type assertion
+      transporter.sendMail.mockRejectedValue(new Error("Send failed"));
 
       await expect(
         sendEmail({

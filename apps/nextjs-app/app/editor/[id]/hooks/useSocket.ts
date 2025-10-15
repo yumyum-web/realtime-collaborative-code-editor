@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import io from "socket.io-client";
+import io, { Socket } from "socket.io-client";
 import type {
   ChatMessage,
   NodeAddedPayload,
@@ -7,7 +7,7 @@ import type {
 } from "../types";
 
 export function useSocket(projectId: string) {
-  const socketRef = useRef<SocketIOClient.Socket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
   useEffect(() => {

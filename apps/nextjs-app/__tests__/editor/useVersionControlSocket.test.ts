@@ -252,7 +252,9 @@ describe("useVersionControlSocket", () => {
 
   describe("Error Handling", () => {
     it("should handle connection errors", () => {
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
+      const consoleSpy = jest
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
 
       let errorCallback: (error: Error) => void;
       mockSocket.on = jest.fn((event, callback) => {

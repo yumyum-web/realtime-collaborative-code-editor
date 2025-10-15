@@ -8,6 +8,7 @@ import {
   readFilesFromRepo,
   writeFilesToRepo,
 } from "@/app/lib/gitUtils";
+import { emitSocketEvent } from "@/app/lib/socketio";
 
 // POST: Merge branch into current branch
 export async function POST(
@@ -158,14 +159,11 @@ export async function POST(
     }
 
     // Broadcast merge event via Socket.IO
-    const io = global.socketIOServer;
-    if (io) {
-      io.to(projectId).emit("branch-merged", {
-        sourceBranch,
-        targetBranch: currentTarget,
-        structure: finalStructure,
-      });
-    }
+    await emitSocketEvent(projectId, "branch-merged", {
+      sourceBranch,
+      targetBranch: currentTarget,
+      structure: finalStructure,
+    });
 
     return NextResponse.json({
       success: true,
@@ -255,13 +253,10 @@ export async function PUT(
     console.log(`✅ Merge conflicts resolved`);
 
     // Broadcast conflict resolution
-    const io = global.socketIOServer;
-    if (io) {
-      io.to(projectId).emit("conflicts-resolved", {
-        structure: resolvedStructure,
-        message,
-      });
-    }
+    await emitSocketEvent(projectId, "conflicts-resolved", {
+      structure: resolvedStructure,
+      message,
+    });
 
     return NextResponse.json({
       success: true,
