@@ -847,11 +847,7 @@ export default function EditorPage() {
 
       {/* Floating Action Buttons */}
       <div
-        className={`fixed z-30 transition-all duration-300 ${
-          chatOpen || vcOpen || showGitPanel
-            ? "bottom-6 flex flex-col gap-4 mb-2"
-            : "bottom-6 right-6 flex flex-col gap-4 mb-2"
-        }`}
+        className="fixed z-30 bottom-6 flex flex-col gap-4 mb-2 transition-all duration-300 ease-in-out"
         style={{
           right:
             chatOpen || vcOpen || showGitPanel

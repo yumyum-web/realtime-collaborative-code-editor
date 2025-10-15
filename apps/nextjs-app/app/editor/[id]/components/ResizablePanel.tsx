@@ -33,10 +33,13 @@ export function ResizablePanel({
         const parsedWidth = parseInt(saved, 10);
         if (parsedWidth >= minWidth && parsedWidth <= maxWidth) {
           setWidth(parsedWidth);
+          if (onWidthChange) {
+            onWidthChange(parsedWidth);
+          }
         }
       }
     }
-  }, [storageKey, minWidth, maxWidth]);
+  }, [storageKey, minWidth, maxWidth, onWidthChange]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -82,6 +85,13 @@ export function ResizablePanel({
       };
     }
   }, [isResizing, handleMouseMove, handleMouseUp]);
+
+  // Notify parent when panel opens with current width
+  useEffect(() => {
+    if (isOpen && onWidthChange) {
+      onWidthChange(width);
+    }
+  }, [isOpen, width, onWidthChange]);
 
   if (!isOpen) return null;
 

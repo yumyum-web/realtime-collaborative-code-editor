@@ -231,7 +231,36 @@ export default function VersionControlPanel({
 
   const createBranch = async () => {
     const name = newBranchName.trim();
-    if (!name) return showToast("Enter a valid branch name.", "error");
+    if (!name) return showToast("Please enter a branch name.", "error");
+
+    // Validate branch name format
+    const branchNameRegex = /^[a-zA-Z0-9._\-\/]+$/;
+    if (!branchNameRegex.test(name)) {
+      const suggestion = name
+        .replace(/[^a-zA-Z0-9._\-\/]/g, "-")
+        .replace(/\s+/g, "-");
+      showToast(
+        `Invalid branch name. Branch names cannot contain spaces or special characters.\n\nSuggestion: "${suggestion}"`,
+        "error",
+      );
+      return;
+    }
+
+    // Check for invalid patterns
+    if (
+      name.startsWith("-") ||
+      name.endsWith("-") ||
+      name.startsWith(".") ||
+      name.endsWith(".") ||
+      name.includes("..") ||
+      name.includes("//")
+    ) {
+      showToast(
+        "Invalid branch name format. Branch names cannot start or end with hyphens or dots, and cannot contain consecutive dots or slashes.",
+        "error",
+      );
+      return;
+    }
 
     await withLock(async () => {
       setLoading(true);
@@ -254,24 +283,30 @@ export default function VersionControlPanel({
           return;
         }
         setNewBranchName("");
-        showToast(`Branch '${name}' created successfully.`, "success");
+        showToast(`Branch "${name}" created successfully! 🎉`, "success");
         await fetchBranches();
       } catch (err) {
         setLoading(false);
         console.error(err);
-        showToast("Failed to create branch.", "error");
+        showToast("Network error. Failed to create branch.", "error");
       }
     });
   };
 
   const handleCommit = async () => {
     if (!commitMessage.trim())
-      return showToast("Enter a commit message.", "error");
+      return showToast(
+        "Please enter a commit message to describe your changes.",
+        "error",
+      );
 
     // Build current structure
     const structure = buildStructure();
     if (!structure) {
-      return showToast("Failed to build project structure.", "error");
+      return showToast(
+        "Failed to build project structure. Please try again.",
+        "error",
+      );
     }
 
     await withLock(async () => {
@@ -293,17 +328,23 @@ export default function VersionControlPanel({
         const data = await res.json();
         setLoading(false);
         if (!res.ok) {
-          showToast(data.error || "Commit failed.", "error");
+          showToast(
+            data.error || "Failed to create commit. Please try again.",
+            "error",
+          );
           return;
         }
         setCommitMessage("");
         await Promise.all([fetchCommits(currentBranch), fetchGitStatus()]);
         localStorage.removeItem(localKey.current(currentBranch));
-        showToast("Committed successfully.", "success");
+        showToast(
+          `Commit created successfully! 🎉 "${commitMessage}"`,
+          "success",
+        );
       } catch (err) {
         setLoading(false);
         console.error(err);
-        showToast("Network error during commit.", "error");
+        showToast("Network error. Failed to create commit.", "error");
       }
     });
   };
@@ -479,10 +520,14 @@ export default function VersionControlPanel({
           console.warn("⚠️ Failed to fetch commits after retries");
         }
 
-        showToast(`Switched to branch "${target}".`, "success");
+        showToast(`Successfully switched to branch "${target}"! 🎉`, "success");
       } catch (err) {
         console.error("❌ switchBranch error", err);
-        showToast((err as Error).message, "error");
+        const errorMsg = (err as Error).message;
+        showToast(
+          errorMsg || "Failed to switch branch. Please try again.",
+          "error",
+        );
       } finally {
         setLoading(false);
       }
@@ -514,25 +559,31 @@ export default function VersionControlPanel({
           // If branch has unmerged commits, ask user if they want to force delete
           if (data.requiresForce && !forceDelete) {
             const shouldForce = confirm(
-              `Branch "${branchName}" has unmerged commits.\n\nForce delete anyway? This will permanently lose those commits.`,
+              `Branch "${branchName}" has unmerged commits that haven't been merged into other branches.\n\nForce delete anyway? This will permanently lose those commits!`,
             );
             if (shouldForce) {
               await deleteBranch(branchName, true);
               return;
             }
           }
-          showToast(data.error || "Failed to delete branch.", "error");
+          showToast(
+            data.error || "Failed to delete branch. Please try again.",
+            "error",
+          );
           return;
         }
 
-        showToast(`Branch '${branchName}' deleted successfully.`, "success");
+        showToast(`Branch "${branchName}" deleted successfully! ✅`, "success");
 
         // Refresh branch list
         await fetchBranches();
       } catch (err) {
         setLoading(false);
         console.error(err);
-        showToast("Delete failed: " + (err as Error).message, "error");
+        showToast(
+          "Network error. Failed to delete branch: " + (err as Error).message,
+          "error",
+        );
       }
     });
   };
@@ -564,7 +615,10 @@ export default function VersionControlPanel({
         setLoading(false);
 
         if (!res.ok) {
-          showToast(data.error || "Restore failed.", "error");
+          showToast(
+            data.error || "Failed to restore commit. Please try again.",
+            "error",
+          );
           return;
         }
 
@@ -584,21 +638,21 @@ export default function VersionControlPanel({
         }
 
         showToast(
-          "Commit restored successfully. Workspace updated.",
+          "Commit restored successfully! Your workspace has been updated. 🎉",
           "success",
         );
         await Promise.all([fetchCommits(currentBranch), fetchGitStatus()]);
       } catch (err) {
         setLoading(false);
         console.error(err);
-        showToast("Restore failed.", "error");
+        showToast("Network error. Failed to restore commit.", "error");
       }
     });
   };
 
   const handlePushToMain = async () => {
     if (currentBranch === "main")
-      return showToast("You're already on main.", "error");
+      return showToast("You're already on the main branch.", "error");
 
     // Check for uncommitted changes and commit them
     if (uncommittedCount > 0) {
@@ -632,7 +686,10 @@ export default function VersionControlPanel({
     // Build current structure to send to server
     const structure = buildStructure();
     if (!structure) {
-      showToast("Failed to build project structure.", "error");
+      showToast(
+        "Failed to build project structure. Please try again.",
+        "error",
+      );
       return;
     }
 
@@ -663,7 +720,7 @@ export default function VersionControlPanel({
           setLoading(false);
           if (data.hasConflicts) {
             showToast(
-              `Merge conflicts detected in: ${data.conflicts?.join(", ") || "files"}. Please resolve manually.`,
+              `Merge conflicts detected! Conflicts in: ${data.conflicts?.join(", ") || "files"}. Please resolve conflicts manually before merging.`,
               "error",
             );
             // Optionally show conflicted files in the editor
@@ -671,7 +728,10 @@ export default function VersionControlPanel({
               console.log("📦 Conflicted structure available for resolution");
             }
           } else {
-            showToast(data.error || "Push failed.", "error");
+            showToast(
+              data.error || "Failed to push changes to main. Please try again.",
+              "error",
+            );
           }
           return;
         }
@@ -702,20 +762,26 @@ export default function VersionControlPanel({
 
         setLoading(false);
         showToast(
-          `Successfully pushed ${currentBranch} to main. You're still on ${currentBranch}.`,
+          `Successfully pushed "${currentBranch}" to main! 🎉 You're still on "${currentBranch}".`,
           "success",
         );
       } catch (err) {
         setLoading(false);
         console.error("Push error:", err);
-        showToast("Push failed: " + (err as Error).message, "error");
+        showToast(
+          "Network error. Failed to push: " + (err as Error).message,
+          "error",
+        );
       }
     });
   };
 
   const handlePullFromMain = async () => {
     if (currentBranch === "main")
-      return showToast("Pull not needed on main.", "error");
+      return showToast(
+        "You're already on main branch. Pull is not needed.",
+        "error",
+      );
 
     // Check for uncommitted changes
     if (uncommittedCount > 0) {
@@ -779,7 +845,7 @@ export default function VersionControlPanel({
           setLoading(false);
           if (data.hasConflicts) {
             showToast(
-              `Merge conflicts detected in: ${data.conflicts?.join(", ") || "files"}. Please resolve manually.`,
+              `Merge conflicts detected! Conflicts in: ${data.conflicts?.join(", ") || "files"}. Please resolve conflicts manually before continuing.`,
               "error",
             );
 
@@ -791,7 +857,10 @@ export default function VersionControlPanel({
               applyStructureToEditor(data.structure as StructureNode);
             }
           } else {
-            showToast(data.error || "Pull failed.", "error");
+            showToast(
+              data.error || "Failed to pull from main. Please try again.",
+              "error",
+            );
           }
           return;
         }
@@ -837,13 +906,16 @@ export default function VersionControlPanel({
 
         setLoading(false);
         showToast(
-          "Pulled from main successfully. Workspace updated.",
+          "Successfully pulled from main! 🎉 Your workspace has been updated.",
           "success",
         );
       } catch (err) {
         setLoading(false);
         console.error("Pull error:", err);
-        showToast("Pull failed: " + (err as Error).message, "error");
+        showToast(
+          "Network error. Failed to pull: " + (err as Error).message,
+          "error",
+        );
       }
     });
   };

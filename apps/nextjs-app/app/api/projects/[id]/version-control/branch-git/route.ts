@@ -38,12 +38,45 @@ export async function POST(
     const { branchName, baseBranch } = await req.json();
 
     console.log(
-      `📝 POST branch request: ${branchName} from ${baseBranch || "main"} for project ${projectId}`,
+      ` POST branch request: ${branchName} from ${baseBranch || "main"} for project ${projectId}`,
     );
 
     if (!branchName) {
       return NextResponse.json(
-        { error: "branchName required" },
+        { error: "Branch name is required" },
+        { status: 400 },
+      );
+    }
+
+    // Validate branch name: no spaces, special chars, must be valid Git branch name
+    const branchNameRegex = /^[a-zA-Z0-9._\-\/]+$/;
+    if (!branchNameRegex.test(branchName)) {
+      return NextResponse.json(
+        {
+          error:
+            "Invalid branch name. Branch names cannot contain spaces or special characters. Use letters, numbers, hyphens, underscores, dots, or slashes only.",
+          suggestion: branchName
+            .replace(/[^a-zA-Z0-9._\-\/]/g, "-")
+            .replace(/\s+/g, "-"),
+        },
+        { status: 400 },
+      );
+    }
+
+    // Additional validation: check for common invalid patterns
+    if (
+      branchName.startsWith("-") ||
+      branchName.endsWith("-") ||
+      branchName.startsWith(".") ||
+      branchName.endsWith(".") ||
+      branchName.includes("..") ||
+      branchName.includes("//")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Invalid branch name format. Branch names cannot start or end with hyphens or dots, and cannot contain consecutive dots or slashes.",
+        },
         { status: 400 },
       );
     }
@@ -54,28 +87,32 @@ export async function POST(
     // Ensure base branch exists
     const branches = await git.branchLocal();
     console.log(
-      `📋 Available branches: [${branches.all.join(", ")}], current: ${branches.current}`,
+      ` Available branches: [${branches.all.join(", ")}], current: ${branches.current}`,
     );
 
     if (!branches.all.includes(base)) {
-      console.error(`❌ Base branch "${base}" not found`);
+      console.error(` Base branch "${base}" not found`);
       return NextResponse.json(
-        { error: `Base branch "${base}" not found` },
+        {
+          error: `Base branch "${base}" does not exist. Please select an existing branch as the base.`,
+        },
         { status: 404 },
       );
     }
 
     // Check if branch already exists
     if (branches.all.includes(branchName)) {
-      console.error(`❌ Branch "${branchName}" already exists`);
+      console.error(` Branch "${branchName}" already exists`);
       return NextResponse.json(
-        { error: "Branch already exists" },
+        {
+          error: `A branch named "${branchName}" already exists. Please choose a different name.`,
+        },
         { status: 400 },
       );
     }
 
     // Create new branch from base
-    console.log(`🌿 Creating branch "${branchName}" from "${base}"...`);
+    console.log(` Creating branch "${branchName}" from "${base}"...`);
     await git.checkoutBranch(branchName, base);
 
     // IMPORTANT: Commit the current state to the new branch to make it distinct
@@ -85,16 +122,16 @@ export async function POST(
       await git.commit(`Initial commit for branch ${branchName}`, {
         "--allow-empty": null, // Allow empty commits if no changes
       });
-      console.log(`✅ Committed initial state to branch ${branchName}`);
+      console.log(` Committed initial state to branch ${branchName}`);
     } catch (commitErr) {
       console.warn(
-        `⚠️ Could not commit to new branch (may be empty):`,
+        ` Could not commit to new branch (may be empty):`,
         commitErr,
       );
       // This is not a fatal error - the branch is still created
     }
 
-    console.log(`✅ Created branch ${branchName} from ${base}`);
+    console.log(` Created branch ${branchName} from ${base}`);
 
     // Broadcast branch creation event to all connected clients (non-blocking)
     const updatedBranches = await git.branchLocal();
@@ -103,7 +140,7 @@ export async function POST(
       baseBranch: base,
       allBranches: updatedBranches.all,
     }).catch((err) =>
-      console.error("⚠️ Socket broadcast failed (non-fatal):", err),
+      console.error(" Socket broadcast failed (non-fatal):", err),
     );
 
     return NextResponse.json({
@@ -138,7 +175,7 @@ export async function PUT(
 
     if (!branchName) {
       return NextResponse.json(
-        { error: "branchName required" },
+        { error: "Branch name is required to switch branches" },
         { status: 400 },
       );
     }
@@ -149,7 +186,12 @@ export async function PUT(
 
     // Check if branch exists
     if (!branches.all.includes(branchName)) {
-      return NextResponse.json({ error: "Branch not found" }, { status: 404 });
+      return NextResponse.json(
+        {
+          error: `Branch "${branchName}" does not exist. Please select an existing branch.`,
+        },
+        { status: 404 },
+      );
     }
 
     // If already on the target branch, just return current state
@@ -179,8 +221,7 @@ export async function PUT(
         console.error("[SWITCH] Failed to auto-commit:", commitErr);
         return NextResponse.json(
           {
-            error:
-              "Uncommitted changes present. Please commit or stash changes before switching.",
+            error: `You have ${status.modified.length + status.created.length + status.deleted.length} uncommitted change(s). Please commit your changes before switching branches.`,
             hasUncommittedChanges: true,
             modifiedFiles: [
               ...status.modified,
@@ -209,7 +250,7 @@ export async function PUT(
         return NextResponse.json(
           {
             error:
-              "Checkout would overwrite local changes. Please commit or stash your changes first.",
+              "Cannot switch branches: your local changes would be overwritten. Please commit your changes before switching.",
             requiresCommit: true,
           },
           { status: 400 },
@@ -222,7 +263,7 @@ export async function PUT(
     // Read structure from new branch
     const structure = await readFilesFromRepo(projectId);
 
-    console.log(`✅ Switched from ${currentBranch} to ${branchName}`);
+    console.log(` Switched from ${currentBranch} to ${branchName}`);
 
     // Broadcast branch switch event to all connected clients (non-blocking)
     emitSocketEvent(projectId, "branch-switched", {
@@ -230,7 +271,7 @@ export async function PUT(
       toBranch: branchName,
       structure,
     }).catch((err) =>
-      console.error("⚠️ Socket broadcast failed (non-fatal):", err),
+      console.error(" Socket broadcast failed (non-fatal):", err),
     );
 
     return NextResponse.json({
@@ -261,7 +302,7 @@ export async function DELETE(
 
     if (!branchName) {
       return NextResponse.json(
-        { error: "branchName required" },
+        { error: "Branch name is required to delete a branch" },
         { status: 400 },
       );
     }
@@ -269,7 +310,10 @@ export async function DELETE(
     // Cannot delete main branch
     if (branchName === "main") {
       return NextResponse.json(
-        { error: "Cannot delete the main branch" },
+        {
+          error:
+            "The main branch cannot be deleted. It's the default branch for your project.",
+        },
         { status: 400 },
       );
     }
@@ -280,7 +324,9 @@ export async function DELETE(
     // Cannot delete current branch
     if (branchInfo.current === branchName) {
       return NextResponse.json(
-        { error: "Switch to another branch before deleting" },
+        {
+          error: `Cannot delete "${branchName}" while you're on it. Please switch to another branch first.`,
+        },
         { status: 400 },
       );
     }
@@ -295,12 +341,12 @@ export async function DELETE(
       if (force) {
         // Force delete even if branch has unmerged commits
         await git.deleteLocalBranch(branchName, true);
-        console.log(`✅ Force deleted branch ${branchName}`);
+        console.log(` Force deleted branch ${branchName}`);
       } else {
         // Try normal delete first
         try {
           await git.deleteLocalBranch(branchName);
-          console.log(`✅ Deleted branch ${branchName}`);
+          console.log(` Deleted branch ${branchName}`);
         } catch (deleteErr) {
           // If delete fails due to unmerged commits, inform the user
           const errMsg =
@@ -323,7 +369,7 @@ export async function DELETE(
         }
       }
     } catch (deleteErr) {
-      console.error(`❌ Failed to delete branch ${branchName}:`, deleteErr);
+      console.error(` Failed to delete branch ${branchName}:`, deleteErr);
       throw deleteErr;
     }
 
@@ -336,7 +382,7 @@ export async function DELETE(
       remainingBranches: updatedBranches.all,
       activeBranch: branchInfo.current,
     }).catch((err) =>
-      console.error("⚠️ Socket broadcast failed (non-fatal):", err),
+      console.error(" Socket broadcast failed (non-fatal):", err),
     );
 
     return NextResponse.json({
