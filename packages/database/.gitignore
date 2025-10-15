@@ -5,3 +5,6 @@ dist
 
 # testing
 /coverage
+
+# TS build artifacts
+*.tsbuildinfo
