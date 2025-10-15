@@ -32,6 +32,8 @@ import {
   Calendar,
   LogOut,
 } from "lucide-react";
+import { useToast } from "@/app/hooks/use-toast";
+import { Toaster } from "@/app/components/ui/toaster";
 
 import LogoTitle from "../components/LogoTitle";
 
@@ -51,6 +53,7 @@ interface Invitation {
 
 export default function ProjectsPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [user, setUser] = useState<{ username: string; email: string } | null>(
     null,
   );
@@ -126,7 +129,7 @@ export default function ProjectsPage() {
   // Modal helpers
   const openMoreModal = async (project: Project) => {
     setSelectedProject(project);
-    setEditMode(user?.email === project.owner);
+    setEditMode(false); // Always start in view mode
     setShowModal(true);
 
     try {
@@ -217,6 +220,7 @@ export default function ProjectsPage() {
   // Add collaborator
   const addCollaborator = async () => {
     if (!selectedProject || !user?.email || !newCollaborator.trim()) return;
+    const collaboratorEmail = newCollaborator.trim();
     try {
       const res = await fetch(
         `/api/projects/${selectedProject._id}/collaborators`,
@@ -226,12 +230,16 @@ export default function ProjectsPage() {
             "Content-Type": "application/json",
             "x-user-email": user.email,
           },
-          body: JSON.stringify({ email: newCollaborator.trim() }),
+          body: JSON.stringify({ email: collaboratorEmail }),
         },
       );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        alert(err.error || "Failed to add collaborator");
+        toast({
+          title: "Error",
+          description: err.error || "Failed to add collaborator",
+          variant: "destructive",
+        });
         return;
       }
       const updated = await res.json();
@@ -242,6 +250,12 @@ export default function ProjectsPage() {
         prev && prev._id === updated._id ? { ...prev, ...updated } : prev,
       );
       setNewCollaborator("");
+
+      // Show success toast
+      toast({
+        title: "Collaborator Added",
+        description: `Invitation sent to ${collaboratorEmail}`,
+      });
 
       // Re-fetch pending invitations
       try {
@@ -259,7 +273,11 @@ export default function ProjectsPage() {
       }
     } catch (e) {
       console.error(e);
-      alert("Failed to add collaborator");
+      toast({
+        title: "Error",
+        description: "Failed to add collaborator",
+        variant: "destructive",
+      });
     }
   };
 
@@ -524,11 +542,12 @@ export default function ProjectsPage() {
           <DialogContent className="max-w-2xl border border-primary shadow-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center justify-between text-primary">
-                {editMode ? "Edit Project" : "Project Details"}
+                Project Details
               </DialogTitle>
               <DialogDescription>
-                Here you can view and edit project details, collaborators, and
-                pending invitations.
+                {editMode
+                  ? "Edit project details, manage collaborators, and view pending invitations."
+                  : "View project details and collaborators."}
               </DialogDescription>
             </DialogHeader>
 
@@ -555,7 +574,7 @@ export default function ProjectsPage() {
                 <label className="text-sm font-medium">Title</label>
                 <Input
                   value={selectedProject.title}
-                  disabled={!isOwner}
+                  disabled={!editMode}
                   onChange={(e) =>
                     setSelectedProject({
                       ...selectedProject,
@@ -571,7 +590,7 @@ export default function ProjectsPage() {
                 <label className="text-sm font-medium">Description</label>
                 <Textarea
                   value={selectedProject.description || ""}
-                  disabled={!isOwner}
+                  disabled={!editMode}
                   onChange={(e) =>
                     setSelectedProject({
                       ...selectedProject,
@@ -587,7 +606,7 @@ export default function ProjectsPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium">Collaborators</label>
-                  {isOwner && (
+                  {isOwner && editMode && (
                     <div className="flex items-center gap-2">
                       <Input
                         value={newCollaborator}
@@ -619,7 +638,7 @@ export default function ProjectsPage() {
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-sm">{email}</span>
-                          {isOwner && (
+                          {isOwner && editMode && (
                             <div className="flex items-center gap-2">
                               <Button
                                 variant="outline"
@@ -729,6 +748,9 @@ export default function ProjectsPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Toast notifications */}
+      <Toaster />
     </div>
   );
 }
