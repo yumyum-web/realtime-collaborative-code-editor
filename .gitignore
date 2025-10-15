@@ -2,40 +2,16 @@
 
 # dependencies
 /node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
 
-# testing
-/coverage
+# Ignore Turbo's output
+.turbo
 
-# next.js
-/.next/
-/out/
+# Playwright test results
+/playwright-report/
+/test-results/
 
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# JMeter test artifacts
+/jmeter-tests/results/*.jtl
+/jmeter-tests/results/*.csv
+/jmeter-tests/results/*_report/
+/jmeter-tests/logs/*.log

@@ -1,4 +1,5 @@
 #! /bin/sh
 
-npm run typecheck
-npx lint-staged
+npx turbo run test -- --bail --onlyChanged
+npx turbo run lint format:check
+npx turbo run typecheck

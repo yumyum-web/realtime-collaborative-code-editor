@@ -16,7 +16,7 @@ test.describe("Authentication Flow", () => {
     await page.waitForURL("**/projects");
 
     // Verify we're logged in
-    await expect(page.locator("text=Welcome")).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
   });
 
   test("should show error for invalid credentials", async ({ page }) => {
@@ -28,7 +28,7 @@ test.describe("Authentication Flow", () => {
     await page.click('button[type="submit"]');
 
     // Check for error message
-    await expect(page.locator("text=Invalid credentials")).toBeVisible();
+    await expect(page.locator("text=invalid-credential")).toBeVisible();
   });
 });
 
