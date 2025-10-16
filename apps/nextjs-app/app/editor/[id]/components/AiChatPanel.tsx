@@ -6,18 +6,53 @@ interface AiChatMessage {
 }
 
 interface AiChatPanelProps {
+  projectId: string;
+  userEmail: string;
   onClose: () => void;
 }
 
-export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
+export const AiChatPanel: React.FC<AiChatPanelProps> = ({
+  projectId,
+  userEmail,
+  onClose,
+}) => {
   const [messages, setMessages] = useState<AiChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Load chat history on mount
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/ai-chat`);
+        if (res.ok) {
+          const data = await res.json();
+          setMessages(data.aiChats || []);
+        }
+      } catch (error) {
+        console.error("Failed to load AI chat history:", error);
+      }
+    };
+    loadChatHistory();
+  }, [projectId]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Save a message to the database
+  const saveMessage = async (role: "user" | "assistant", content: string) => {
+    try {
+      await fetch(`/api/projects/${projectId}/ai-chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role, content, userEmail }),
+      });
+    } catch (error) {
+      console.error("Failed to save AI chat message:", error);
+    }
+  };
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -26,6 +61,10 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
     setMessages((msgs) => [...msgs, userMsg]);
     setInput("");
     setLoading(true);
+
+    // Save user message to database
+    await saveMessage("user", userMsg.content);
+
     try {
       const res = await fetch("/api/ai-chat", {
         method: "POST",
@@ -36,28 +75,31 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onClose }) => {
 
       if (!res.ok) {
         console.error("AI API error:", data);
-        setMessages((msgs) => [
-          ...msgs,
-          {
-            role: "assistant",
-            content: ` Error: ${data.error || "Unknown error"}`,
-          },
-        ]);
+        const errorMsg = {
+          role: "assistant" as const,
+          content: ` Error: ${data.error || "Unknown error"}`,
+        };
+        setMessages((msgs) => [...msgs, errorMsg]);
+        // Save error message to database
+        await saveMessage("assistant", errorMsg.content);
       } else {
-        setMessages((msgs) => [
-          ...msgs,
-          { role: "assistant", content: data.response || "(No response)" },
-        ]);
+        const assistantMsg = {
+          role: "assistant" as const,
+          content: data.response || "(No response)",
+        };
+        setMessages((msgs) => [...msgs, assistantMsg]);
+        // Save assistant response to database
+        await saveMessage("assistant", assistantMsg.content);
       }
     } catch (error) {
       console.error("AI chat error:", error);
-      setMessages((msgs) => [
-        ...msgs,
-        {
-          role: "assistant",
-          content: " Error contacting AI. Check console for details.",
-        },
-      ]);
+      const errorMsg = {
+        role: "assistant" as const,
+        content: " Error contacting AI. Check console for details.",
+      };
+      setMessages((msgs) => [...msgs, errorMsg]);
+      // Save error message to database
+      await saveMessage("assistant", errorMsg.content);
     }
     setLoading(false);
   };
