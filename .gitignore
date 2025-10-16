@@ -15,3 +15,5 @@
 /jmeter-tests/results/*.csv
 /jmeter-tests/results/*_report/
 /jmeter-tests/logs/*.log
+
+.env

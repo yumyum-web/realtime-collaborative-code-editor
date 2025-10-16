@@ -29,6 +29,22 @@ interface VersionControlEvents {
     structure: FileNode;
     commit: string;
   }) => void;
+  onBranchCreated?: (data: {
+    branchName: string;
+    baseBranch: string;
+    allBranches: string[];
+  }) => void;
+  onBranchDeleted?: (data: {
+    branchName: string;
+    remainingBranches: string[];
+    activeBranch: string;
+  }) => void;
+  onBranchSwitched?: (data: {
+    fromBranch?: string;
+    toBranch: string;
+    branchName?: string;
+    structure: FileNode;
+  }) => void;
 }
 
 export const useVersionControlSocket = (
@@ -51,7 +67,7 @@ export const useVersionControlSocket = (
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      console.log("✅ VC Socket connected:", socket.id);
+      console.log(" VC Socket connected:", socket.id);
       socket.emit("join-doc", projectId);
     });
 
@@ -64,7 +80,7 @@ export const useVersionControlSocket = (
         author: string;
         timestamp: string;
       }) => {
-        console.log("📦 New commit created:", data.commitHash);
+        console.log(" New commit created:", data.commitHash);
         eventsRef.current.onCommitCreated?.(data);
       },
     );
@@ -72,7 +88,7 @@ export const useVersionControlSocket = (
     socket.on(
       "commit-restored",
       (data: { commitHash: string; structure: FileNode }) => {
-        console.log("⏪ Commit restored:", data.commitHash);
+        console.log(" Commit restored:", data.commitHash);
         eventsRef.current.onCommitRestored?.(data);
       },
     );
@@ -85,7 +101,7 @@ export const useVersionControlSocket = (
         structure: FileNode;
       }) => {
         console.log(
-          "🔀 Branch merged:",
+          " Branch merged:",
           data.sourceBranch,
           "→",
           data.targetBranch,
@@ -97,7 +113,7 @@ export const useVersionControlSocket = (
     socket.on(
       "conflicts-resolved",
       (data: { structure: FileNode; message: string }) => {
-        console.log("✅ Conflicts resolved");
+        console.log(" Conflicts resolved");
         eventsRef.current.onConflictsResolved?.(data);
       },
     );
@@ -107,6 +123,54 @@ export const useVersionControlSocket = (
       (data: { branch: string; structure: FileNode; commit: string }) => {
         console.log("⬇️ Changes pulled from branch:", data.branch);
         eventsRef.current.onChangesPulled?.(data);
+      },
+    );
+
+    socket.on(
+      "branch-created",
+      (data: {
+        branchName: string;
+        baseBranch: string;
+        allBranches: string[];
+      }) => {
+        console.log(
+          "🌿 Branch created:",
+          data.branchName,
+          "from",
+          data.baseBranch,
+        );
+        eventsRef.current.onBranchCreated?.(data);
+      },
+    );
+
+    socket.on(
+      "branch-deleted",
+      (data: {
+        branchName: string;
+        remainingBranches: string[];
+        activeBranch: string;
+      }) => {
+        console.log("🗑️ Branch deleted:", data.branchName);
+        eventsRef.current.onBranchDeleted?.(data);
+      },
+    );
+
+    socket.on(
+      "branch-switched",
+      (data: {
+        fromBranch?: string;
+        toBranch: string;
+        branchName?: string;
+        structure: FileNode;
+      }) => {
+        const targetBranch = data.toBranch || data.branchName;
+        console.log(
+          "🔀 Branch switched:",
+          data.fromBranch || "unknown",
+          "→",
+          targetBranch,
+        );
+        eventsRef.current.onBranchSwitched?.(data);
       },
     );
 

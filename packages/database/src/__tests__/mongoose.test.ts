@@ -52,7 +52,7 @@ describe("mongoose utility", () => {
     it("should handle connection errors", async () => {
       jest.doMock("mongoose", () => {
         const mockConnect = jest.fn<() => Promise<never>>();
-        mockConnect.mockRejectedValue((new Error("Connection failed")));
+        mockConnect.mockRejectedValue(new Error("Connection failed"));
         return { connect: mockConnect };
       });
       const { default: connectDB } = await import("../connectDB");

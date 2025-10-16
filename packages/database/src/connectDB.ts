@@ -30,12 +30,14 @@ const connectDB = async () => {
 
   // If connection is in progress, wait for it
   if (!cached.promise) {
-    cached.promise = mongoose.connect(process.env.MONGO_URI!, {
-      bufferCommands: false,
-    }).then((mongoose) => {
-      console.log("MongoDB connected");
-      return mongoose;
-    });
+    cached.promise = mongoose
+      .connect(process.env.MONGO_URI!, {
+        bufferCommands: false,
+      })
+      .then((mongoose) => {
+        console.log("MongoDB connected");
+        return mongoose;
+      });
   }
 
   try {

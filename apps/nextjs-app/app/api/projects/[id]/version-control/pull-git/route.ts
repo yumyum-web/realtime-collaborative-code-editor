@@ -71,18 +71,26 @@ export async function POST(
     console.log(`✅ Pulled latest changes on ${currentBranch}`);
 
     // Update MongoDB backup with latest structure
-    await Project.findByIdAndUpdate(projectId, {
-      structure,
-      activeBranch: currentBranch,
-      lastSyncedAt: new Date(),
-    });
+    await Project.findByIdAndUpdate(
+      projectId,
+      {
+        $set: {
+          structure,
+          activeBranch: currentBranch,
+          lastSyncedAt: new Date(),
+        },
+      },
+      { runValidators: false }, // Skip validation to avoid issues with existing data
+    );
 
-    // Broadcast pull event to notify other users
-    await emitSocketEvent(projectId, "changes-pulled", {
+    // Broadcast pull event to notify other users (non-blocking)
+    emitSocketEvent(projectId, "changes-pulled", {
       branch: currentBranch,
       structure,
       commit: afterCommit,
-    });
+    }).catch((err) =>
+      console.error("⚠️ Socket broadcast failed (non-fatal):", err),
+    );
 
     return NextResponse.json({
       success: true,
@@ -98,6 +106,11 @@ export async function POST(
     });
   } catch (err) {
     console.error("POST pull error:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    const errorMessage = err instanceof Error ? err.message : "Server error";
+    console.error("Error details:", errorMessage);
+    return NextResponse.json(
+      { error: "Failed to pull changes", details: errorMessage },
+      { status: 500 },
+    );
   }
 }

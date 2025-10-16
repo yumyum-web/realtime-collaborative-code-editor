@@ -63,25 +63,57 @@ export async function GET(
       });
     }
 
-    // CRITICAL: NEVER checkout branches in GET endpoint!
-    // Only the PUT /branch-git endpoint should change Git state
-    // This prevents race conditions when multiple requests come in
-
     if (branchQuery) {
       // User requested specific branch via query parameter
       if (availableBranches.includes(branchQuery)) {
         if (currentBranch !== branchQuery) {
-          // Branch mismatch! Git is on different branch than requested
-          // This means the branch-git endpoint hasn't switched yet,
-          // or there's a race condition with multiple requests
+          // Need to checkout the requested branch
           console.log(
-            `[GET] WARNING: Branch mismatch - requested ${branchQuery}, Git on ${currentBranch}`,
+            `[GET] Checking out requested branch: ${branchQuery} (currently on ${currentBranch})`,
           );
-          console.log(`[GET] Falling back to MongoDB to avoid race conditions`);
-          return await loadFromMongoDBVC(id, branchQuery, project);
+
+          try {
+            // Check if there are uncommitted changes
+            const status = await git.status();
+            if (!status.isClean()) {
+              console.log(
+                `[GET] Uncommitted changes detected, stashing before checkout`,
+              );
+              // Commit changes before switching
+              await git.add(".");
+              await git.commit(`Auto-save before reading ${branchQuery}`, {
+                "--allow-empty": null,
+              });
+            }
+
+            // Checkout the requested branch
+            await git.checkout(branchQuery);
+
+            // CRITICAL: Wait for filesystem to sync after checkout
+            console.log(`[GET] Waiting for filesystem sync after checkout...`);
+            await new Promise((resolve) => setTimeout(resolve, 200));
+
+            // Verify the checkout was successful
+            const verifyBranch = await git.revparse(["--abbrev-ref", "HEAD"]);
+            if (verifyBranch.trim() !== branchQuery) {
+              throw new Error(
+                `Branch verification failed: expected ${branchQuery}, got ${verifyBranch.trim()}`,
+              );
+            }
+
+            console.log(`[GET] Successfully checked out ${branchQuery}`);
+          } catch (checkoutErr) {
+            console.error(
+              `[GET] Failed to checkout ${branchQuery}:`,
+              checkoutErr,
+            );
+            console.log(`[GET] Falling back to MongoDB`);
+            return await loadFromMongoDBVC(id, branchQuery, project);
+          }
+        } else {
+          // Git is already on requested branch
+          console.log(`[GET] Already on requested branch: ${branchQuery}`);
         }
-        // Git is already on requested branch - just read from it
-        console.log(`[GET] Reading from requested branch: ${branchQuery}`);
       } else {
         // Branch doesn't exist in Git, fall back to MongoDB VC
         console.log(
@@ -97,7 +129,12 @@ export async function GET(
       );
     }
 
-    // Read files from currently checked out branch (NO checkout happens here!)
+    // CRITICAL: Small delay to ensure filesystem is stable before reading
+    // This is especially important after any Git operations or on page refresh
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Read files from currently checked out branch
+    console.log(`[GET] Reading file structure for project ${id}...`);
     const structure = await readFilesFromRepo(id);
     const finalBranchInfo = await git.branchLocal();
     const activeBranch = finalBranchInfo.current;

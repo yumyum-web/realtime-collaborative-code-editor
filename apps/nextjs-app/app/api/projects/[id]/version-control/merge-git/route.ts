@@ -22,7 +22,8 @@ export async function POST(
   try {
     await connectDB();
     const { id: projectId } = await params;
-    const { sourceBranch, targetBranch } = await req.json();
+    const { sourceBranch, targetBranch, structure, commitMessage } =
+      await req.json();
 
     if (!sourceBranch) {
       return NextResponse.json(
@@ -39,6 +40,22 @@ export async function POST(
     const branchInfo = await git.branchLocal();
     originalBranch = branchInfo.current;
     currentTarget = branchInfo.current;
+
+    // If structure is provided, write it to current branch first
+    if (structure) {
+      console.log(`[MERGE] Writing current structure to ${currentTarget}`);
+      try {
+        await writeFilesToRepo(projectId, structure);
+      } catch (writeErr) {
+        console.error("[MERGE] Failed to write structure:", writeErr);
+        return NextResponse.json(
+          { error: "Failed to save current changes" },
+          { status: 500 },
+        );
+      }
+    }
+
+    // Switch to target branch if specified
     if (targetBranch && targetBranch !== currentTarget) {
       if (!branchInfo.all.includes(targetBranch)) {
         return NextResponse.json(
@@ -67,17 +84,17 @@ export async function POST(
       );
     }
 
-    // Check if target branch has uncommitted changes
+    // Check if target branch has uncommitted changes and commit them
     const status = await git.status();
     if (!status.isClean()) {
       console.log(
         `[MERGE] Target branch has uncommitted changes, committing first...`,
       );
       await git.add(".");
-      await git.commit(
-        `Auto-commit before merge: ${sourceBranch} → ${currentTarget}`,
-        { "--allow-empty": null },
-      );
+      const autoCommitMsg =
+        commitMessage ||
+        `Auto-commit before merge: ${sourceBranch} → ${currentTarget}`;
+      await git.commit(autoCommitMsg, { "--allow-empty": null });
     }
 
     console.log(`[MERGE] Attempting to merge ${sourceBranch}...`);
@@ -149,7 +166,7 @@ export async function POST(
     // Successful merge - read the final structure
     const finalStructure = await readFilesFromRepo(projectId);
 
-    console.log(`✅ Successfully merged ${sourceBranch} into ${currentTarget}`);
+    console.log(` Successfully merged ${sourceBranch} into ${currentTarget}`);
     console.log(`[MERGE] Merge summary:`, mergeResult.summary);
 
     // Switch back to original branch if we changed it
@@ -158,12 +175,14 @@ export async function POST(
       await git.checkout(originalBranch);
     }
 
-    // Broadcast merge event via Socket.IO
-    await emitSocketEvent(projectId, "branch-merged", {
+    // Broadcast merge event via Socket.IO (non-blocking)
+    emitSocketEvent(projectId, "branch-merged", {
       sourceBranch,
       targetBranch: currentTarget,
       structure: finalStructure,
-    });
+    }).catch((err) =>
+      console.error(" Socket broadcast failed (non-fatal):", err),
+    );
 
     return NextResponse.json({
       success: true,
@@ -176,7 +195,7 @@ export async function POST(
       activeBranch: originalBranch, // Return the active branch after operation
     });
   } catch (err) {
-    console.error("❌ Merge error:", err);
+    console.error(" Merge error:", err);
 
     // Attempt to switch back to original branch on error
     try {
@@ -250,13 +269,15 @@ export async function PUT(
     const message = commitMessage || "Merge: Resolved conflicts";
     await git.commit(message);
 
-    console.log(`✅ Merge conflicts resolved`);
+    console.log(` Merge conflicts resolved`);
 
-    // Broadcast conflict resolution
-    await emitSocketEvent(projectId, "conflicts-resolved", {
+    // Broadcast conflict resolution (non-blocking)
+    emitSocketEvent(projectId, "conflicts-resolved", {
       structure: resolvedStructure,
       message,
-    });
+    }).catch((err) =>
+      console.error(" Socket broadcast failed (non-fatal):", err),
+    );
 
     return NextResponse.json({
       success: true,

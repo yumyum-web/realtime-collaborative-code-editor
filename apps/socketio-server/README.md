@@ -85,15 +85,19 @@ npm run dev
 Triggers a Socket.IO event broadcast.
 
 Request body:
+
 ```json
 {
   "room": "project-id",
   "event": "event-name",
-  "data": { /* event payload */ }
+  "data": {
+    /* event payload */
+  }
 }
 ```
 
 Response:
+
 ```json
 {
   "success": true
@@ -105,6 +109,7 @@ Response:
 Health check endpoint.
 
 Response:
+
 ```json
 {
   "status": "ok"

@@ -33,6 +33,11 @@ function AcceptInvitationContent() {
   };
 
   useEffect(() => {
+    if (!searchParams) {
+      setStatus("Invalid invitation link.");
+      setLoading(false);
+      return;
+    }
     const token = searchParams.get("token");
     if (!token) {
       setStatus("Invalid invitation link.");

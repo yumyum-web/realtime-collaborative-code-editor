@@ -162,6 +162,10 @@ export function getRepoPath(projectId: string): string {
 
 /**
  * Write files from structure to Git repository
+ * This function now properly tracks file changes like real Git:
+ * - Only writes files that are new or modified
+ * - Deletes files that were removed from structure
+ * - Leaves unchanged files untouched
  */
 export async function writeFilesToRepo(
   projectId: string,
@@ -169,38 +173,131 @@ export async function writeFilesToRepo(
 ): Promise<void> {
   const repoPath = getRepoPath(projectId);
 
-  // Ensure root directory exists
-  const rootPath = path.join(repoPath, "root");
-  await fs.mkdir(rootPath, { recursive: true });
+  // Build a map of all files in the new structure with their full paths and content
+  const newFiles = new Map<string, string>(); // path -> content
+  const newDirs = new Set<string>(); // directory paths
 
-  async function writeNode(node: FileEntity, currentPath: string) {
-    const nodePath = path.join(currentPath, node.name);
+  function collectFiles(node: FileEntity, currentPath: string) {
+    const nodePath = currentPath ? `${currentPath}/${node.name}` : node.name;
 
     if (node.type === "file") {
-      // Write file content
-      await fs.mkdir(path.dirname(nodePath), { recursive: true });
-      await fs.writeFile(nodePath, node.content || "");
-    } else if (node.type === "folder" && node.children) {
-      // Create directory and process children
-      await fs.mkdir(nodePath, { recursive: true });
-      for (const child of node.children) {
-        await writeNode(child, nodePath);
+      newFiles.set(nodePath, node.content || "");
+    } else if (node.type === "folder") {
+      newDirs.add(nodePath);
+      if (node.children) {
+        for (const child of node.children) {
+          collectFiles(child, nodePath);
+        }
       }
     }
   }
 
-  // Clear existing files (except .git)
-  const entries = await fs.readdir(repoPath);
-  for (const entry of entries) {
-    if (entry !== ".git") {
-      await fs.rm(path.join(repoPath, entry), { recursive: true, force: true });
+  // Collect all files from new structure
+  if (structure.type === "folder" && structure.children) {
+    for (const child of structure.children) {
+      collectFiles(child, "");
     }
   }
 
-  // Write new structure
-  if (structure.type === "folder" && structure.children) {
-    for (const child of structure.children) {
-      await writeNode(child, repoPath);
+  // Get all existing files in the repo (excluding .git and .gitignore)
+  const existingFiles = new Set<string>();
+  const existingDirs = new Set<string>();
+
+  async function scanExisting(dirPath: string, relativePath: string) {
+    try {
+      const entries = await fs.readdir(dirPath, { withFileTypes: true });
+
+      for (const entry of entries) {
+        // Skip Git-related files
+        if (entry.name === ".git" || entry.name === ".gitignore") continue;
+
+        const fullPath = path.join(dirPath, entry.name);
+        const relPath = relativePath
+          ? `${relativePath}/${entry.name}`
+          : entry.name;
+
+        if (entry.isDirectory()) {
+          existingDirs.add(relPath);
+          await scanExisting(fullPath, relPath);
+        } else if (entry.isFile()) {
+          existingFiles.add(relPath);
+        }
+      }
+    } catch {
+      // Directory might not exist yet
+      console.log(`Note: Directory ${dirPath} does not exist yet`);
+    }
+  }
+
+  await scanExisting(repoPath, "");
+
+  // Step 1: Create/update files that are new or modified
+  for (const [relPath, content] of newFiles.entries()) {
+    const fullPath = path.join(repoPath, relPath);
+    let shouldWrite = false;
+
+    if (existingFiles.has(relPath)) {
+      // File exists - check if content changed
+      try {
+        const existingContent = await fs.readFile(fullPath, "utf-8");
+        if (existingContent !== content) {
+          shouldWrite = true;
+          console.log(`📝 Modified: ${relPath}`);
+        }
+      } catch {
+        // Error reading file, write it anyway
+        shouldWrite = true;
+      }
+    } else {
+      // New file
+      shouldWrite = true;
+      console.log(`✨ Created: ${relPath}`);
+    }
+
+    if (shouldWrite) {
+      await fs.mkdir(path.dirname(fullPath), { recursive: true });
+      await fs.writeFile(fullPath, content);
+    }
+  }
+
+  // Step 2: Delete files that exist in repo but not in new structure
+  for (const relPath of existingFiles) {
+    if (!newFiles.has(relPath)) {
+      const fullPath = path.join(repoPath, relPath);
+      try {
+        await fs.unlink(fullPath);
+        console.log(`🗑️  Deleted: ${relPath}`);
+      } catch (err) {
+        console.error(`Failed to delete ${relPath}:`, err);
+      }
+    }
+  }
+
+  // Step 3: Create new directories
+  for (const relPath of newDirs) {
+    const fullPath = path.join(repoPath, relPath);
+    await fs.mkdir(fullPath, { recursive: true });
+  }
+
+  // Step 4: Remove empty directories that no longer exist in structure
+  // Sort in reverse to delete deepest directories first
+  const sortedExistingDirs = Array.from(existingDirs).sort(
+    (a, b) => b.length - a.length,
+  );
+
+  for (const relPath of sortedExistingDirs) {
+    if (!newDirs.has(relPath)) {
+      const fullPath = path.join(repoPath, relPath);
+      try {
+        // Only delete if directory is empty
+        const entries = await fs.readdir(fullPath);
+        if (entries.length === 0) {
+          await fs.rmdir(fullPath);
+          console.log(`🗑️  Deleted empty directory: ${relPath}`);
+        }
+      } catch {
+        // Directory might not be empty or already deleted
+      }
     }
   }
 }
@@ -212,6 +309,18 @@ export async function readFilesFromRepo(
   projectId: string,
 ): Promise<FileEntity> {
   const repoPath = getRepoPath(projectId);
+
+  // Get current branch for logging
+  let currentBranch = "unknown";
+  try {
+    const git = simpleGit(repoPath);
+    currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
+    console.log(
+      `📖 Reading file structure from project ${projectId}, branch: ${currentBranch}`,
+    );
+  } catch {
+    console.warn(`⚠️ Could not determine current branch for ${projectId}`);
+  }
 
   async function readNode(
     nodePath: string,
@@ -254,7 +363,19 @@ export async function readFilesFromRepo(
     .then(() => true)
     .catch(() => false);
 
+  let fileCount = 0;
+  let folderCount = 0;
+
+  const countNodes = (node: FileEntity) => {
+    if (node.type === "file") fileCount++;
+    else if (node.type === "folder") {
+      folderCount++;
+      node.children?.forEach(countNodes);
+    }
+  };
+
   if (useRootPath) {
+    console.log(`📂 Reading from root path: ${rootPath}`);
     const entries = await fs.readdir(rootPath);
     const children: FileEntity[] = [];
 
@@ -265,12 +386,20 @@ export async function readFilesFromRepo(
       children.push(await readNode(childPath, entry));
     }
 
-    return {
+    const result: FileEntity = {
       name: "root",
       type: "folder",
       children,
     };
+
+    countNodes(result);
+    console.log(
+      `✅ Read structure: ${fileCount} files, ${folderCount} folders (branch: ${currentBranch})`,
+    );
+
+    return result;
   } else {
+    console.log(`📂 Reading from repo base: ${repoPath}`);
     // Read from repo base, excluding .git and .gitignore
     const entries = await fs.readdir(repoPath);
     const children: FileEntity[] = [];
@@ -282,11 +411,18 @@ export async function readFilesFromRepo(
       children.push(await readNode(childPath, entry));
     }
 
-    return {
+    const result: FileEntity = {
       name: "root",
       type: "folder",
       children,
     };
+
+    countNodes(result);
+    console.log(
+      `✅ Read structure: ${fileCount} files, ${folderCount} folders (branch: ${currentBranch})`,
+    );
+
+    return result;
   }
 }
 

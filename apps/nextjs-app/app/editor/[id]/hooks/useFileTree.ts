@@ -32,7 +32,7 @@ export function useFileTree(projectId: string, currentBranch?: string) {
             if (branchRes.ok) {
               const branchData = await branchRes.json();
               activeBranch = branchData.activeBranch || "main";
-              console.log(`📂 Active branch detected: ${activeBranch}`);
+              console.log(` Active branch detected: ${activeBranch}`);
             }
           } catch (err) {
             console.warn(
@@ -43,7 +43,7 @@ export function useFileTree(projectId: string, currentBranch?: string) {
         }
 
         // Fetch project data with branch context
-        console.log(`📡 Fetching project data for branch: ${activeBranch}`);
+        console.log(`Fetching project data for branch: ${activeBranch}`);
         const projectRes = await fetch(
           `/api/projects/${projectId}?branch=${activeBranch}`,
         );
@@ -53,12 +53,12 @@ export function useFileTree(projectId: string, currentBranch?: string) {
         }
 
         const data = await projectRes.json();
-        console.log(`📦 Received project data:`, data);
+        console.log(`Received project data:`, data);
 
         const root = data.structure ?? data;
         setProjectTitle(data.title ?? "Untitled");
 
-        console.log(`� Loading structure for branch: ${activeBranch}`, root);
+        console.log(`Loading structure for branch: ${activeBranch}`, root);
 
         const flat: Record<string, string> = {};
         function walk(node: FileNode & { content?: string }, path = "") {
@@ -76,7 +76,7 @@ export function useFileTree(projectId: string, currentBranch?: string) {
         setFileTree([root]);
 
         console.log(
-          `✅ Loaded ${Object.keys(flat).length} files for ${activeBranch}`,
+          `Loaded ${Object.keys(flat).length} files for ${activeBranch}`,
         );
       } catch (err) {
         console.error("Failed to load project:", err);

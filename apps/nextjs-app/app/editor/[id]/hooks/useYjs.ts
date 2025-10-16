@@ -41,17 +41,17 @@ export function useYjs(
         // Check if editor exists (less strict - just check existence, not DOM connection)
         const domNode = editor.getDomNode?.();
         if (!domNode) {
-          console.warn("⚠️ Skipping cursor update - editor DOM node missing");
+          console.warn("Skipping cursor update - editor DOM node missing");
           return;
         }
 
         const model = editor.getModel();
         if (!model || model.isDisposed()) {
-          console.warn("⚠️ Skipping cursor update - editor model is disposed");
+          console.warn("Skipping cursor update - editor model is disposed");
           return;
         }
       } catch (err) {
-        console.warn("⚠️ Error checking editor state:", err);
+        console.warn("Error checking editor state:", err);
         return;
       }
 
@@ -88,7 +88,7 @@ export function useYjs(
           decorationsRef.current = [];
         }
       } catch (err) {
-        console.warn("⚠️ Error updating decorations:", err);
+        console.warn("Error updating decorations:", err);
         decorationsRef.current = [];
       }
 
@@ -115,7 +115,7 @@ export function useYjs(
 
   // Complete cleanup function
   const cleanupAll = useCallback(() => {
-    console.log("🧹 Starting complete cleanup");
+    console.log("Starting complete cleanup");
 
     // Remove awareness listener
     if (awarenessListenerRef.current && providerRef.current) {
@@ -190,14 +190,14 @@ export function useYjs(
     // Clear model ref (don't dispose - editor will handle it)
     modelRef.current = null;
 
-    console.log("✅ Cleanup complete");
+    console.log("Cleanup complete");
   }, []);
 
   // Main effect for Yjs setup - depends on activeFile, projectId, currentBranch
   useEffect(() => {
     // Don't initialize if no active file (during loading or branch switch)
     if (!activeFile || !monaco || !editor) {
-      console.log("⏸️ Yjs setup skipped - waiting for dependencies");
+      console.log("⏸Yjs setup skipped - waiting for dependencies");
       // Ensure cleanup if activeFile is cleared (branch switch signal)
       if (!activeFile && (providerRef.current || ydocRef.current)) {
         console.log("🧹 Cleaning up Yjs due to cleared activeFile");
@@ -207,7 +207,7 @@ export function useYjs(
     }
 
     let mounted = true;
-    console.log(`🔄 Setting up Yjs for: ${currentBranch}/${activeFile}`);
+    console.log(` Setting up Yjs for: ${currentBranch}/${activeFile}`);
 
     // Wrap entire setup in try-catch to prevent Monaco DOM errors
     try {
@@ -245,9 +245,9 @@ export function useYjs(
       if (!model) {
         const content = files[activeFile] ?? "";
         model = monaco.editor.createModel(content, undefined, uri);
-        console.log(`📝 Created new model for ${activeFile}`);
+        console.log(`Created new model for ${activeFile}`);
       } else {
-        console.log(`📝 Using existing model for ${activeFile}`);
+        console.log(`Using existing model for ${activeFile}`);
       }
 
       modelRef.current = model;
@@ -256,23 +256,23 @@ export function useYjs(
       const attachModel = () => {
         try {
           if (!model || model.isDisposed()) {
-            console.warn("⚠️ Model is disposed, cannot attach");
+            console.warn("Model is disposed, cannot attach");
             return false;
           }
 
           // Check if editor exists and is mounted
           const domNode = editor.getDomNode?.();
           if (!domNode) {
-            console.warn("⚠️ Editor DOM node not available yet");
+            console.warn("Editor DOM node not available yet");
             return false;
           }
 
           // Directly set model - Monaco will handle DOM readiness
           editor.setModel(model);
-          console.log(`✅ Model attached for ${activeFile}`);
+          console.log(`Model attached for ${activeFile}`);
           return true;
         } catch (err) {
-          console.warn("⚠️ Error attaching model:", err);
+          console.warn("Error attaching model:", err);
           return false;
         }
       };
@@ -295,7 +295,7 @@ export function useYjs(
         try {
           const domNode = editor.getDomNode?.();
           if (!domNode) {
-            console.warn("⚠️ Editor DOM not ready, retrying binding init...");
+            console.warn("Editor DOM not ready, retrying binding init...");
             // Retry after a short delay
             setTimeout(() => {
               if (mounted) initBinding();
@@ -303,7 +303,7 @@ export function useYjs(
             return;
           }
         } catch (err) {
-          console.warn("⚠️ Error checking editor DOM:", err);
+          console.warn("Error checking editor DOM:", err);
           return;
         }
 
@@ -314,9 +314,7 @@ export function useYjs(
           // Verify editor is still available after async import
           const domNode = editor.getDomNode?.();
           if (!domNode) {
-            console.warn(
-              "⚠️ Editor DOM removed during import, skipping binding",
-            );
+            console.warn("Editor DOM removed during import, skipping binding");
             return;
           }
 
@@ -334,7 +332,7 @@ export function useYjs(
           if (!isInitialized && !hasContent) {
             const initialContent = files[activeFile] ?? "";
             if (initialContent) {
-              console.log(`💾 Initializing Yjs content for ${activeFile}`);
+              console.log(`Initializing Yjs content for ${activeFile}`);
               ytext.insert(0, initialContent);
             }
             ymap.set("initialized", true);
@@ -344,7 +342,7 @@ export function useYjs(
           } else if (shouldForceRefresh) {
             // Force refresh: overwrite Yjs content with current file content
             const newContent = files[activeFile] ?? "";
-            console.log(`🔄 Force refreshing Yjs content for ${activeFile}`);
+            console.log(`Force refreshing Yjs content for ${activeFile}`);
 
             // Clear existing content and insert new content
             if (ytext.length > 0) {
@@ -358,7 +356,7 @@ export function useYjs(
             // Normal sync: prefer Yjs content over local files
             const yjsContent = ytext.toString();
             if (yjsContent !== files[activeFile]) {
-              console.log(`🔄 Syncing local content from Yjs`);
+              console.log(`Syncing local content from Yjs`);
               files[activeFile] = yjsContent;
             }
           }
@@ -380,7 +378,7 @@ export function useYjs(
           ytext.observe(observer);
           ytextObserverRef.current = observer;
 
-          console.log(`✅ Yjs binding established for ${activeFile}`);
+          console.log(`Yjs binding established for ${activeFile}`);
         } catch (err) {
           if (process.env.NODE_ENV !== "test") {
             console.error("Failed to create MonacoBinding:", err);
@@ -429,7 +427,7 @@ export function useYjs(
           setPresence(states);
           updateRemoteCursorDecorations(states);
         } catch (err) {
-          console.warn("⚠️ Error in awareness change handler:", err);
+          console.warn("Error in awareness change handler:", err);
         }
       };
 
@@ -451,12 +449,12 @@ export function useYjs(
             column: e.position.column,
           });
         } catch (err) {
-          console.warn("⚠️ Error updating cursor position:", err);
+          console.warn("Error updating cursor position:", err);
         }
       });
       cursorListenerRef.current = cursorListener;
     } catch (err) {
-      console.error("🚨 Critical error in Yjs setup:", err);
+      console.error("Critical error in Yjs setup:", err);
       // Ensure cleanup even if setup fails
       cleanupAll();
     }
@@ -464,7 +462,7 @@ export function useYjs(
     // Cleanup on unmount or when dependencies change
     return () => {
       mounted = false;
-      console.log(`🛑 Unmounting Yjs for ${activeFile}`);
+      console.log(`Unmounting Yjs for ${activeFile}`);
       cleanupAll();
     };
   }, [

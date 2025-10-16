@@ -245,6 +245,7 @@ For production WebSocket testing, consider:
 Test plans are located in `jmeter-tests/test-plans/`. To modify:
 
 1. Open JMeter GUI:
+
    ```bash
    jmeter
    ```
@@ -272,11 +273,13 @@ Test plans are located in `jmeter-tests/test-plans/`. To modify:
 ## Best Practices
 
 1. **Start servers before testing**:
+
    ```bash
    npm run dev:all
    ```
 
 2. **Clean previous results**:
+
    ```bash
    npm run test:jmeter:clean
    ```
@@ -290,21 +293,26 @@ Test plans are located in `jmeter-tests/test-plans/`. To modify:
 ## Troubleshooting
 
 ### JMeter command not found
+
 Install Apache JMeter and ensure it's in your PATH.
 
 ### Connection refused errors
+
 - Verify all servers are running
 - Check ports are not blocked
 - Confirm URLs in test plans match your setup
 
 ### High error rates
+
 - Check server logs for issues
 - Reduce thread count/ramp-up time
 - Verify test data (users, projects) exists
 - Check authentication tokens/sessions
 
 ### Out of memory
+
 Increase JMeter heap size:
+
 ```bash
 export JVM_ARGS="-Xms512m -Xmx2048m"
 ```
