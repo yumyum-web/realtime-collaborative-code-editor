@@ -11,6 +11,7 @@ export { default as VersionControl } from "./models/VersionControl";
 export type {
   Member,
   ChatMessage,
+  AiChatMessage,
   FileEntity,
   ProjectDocument,
 } from "./models/project";

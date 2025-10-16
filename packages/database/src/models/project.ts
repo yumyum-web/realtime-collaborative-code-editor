@@ -38,6 +38,7 @@ export interface ProjectDocument extends Document {
   gitRepoPath?: string; // Path to Git repository (primary storage)
   lastSyncedAt?: Date; // Last time Git and MongoDB were synced
   chats: ChatMessage[];
+  aiChats: AiChatMessage[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,6 +50,16 @@ const ChatSchema = new Schema<ChatMessage>(
     senderEmail: { type: String, required: true },
     senderUsername: { type: String, required: true },
     message: { type: String, required: true },
+    timestamp: { type: Date, default: Date.now },
+  },
+  { _id: false },
+);
+
+const AiChatSchema = new Schema<AiChatMessage>(
+  {
+    role: { type: String, enum: ["user", "assistant"], required: true },
+    content: { type: String, required: true },
+    userEmail: { type: String, required: true },
     timestamp: { type: Date, default: Date.now },
   },
   { _id: false },
@@ -78,6 +89,7 @@ const ProjectSchema = new Schema<ProjectDocument>(
     // Last time Git and MongoDB were synced
     lastSyncedAt: { type: Date },
     chats: { type: [ChatSchema], default: [] },
+    aiChats: { type: [AiChatSchema], default: [] },
   },
   { timestamps: true },
 );
