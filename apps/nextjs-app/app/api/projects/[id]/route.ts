@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/app/lib/mongoose";
-import { Project, VersionControl } from "@repo/database";
+import { connectDB, Project, VersionControl } from "@repo/database";
 import type { FileEntity, ProjectDocument } from "@repo/database";
 import { getGitRepo, getRepoPath, readFilesFromRepo } from "@/app/lib/gitUtils";
 

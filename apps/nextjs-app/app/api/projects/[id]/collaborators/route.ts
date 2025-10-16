@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/app/lib/mongoose";
-import { Project, Invitation } from "@repo/database";
+import { connectDB, Project, Invitation } from "@repo/database";
 import sendEmail from "@/app/lib/email";
 
 export async function POST(

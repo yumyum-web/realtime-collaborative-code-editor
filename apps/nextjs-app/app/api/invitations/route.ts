@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/app/lib/mongoose";
-import { Invitation, Project, User } from "@repo/database";
+import { connectDB, Invitation, Project, User } from "@repo/database";
 
 // GET invitations for a user
 export async function GET(req: NextRequest) {
