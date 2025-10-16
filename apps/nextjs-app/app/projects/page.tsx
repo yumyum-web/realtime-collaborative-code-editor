@@ -31,9 +31,12 @@ import {
   Users,
   Calendar,
   LogOut,
+  Github,
 } from "lucide-react";
 import { useToast } from "@/app/hooks/use-toast";
 import { Toaster } from "@/app/components/ui/toaster";
+import { GitHubConnectButton } from "@/app/components/GitHubConnectButton";
+import { useGitHubOAuth } from "@/app/hooks/useGitHubOAuth";
 
 import LogoTitle from "../components/LogoTitle";
 
@@ -51,9 +54,17 @@ interface Invitation {
   collaboratorEmail: string;
 }
 
+interface GitHubRepo {
+  id: number;
+  name: string;
+  owner?: { login: string };
+  html_url: string;
+}
+
 export default function ProjectsPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { disconnectGitHub: oauthDisconnect } = useGitHubOAuth();
   const [user, setUser] = useState<{ username: string; email: string } | null>(
     null,
   );
@@ -70,6 +81,13 @@ export default function ProjectsPage() {
   const [editMode, setEditMode] = useState(false);
   const [newCollaborator, setNewCollaborator] = useState("");
   const userPopupRef = useRef<HTMLDivElement>(null);
+
+  // GitHub connection state
+  const [showGitHubModal, setShowGitHubModal] = useState(false);
+  const [githubToken, setGithubToken] = useState("");
+  const [githubProjectId, setGithubProjectId] = useState<string | null>(null);
+  const [githubLoading, setGithubLoading] = useState(false);
+  const [githubRepos, setGithubRepos] = useState<GitHubRepo[]>([]);
 
   // Auth bootstrap
   useEffect(() => {
@@ -152,6 +170,96 @@ export default function ProjectsPage() {
     setSelectedProject(null);
     setNewCollaborator("");
     setEditMode(false);
+  };
+
+  // GitHub connection handlers
+  const openGitHubModal = (projectId: string) => {
+    setGithubProjectId(projectId);
+    const savedToken = localStorage.getItem(`github_token_${projectId}`);
+    if (savedToken) {
+      setGithubToken(savedToken);
+      loadGitHubRepos(savedToken);
+    }
+    setShowGitHubModal(true);
+  };
+
+  const closeGitHubModal = () => {
+    setShowGitHubModal(false);
+    setGithubProjectId(null);
+    setGithubToken("");
+    setGithubRepos([]);
+  };
+
+  const handleConnectGitHub = async () => {
+    if (!githubToken.trim() || !githubProjectId) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid GitHub token",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setGithubLoading(true);
+    try {
+      const res = await fetch(`/api/github?token=${githubToken}`);
+      if (!res.ok) throw new Error("Failed to connect to GitHub");
+
+      const repos = await res.json();
+      setGithubRepos(repos);
+
+      // Save token to localStorage
+      localStorage.setItem(`github_token_${githubProjectId}`, githubToken);
+
+      toast({
+        title: "Success",
+        description: `Connected to GitHub! Found ${repos.length} repositories.`,
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to connect to GitHub. Please check your token.",
+        variant: "destructive",
+      });
+    } finally {
+      setGithubLoading(false);
+    }
+  };
+
+  const loadGitHubRepos = async (token: string) => {
+    setGithubLoading(true);
+    try {
+      const res = await fetch(`/api/github?token=${token}`);
+      if (res.ok) {
+        const repos = await res.json();
+        setGithubRepos(repos);
+      }
+    } catch {
+      // Silently fail - user can retry
+    } finally {
+      setGithubLoading(false);
+    }
+  };
+
+  const handleDisconnectGitHub = async () => {
+    if (!githubProjectId) return;
+
+    // Disconnect OAuth if used
+    await oauthDisconnect(githubProjectId);
+
+    // Also clear localStorage (for backward compatibility with manual tokens)
+    localStorage.removeItem(`github_token_${githubProjectId}`);
+    localStorage.removeItem(`github_repo_${githubProjectId}`);
+
+    setGithubToken("");
+    setGithubRepos([]);
+
+    toast({
+      title: "Disconnected",
+      description: "GitHub connection removed for this project.",
+    });
+
+    closeGitHubModal();
   };
 
   const isOwner = selectedProject && user?.email === selectedProject.owner;
@@ -528,6 +636,31 @@ export default function ProjectsPage() {
                         More
                       </Button>
                     </div>
+
+                    {/* GitHub Connection Indicator */}
+                    <div className="pt-2 mt-2 border-t border-border">
+                      {localStorage.getItem(`github_token_${project._id}`) ? (
+                        <button
+                          onClick={() => openGitHubModal(project._id)}
+                          className="flex items-center gap-2 text-xs text-green-600 hover:text-green-700 transition-colors w-full"
+                        >
+                          <Github className="h-3 w-3" />
+                          <span>GitHub Connected</span>
+                          <span className="ml-auto text-gray-500">
+                            • Click to manage
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => openGitHubModal(project._id)}
+                          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors w-full"
+                        >
+                          <Github className="h-3 w-3" />
+                          <span>Connect GitHub</span>
+                          <span className="ml-auto">→</span>
+                        </button>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -744,6 +877,212 @@ export default function ProjectsPage() {
               >
                 Close
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* GitHub Connection Modal */}
+      {showGitHubModal && githubProjectId && (
+        <Dialog open={showGitHubModal} onOpenChange={setShowGitHubModal}>
+          <DialogContent className="max-w-2xl border border-primary shadow-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-primary">
+                <Github className="h-5 w-5" />
+                GitHub Integration
+              </DialogTitle>
+              <DialogDescription>
+                Connect your GitHub account to sync repositories and view commit
+                history.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6">
+              {/* Connection Status */}
+              {githubToken && githubRepos.length > 0 ? (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-green-700 mb-2">
+                    <Github className="h-5 w-5" />
+                    <span className="font-semibold">Connected to GitHub</span>
+                  </div>
+                  <p className="text-sm text-green-600">
+                    Found {githubRepos.length} repositories in your account.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* OAuth Connection (Recommended) */}
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-lg p-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                        RECOMMENDED
+                      </span>
+                      <p className="text-sm font-semibold text-blue-900">
+                        One-Click Connection
+                      </p>
+                    </div>
+                    <p className="text-sm text-blue-700 mb-4">
+                      Connect securely with GitHub OAuth (like Gmail sign-in)
+                    </p>
+                    <GitHubConnectButton
+                      projectId={githubProjectId || undefined}
+                      mode="popup"
+                      variant="default"
+                      size="lg"
+                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                      onConnect={() => {
+                        toast({
+                          title: "Connecting...",
+                          description: "Opening GitHub authentication...",
+                        });
+                      }}
+                    />
+                  </div>
+
+                  {/* Divider */}
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-white text-gray-500">
+                        Or use manual token
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Manual Token (Fallback) */}
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <p className="text-sm text-gray-700 mb-2">
+                      <strong>Manual Setup:</strong>
+                    </p>
+                    <ol className="text-sm text-gray-600 list-decimal list-inside space-y-1 mb-3">
+                      <li>
+                        Go to{" "}
+                        <a
+                          href="https://github.com/settings/tokens"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline text-blue-600"
+                        >
+                          GitHub Settings → Tokens
+                        </a>
+                      </li>
+                      <li>
+                        Create a new token with{" "}
+                        <code className="bg-gray-200 px-1 rounded">repo</code>{" "}
+                        scope
+                      </li>
+                      <li>Paste the token below</li>
+                    </ol>
+                  </div>
+                </div>
+              )}
+
+              {/* Token Input (only show if not using OAuth or for manual mode) */}
+              {!githubRepos.length && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-500">
+                    Manual Token (Optional)
+                  </label>
+                  <Input
+                    type="password"
+                    value={githubToken}
+                    onChange={(e) => setGithubToken(e.target.value)}
+                    placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                    className="font-mono text-sm border-primary"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Your token is stored locally and only used to communicate
+                    with GitHub.
+                  </p>
+                </div>
+              )}
+
+              {/* Repository List (if connected) */}
+              {githubRepos.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Your Repositories ({githubRepos.length})
+                  </label>
+                  <div className="max-h-48 overflow-y-auto border rounded-lg p-2 space-y-1">
+                    {githubRepos.slice(0, 10).map((repo) => (
+                      <div
+                        key={repo.id}
+                        className="text-xs p-2 hover:bg-gray-100 rounded flex items-center justify-between"
+                      >
+                        <span className="font-mono">
+                          {repo.owner?.login}/{repo.name}
+                        </span>
+                        <a
+                          href={repo.html_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-500 hover:underline"
+                        >
+                          View →
+                        </a>
+                      </div>
+                    ))}
+                    {githubRepos.length > 10 && (
+                      <p className="text-xs text-gray-500 text-center pt-2">
+                        ...and {githubRepos.length - 10} more. Open in editor to
+                        see all.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t">
+                {githubToken && githubRepos.length > 0 ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        window.open(`/editor/${githubProjectId}`, "_blank");
+                        closeGitHubModal();
+                      }}
+                      className="border-primary"
+                    >
+                      Open in Editor
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={handleDisconnectGitHub}
+                    >
+                      Disconnect
+                    </Button>
+                    <Button variant="ghost" onClick={closeGitHubModal}>
+                      Close
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      onClick={handleConnectGitHub}
+                      disabled={!githubToken.trim() || githubLoading}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                    >
+                      {githubLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Connecting...
+                        </>
+                      ) : (
+                        <>
+                          <Github className="h-4 w-4 mr-2" />
+                          Connect GitHub
+                        </>
+                      )}
+                    </Button>
+                    <Button variant="ghost" onClick={closeGitHubModal}>
+                      Cancel
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           </DialogContent>
         </Dialog>

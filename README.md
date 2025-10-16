@@ -1,5 +1,26 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## ✨ Features
+
+- 🔄 **Real-time Collaboration**: Edit code simultaneously with multiple users
+- 📝 **Monaco Editor**: Full-featured code editor with syntax highlighting
+- 🌳 **File Tree Management**: Create, edit, and organize project files
+- 💬 **Team Chat**: Integrated messaging for better collaboration
+- 🤖 **AI Assistant**: AI-powered code suggestions and chat
+- 🔀 **Local Git Version Control**: Branch management, commits, and merges
+- 🐙 **GitHub Integration**: Connect to GitHub, create repos, view commits (NEW!)
+- 👥 **Project Collaboration**: Invite team members and manage access
+
+## 🚀 GitHub Integration
+
+CollabCode now supports full GitHub integration! Connect your GitHub account to:
+
+- Create new repositories directly from the editor
+- View commit history from your GitHub repos
+- Sync your collaborative work with GitHub (push/pull coming soon)
+
+See [GITHUB_INTEGRATION.md](./GITHUB_INTEGRATION.md) for setup instructions.
+
 ## Getting Started
 
 First, install dependencies:
