@@ -20,7 +20,6 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   // Load chat history on mount
   useEffect(() => {
@@ -103,8 +102,6 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       await saveMessage("assistant", errorMsg.content);
     }
     setLoading(false);
-    // Refocus the input field after sending message
-    inputRef.current?.focus();
   };
 
   return (
@@ -174,29 +171,23 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
         )}
         <div ref={messagesEndRef} />
       </div>
-      <form
-        className="p-3 border-t border-gray-700 flex gap-2 bg-card"
-        onSubmit={(e) => {
-          e.preventDefault();
-          sendMessage();
-        }}
-      >
+      <div className="p-3 border-t border-gray-700 flex gap-2 bg-card">
         <input
-          ref={inputRef}
           className="flex-1 rounded bg-gray-800 text-white px-3 py-2 outline-none"
           placeholder="Ask AI for code help..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && !loading && sendMessage()}
           disabled={loading}
         />
         <button
-          type="submit"
-          className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all"
-          disabled={loading}
+          onClick={sendMessage}
+          className="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium transition-all"
+          disabled={loading || !input.trim()}
         >
           {loading ? "..." : "Send"}
         </button>
-      </form>
+      </div>
     </div>
   );
 };
