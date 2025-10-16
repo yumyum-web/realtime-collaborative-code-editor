@@ -1,8 +1,7 @@
 // src/app/api/projects/[id]/version-control/structure/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/app/lib/mongoose";
-import { VersionControl } from "@repo/database";
+import { connectDB, VersionControl } from "@repo/database";
 import type { Branch } from "@repo/database";
 
 // GET: Get structure for a specific branch

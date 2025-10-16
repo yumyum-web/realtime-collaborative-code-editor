@@ -40,9 +40,11 @@ describe("mongoose utility", () => {
     });
 
     it("should throw error if MONGO_URI is not defined", async () => {
-      process.env.MONGO_URI = "";
+      delete process.env.MONGO_URI;
 
-      await expect(import("../connectDB")).rejects.toThrow(
+      const { default: connectDB } = await import("../connectDB");
+
+      await expect(connectDB()).rejects.toThrow(
         "Please define the MONGO_URI environment variable.",
       );
     });

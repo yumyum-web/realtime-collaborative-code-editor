@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "../../../lib/mongoose";
-import { Invitation, User, Project } from "@repo/database";
+import { connectDB, Invitation, User, Project } from "@repo/database";
 
 // POST /api/invitations/accept?token=INVITATION_ID
 export async function POST(req: NextRequest) {

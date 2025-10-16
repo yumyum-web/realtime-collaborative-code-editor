@@ -1,10 +1,5 @@
 import mongoose from "mongoose";
 
-// Validate MONGO_URI is defined
-if (!process.env.MONGO_URI) {
-  throw new Error("Please define the MONGO_URI environment variable.");
-}
-
 // Global caching for mongoose connection
 type MongooseCache = {
   conn: typeof mongoose | null;
@@ -23,6 +18,11 @@ if (!cached) {
 }
 
 const connectDB = async () => {
+  // Validate MONGO_URI is defined
+  if (!process.env.MONGO_URI) {
+    throw new Error("Please define the MONGO_URI environment variable.");
+  }
+
   // If already connected, return cached connection
   if (cached.conn) {
     return cached.conn;

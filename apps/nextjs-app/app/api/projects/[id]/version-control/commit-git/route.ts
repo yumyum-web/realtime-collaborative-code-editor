@@ -1,8 +1,7 @@
 // Enhanced Commit API with Git Integration + Socket.IO notifications
 
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/app/lib/mongoose";
-import { Project } from "@repo/database";
+import { connectDB, Project } from "@repo/database";
 import { getGitRepo, writeFilesToRepo } from "@/app/lib/gitUtils";
 import { emitSocketEvent } from "@/app/lib/socketio";
 

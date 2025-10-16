@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/app/lib/mongoose";
-import Project, { ProjectDocument } from "@/app/models/project";
+import { connectDB, Project } from "@repo/database";
+import type { ProjectDocument } from "@repo/database";
 
 export async function PUT(
   req: NextRequest,

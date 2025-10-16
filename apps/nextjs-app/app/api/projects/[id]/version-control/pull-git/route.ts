@@ -1,8 +1,7 @@
 // Pull Changes API - Fetch updates from Git repository
 
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/app/lib/mongoose";
-import { Project } from "@repo/database";
+import { connectDB, Project } from "@repo/database";
 import { getGitRepo, readFilesFromRepo } from "@/app/lib/gitUtils";
 import { emitSocketEvent } from "@/app/lib/socketio";
 

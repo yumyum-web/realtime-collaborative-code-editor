@@ -1,7 +1,7 @@
 // Enhanced Merge API with Git Integration
 
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/app/lib/mongoose";
+import { connectDB } from "@repo/database";
 import { SimpleGit } from "simple-git";
 import {
   getGitRepo,

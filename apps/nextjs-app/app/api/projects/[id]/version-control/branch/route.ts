@@ -1,8 +1,7 @@
 // src/app/api/projects/[id]/version-control/branch/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/app/lib/mongoose";
-import { VersionControl, Project } from "@repo/database";
+import { connectDB, VersionControl, Project } from "@repo/database";
 import type {
   Branch,
   VersionControlDocument,

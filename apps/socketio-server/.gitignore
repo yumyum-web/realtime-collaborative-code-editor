@@ -1,5 +1,8 @@
 /node_modules
 
+# Backup files
+/dist
+
 # env files
 .env*
 
