@@ -20,6 +20,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Load chat history on mount
   useEffect(() => {
@@ -102,6 +103,8 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       await saveMessage("assistant", errorMsg.content);
     }
     setLoading(false);
+    // Refocus the input field after sending message
+    inputRef.current?.focus();
   };
 
   return (
@@ -179,6 +182,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
         }}
       >
         <input
+          ref={inputRef}
           className="flex-1 rounded bg-gray-800 text-white px-3 py-2 outline-none"
           placeholder="Ask AI for code help..."
           value={input}
