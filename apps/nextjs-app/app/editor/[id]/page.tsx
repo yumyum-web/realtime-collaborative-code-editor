@@ -942,7 +942,13 @@ export default function EditorPage() {
           />
         )}
 
-        {aiChatOpen && <AiChatPanel onClose={() => setAiChatOpen(false)} />}
+        {aiChatOpen && (
+          <AiChatPanel
+            projectId={projectId}
+            userEmail={user?.email || ""}
+            onClose={() => setAiChatOpen(false)}
+          />
+        )}
 
         {vcOpen && (
           <div className="h-full flex flex-col">
