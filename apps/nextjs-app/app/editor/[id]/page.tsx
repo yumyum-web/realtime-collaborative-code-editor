@@ -6,6 +6,7 @@ import type * as Monaco from "monaco-editor";
 import { useParams } from "next/navigation";
 import { VscComment } from "react-icons/vsc";
 import { VscGitCommit, VscHistory, VscGitMerge } from "react-icons/vsc";
+import { Bot } from "lucide-react";
 
 import type {
   ChatMessage,
@@ -887,7 +888,7 @@ export default function EditorPage() {
           }}
           title="Open AI Assistant"
         >
-          <span className="font-bold text-lg">AI</span>
+          <Bot className="w-5 h-5" />
         </button>
 
         {/* Git History Button */}
@@ -900,6 +901,7 @@ export default function EditorPage() {
               setShowGitPanel(!showGitPanel);
               setChatOpen(false);
               setVcOpen(false);
+              setAiChatOpen(false);
             }}
             title="Git History"
           >
@@ -916,6 +918,7 @@ export default function EditorPage() {
             setVcOpen(!vcOpen);
             setChatOpen(false);
             setShowGitPanel(false);
+            setAiChatOpen(false);
           }}
           title="Version Control"
         >
@@ -942,7 +945,13 @@ export default function EditorPage() {
           />
         )}
 
-        {aiChatOpen && <AiChatPanel onClose={() => setAiChatOpen(false)} />}
+        {aiChatOpen && (
+          <AiChatPanel
+            projectId={projectId}
+            userEmail={user?.email || ""}
+            onClose={() => setAiChatOpen(false)}
+          />
+        )}
 
         {vcOpen && (
           <div className="h-full flex flex-col">
