@@ -1,12 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
 import { VscSend, VscAccount } from "react-icons/vsc";
-import { Bot, AlertTriangle } from "lucide-react";
+import { Bot } from "lucide-react";
 
 interface AiChatMessage {
   role: "user" | "assistant";
   content: string;
-  userEmail: string;
-  timestamp: Date;
 }
 
 interface AiChatPanelProps {
@@ -23,7 +21,6 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   const [messages, setMessages] = useState<AiChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [validationWarning, setValidationWarning] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -79,124 +76,68 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     }
   }, [messages, isUserAtBottom]);
 
-  // Frontend validation for coding-related questions
-  const validateCodingQuestion = (message: string): boolean => {
-    const codingKeywords = [
-      "code",
-      "function",
-      "class",
-      "variable",
-      "error",
-      "bug",
-      "debug",
-      "syntax",
-      "algorithm",
-      "programming",
-      "javascript",
-      "typescript",
-      "react",
-      "node",
-      "api",
-      "database",
-      "query",
-      "component",
-      "state",
-      "props",
-      "import",
-      "export",
-      "async",
-      "await",
-      "promise",
-      "array",
-      "object",
-      "string",
-      "number",
-      "boolean",
-      "loop",
-      "condition",
-      "git",
-      "version",
-      "merge",
-      "commit",
-      "branch",
-      "file",
-      "folder",
-      "path",
-      "module",
-      "package",
-      "html",
-      "css",
-      "python",
-      "java",
-      "c++",
-      "php",
-      "sql",
-      "json",
-      "xml",
-    ];
-
-    return codingKeywords.some((keyword) =>
-      message.toLowerCase().includes(keyword),
-    );
+  // Save a message to the database
+  const saveMessage = async (role: "user" | "assistant", content: string) => {
+    try {
+      await fetch(`/api/projects/${projectId}/ai-chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role, content, userEmail }),
+      });
+    } catch (error) {
+      console.error("Failed to save AI chat message:", error);
+    }
   };
 
   const sendMessage = async () => {
     if (!input.trim()) return;
-
-    // Frontend validation
-    if (!validateCodingQuestion(input) && input.length > 10) {
-      setValidationWarning(
-        "Please ask a coding or programming related question. I can only help with technical and development topics.",
-      );
-      return;
-    }
-
-    setValidationWarning(""); // Clear any previous warnings
-    setLoading(true);
-    const messageToSend = input; // Store the message before clearing
+    const userMsg: AiChatMessage = { role: "user", content: input };
+    const promptText = input;
+    setMessages((msgs) => [...msgs, userMsg]);
     setInput("");
+    setLoading(true);
     // Always scroll to bottom when user sends a message
     setIsUserAtBottom(true);
 
+    // Save user message to database
+    await saveMessage("user", userMsg.content);
+
     try {
-      const res = await fetch(`/api/projects/${projectId}/ai-chat`, {
+      const res = await fetch("/api/ai-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userMessage: messageToSend, userEmail }),
+        body: JSON.stringify({ prompt: promptText }),
       });
-
       const data = await res.json();
 
       if (!res.ok) {
-        // Handle different error types
-        if (res.status === 429) {
-          setValidationWarning(
-            "Rate limit exceeded. Please wait a minute before sending another message.",
-          );
-        } else if (data.error) {
-          setValidationWarning(data.error);
-        } else {
-          throw new Error(data.error || "Failed to get AI response");
-        }
-        setLoading(false);
-        return;
-      }
-
-      // Add both messages to the chat
-      if (data.userMessage && data.aiMessage) {
-        setMessages((msgs) => [...msgs, data.userMessage, data.aiMessage]);
+        console.error("AI API error:", data);
+        const errorMsg = {
+          role: "assistant" as const,
+          content: ` Error: ${data.error || "Unknown error"}`,
+        };
+        setMessages((msgs) => [...msgs, errorMsg]);
+        // Save error message to database
+        await saveMessage("assistant", errorMsg.content);
+      } else {
+        const assistantMsg = {
+          role: "assistant" as const,
+          content: data.response || "(No response)",
+        };
+        setMessages((msgs) => [...msgs, assistantMsg]);
+        // Save assistant response to database
+        await saveMessage("assistant", assistantMsg.content);
       }
     } catch (error) {
       console.error("AI chat error:", error);
-      const errorMsg: AiChatMessage = {
-        role: "assistant",
-        content: "Error contacting AI. Check console for details.",
-        userEmail: "assistant",
-        timestamp: new Date(),
+      const errorMsg = {
+        role: "assistant" as const,
+        content: " Error contacting AI. Check console for details.",
       };
       setMessages((msgs) => [...msgs, errorMsg]);
+      // Save error message to database
+      await saveMessage("assistant", errorMsg.content);
     }
-
     setLoading(false);
     // Refocus input after AI responds
     inputRef.current?.focus();
@@ -309,23 +250,12 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
 
       {/* Message Input - Absolutely positioned at bottom */}
       <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-gray-700 bg-card">
-        {validationWarning && (
-          <div className="mb-2 p-2 bg-yellow-900/50 border border-yellow-600 rounded-lg flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
-            <p className="text-yellow-200 text-xs leading-relaxed">
-              {validationWarning}
-            </p>
-          </div>
-        )}
         <div className="flex gap-2">
           <input
             ref={inputRef}
             className="flex-1 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
             value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              if (validationWarning) setValidationWarning(""); // Clear warning when user types
-            }}
+            onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !loading && sendMessage()}
             placeholder="Ask AI for code help..."
           />
