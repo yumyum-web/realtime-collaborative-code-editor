@@ -15,6 +15,13 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
+export interface AiChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  userEmail: string;
+  timestamp: Date;
+}
+
 // Define FileEntity for the project structure (optional, as we use Schema.Types.Mixed)
 export type FileEntity = {
   name: string;
