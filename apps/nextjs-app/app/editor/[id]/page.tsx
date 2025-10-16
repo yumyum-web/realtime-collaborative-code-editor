@@ -6,6 +6,7 @@ import type * as Monaco from "monaco-editor";
 import { useParams } from "next/navigation";
 import { VscComment } from "react-icons/vsc";
 import { VscGitCommit, VscHistory, VscGitMerge } from "react-icons/vsc";
+import { Bot } from "lucide-react";
 
 import type {
   ChatMessage,
@@ -887,7 +888,7 @@ export default function EditorPage() {
           }}
           title="Open AI Assistant"
         >
-          <span className="font-bold text-lg">AI</span>
+          <Bot className="w-5 h-5" />
         </button>
 
         {/* Git History Button */}

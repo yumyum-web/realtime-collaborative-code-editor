@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { VscSend, VscAccount, VscSymbolMisc } from "react-icons/vsc";
+import { VscSend, VscAccount } from "react-icons/vsc";
+import { Bot } from "lucide-react";
 
 interface AiChatMessage {
   role: "user" | "assistant";
@@ -147,7 +148,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
       {/* Header */}
       <div className="flex justify-between items-center p-3 border-b border-gray-700 flex-shrink-0 bg-card">
         <div className="flex items-center gap-3 h-8">
-          <VscSymbolMisc className="w-5 h-5 text-white" />
+          <Bot className="w-5 h-5 text-white" />
           <h3 className="text-lg font-bold text-white">AI Assistant</h3>
         </div>
         <button
@@ -195,7 +196,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
                   >
                     {!isCurrentUser && (
                       <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0 bg-purple-500">
-                        <VscSymbolMisc className="w-3.5 h-3.5" />
+                        <Bot className="w-3.5 h-3.5" />
                       </div>
                     )}
                     <div
@@ -228,9 +229,11 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
             <div className="max-w-xs lg:max-w-md order-1">
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0 bg-purple-500">
-                  <VscSymbolMisc className="w-3.5 h-3.5" />
+                  <Bot className="w-3.5 h-3.5" />
                 </div>
-                <div className="font-medium text-xs text-gray-300">AI Assistant</div>
+                <div className="font-medium text-xs text-gray-300">
+                  AI Assistant
+                </div>
               </div>
               <div className="p-2 rounded-lg text-sm leading-relaxed bg-white/20 text-gray-200 mr-8">
                 <div className="flex items-center gap-2">
