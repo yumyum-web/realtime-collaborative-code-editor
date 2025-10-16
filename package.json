@@ -42,5 +42,8 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "dependencies": {
+    "@octokit/rest": "^22.0.0"
+  }
 }
