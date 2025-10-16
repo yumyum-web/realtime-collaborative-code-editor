@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { VscSend, VscAccount, VscSymbolMisc } from "react-icons/vsc";
 
 interface AiChatMessage {
   role: "user" | "assistant";
@@ -142,14 +143,16 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-900 border-l border-gray-700">
-      <div className="flex items-center justify-between p-3 border-b border-gray-700 bg-card">
-        <h3 className="text-base font-semibold text-white flex items-center gap-2">
-          🤖 AI Assistant
-        </h3>
+    <div className="h-full bg-sidebar border-l border-gray-700 flex flex-col relative">
+      {/* Header */}
+      <div className="flex justify-between items-center p-3 border-b border-gray-700 flex-shrink-0 bg-card">
+        <div className="flex items-center gap-3 h-8">
+          <VscSymbolMisc className="w-5 h-5 text-white" />
+          <h3 className="text-lg font-bold text-white">AI Assistant</h3>
+        </div>
         <button
+          className="text-gray-400 hover:text-gray-200 p-1.5 rounded-lg hover:bg-gray-700 transition-colors"
           onClick={onClose}
-          className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
         >
           <svg
             className="w-5 h-5"
@@ -166,68 +169,101 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
           </svg>
         </button>
       </div>
+
+      {/* Chat Messages - Scrollable (with bottom padding for input) */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4"
+        className="flex-1 overflow-y-auto p-3 pb-20 min-h-0 space-y-3"
       >
-        {messages.length === 0 && (
-          <div className="text-gray-400 text-center py-8">
-            <p>👋 Ask me anything about code!</p>
-            <p className="text-sm mt-2">
-              Try: &quot;give me insertion sort in python&quot;
-            </p>
+        {messages.length === 0 ? (
+          <div className="text-center text-gray-500 py-6">
+            <p className="text-xs">No messages yet. Start the conversation!</p>
           </div>
+        ) : (
+          messages.map((msg, i) => {
+            const isCurrentUser = msg.role === "user";
+            return (
+              <div
+                key={i}
+                className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-xs lg:max-w-md ${isCurrentUser ? "order-2" : "order-1"}`}
+                >
+                  <div
+                    className={`flex items-center gap-2 mb-1 ${isCurrentUser ? "justify-end" : "justify-start"}`}
+                  >
+                    {!isCurrentUser && (
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0 bg-purple-500">
+                        <VscSymbolMisc className="w-3.5 h-3.5" />
+                      </div>
+                    )}
+                    <div
+                      className={`font-medium text-xs ${isCurrentUser ? "text-blue-300" : "text-gray-300"}`}
+                    >
+                      {isCurrentUser ? "You" : "AI Assistant"}
+                    </div>
+                    {isCurrentUser && (
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0 bg-blue-500">
+                        <VscAccount className="w-3.5 h-3.5" />
+                      </div>
+                    )}
+                  </div>
+                  <div
+                    className={`p-2 rounded-lg text-sm leading-relaxed ${
+                      isCurrentUser
+                        ? "bg-white/20 text-white ml-8"
+                        : "bg-white/20 text-gray-200 mr-8"
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
+                </div>
+              </div>
+            );
+          })
         )}
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-          >
-            <div
-              className={`max-w-[85%] rounded-lg p-3 ${
-                msg.role === "user"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-800 text-gray-100"
-              }`}
-            >
-              <div className="text-xs font-semibold mb-1 opacity-70">
-                {msg.role === "user" ? "You" : "🤖 AI Assistant"}
-              </div>
-              <div className="whitespace-pre-wrap break-words">
-                {msg.content}
-              </div>
-            </div>
-          </div>
-        ))}
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-gray-800 text-gray-100 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <div className="animate-pulse">🤖</div>
-                <span>Thinking...</span>
+            <div className="max-w-xs lg:max-w-md order-1">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0 bg-purple-500">
+                  <VscSymbolMisc className="w-3.5 h-3.5" />
+                </div>
+                <div className="font-medium text-xs text-gray-300">AI Assistant</div>
+              </div>
+              <div className="p-2 rounded-lg text-sm leading-relaxed bg-white/20 text-gray-200 mr-8">
+                <div className="flex items-center gap-2">
+                  <div className="animate-pulse">⚡</div>
+                  <span>Thinking...</span>
+                </div>
               </div>
             </div>
           </div>
         )}
+        {/* Invisible element to scroll to */}
         <div ref={messagesEndRef} />
       </div>
-      <div className="p-3 border-t border-gray-700 flex gap-2 bg-card">
-        <input
-          ref={inputRef}
-          className="flex-1 rounded bg-gray-800 text-white px-3 py-2 outline-none"
-          placeholder="Ask AI for code help..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !loading && sendMessage()}
-          disabled={loading}
-        />
-        <button
-          onClick={sendMessage}
-          className="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium transition-all"
-          disabled={loading || !input.trim()}
-        >
-          {loading ? "..." : "Send"}
-        </button>
+
+      {/* Message Input - Absolutely positioned at bottom */}
+      <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-gray-700 bg-card">
+        <div className="flex gap-2">
+          <input
+            ref={inputRef}
+            className="flex-1 p-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && !loading && sendMessage()}
+            placeholder="Ask AI for code help..."
+          />
+          <button
+            onClick={sendMessage}
+            disabled={loading || !input.trim()}
+            className="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg flex items-center justify-center transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg"
+          >
+            <VscSend className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
