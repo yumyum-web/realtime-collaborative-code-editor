@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/app/lib/mongoose";
+import { connectDB } from "@repo/database";
 import { getGitRepo } from "@/app/lib/gitUtils";
 
 // GET: Get detailed information about a specific commit

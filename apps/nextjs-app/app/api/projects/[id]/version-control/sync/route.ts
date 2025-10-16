@@ -1,7 +1,7 @@
 // Sync API - Sync current workspace with Git repository
 
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/app/lib/mongoose";
+import { connectDB } from "@repo/database";
 import { getGitRepo, writeFilesToRepo } from "@/app/lib/gitUtils";
 
 // POST: Sync workspace - save current changes to Git
