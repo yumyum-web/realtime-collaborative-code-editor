@@ -20,7 +20,9 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isUserAtBottom, setIsUserAtBottom] = useState(true);
 
   // Load chat history on mount
   useEffect(() => {
@@ -30,6 +32,8 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
         if (res.ok) {
           const data = await res.json();
           setMessages(data.aiChats || []);
+          // Set user at bottom when messages load
+          setIsUserAtBottom(true);
         }
       } catch (error) {
         console.error("Failed to load AI chat history:", error);
@@ -38,9 +42,37 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     loadChatHistory();
   }, [projectId]);
 
+  // Check if user is at bottom of chat
+  const checkIfAtBottom = () => {
+    if (messagesContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } =
+        messagesContainerRef.current;
+      const atBottom = scrollTop + clientHeight >= scrollHeight - 10; // 10px tolerance
+      setIsUserAtBottom(atBottom);
+    }
+  };
+
+  // Handle scroll events
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.addEventListener("scroll", checkIfAtBottom);
+      return () => container.removeEventListener("scroll", checkIfAtBottom);
+    }
+  }, []);
+
+  // Auto-scroll logic
+  useEffect(() => {
+    if (messagesContainerRef.current && isUserAtBottom) {
+      // Use setTimeout to ensure DOM has updated
+      setTimeout(() => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop =
+            messagesContainerRef.current.scrollHeight;
+        }
+      }, 0);
+    }
+  }, [messages, isUserAtBottom]);
 
   // Save a message to the database
   const saveMessage = async (role: "user" | "assistant", content: string) => {
@@ -62,6 +94,8 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
     setMessages((msgs) => [...msgs, userMsg]);
     setInput("");
     setLoading(true);
+    // Always scroll to bottom when user sends a message
+    setIsUserAtBottom(true);
 
     // Save user message to database
     await saveMessage("user", userMsg.content);
@@ -132,7 +166,10 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({
           </svg>
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto p-4 space-y-4"
+      >
         {messages.length === 0 && (
           <div className="text-gray-400 text-center py-8">
             <p>👋 Ask me anything about code!</p>
