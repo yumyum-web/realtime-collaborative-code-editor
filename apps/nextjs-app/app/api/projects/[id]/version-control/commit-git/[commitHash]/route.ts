@@ -5,11 +5,11 @@ import { getGitRepo } from "@/app/lib/gitUtils";
 // GET: Get detailed information about a specific commit
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string; commitHash: string }> },
+  { params }: { params: { id: string; commitHash: string } },
 ) {
   try {
     await connectDB();
-    const { id: projectId, commitHash } = await params;
+    const { id: projectId, commitHash } = params;
 
     if (!commitHash) {
       return NextResponse.json(
