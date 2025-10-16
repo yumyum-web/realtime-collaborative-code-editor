@@ -31,7 +31,6 @@ RUN adduser --system --uid 1001 yjs
 # Copy necessary files
 COPY --from=deps /app/apps/yjs-server/package.json ./
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/yjs-server/node_modules ./node_modules
 
 USER yjs
 
