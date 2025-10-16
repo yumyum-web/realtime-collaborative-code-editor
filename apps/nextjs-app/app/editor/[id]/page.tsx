@@ -901,6 +901,7 @@ export default function EditorPage() {
               setShowGitPanel(!showGitPanel);
               setChatOpen(false);
               setVcOpen(false);
+              setAiChatOpen(false);
             }}
             title="Git History"
           >
@@ -917,6 +918,7 @@ export default function EditorPage() {
             setVcOpen(!vcOpen);
             setChatOpen(false);
             setShowGitPanel(false);
+            setAiChatOpen(false);
           }}
           title="Version Control"
         >
