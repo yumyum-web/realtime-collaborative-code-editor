@@ -33,6 +33,7 @@ import {
   LogOut,
   Folder,
   Mail,
+  User,
 } from "lucide-react";
 import { useToast } from "@/app/hooks/use-toast";
 import { Toaster } from "@/app/components/ui/toaster";
@@ -391,23 +392,26 @@ export default function ProjectsPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col ml-64">
         {/* Header */}
-        <header className="bg-card border-b border-border shadow-md p-6 flex justify-between items-center">
+        <header className="sticky top-0 z-20 bg-card border-b border-border shadow-md p-6 flex justify-between items-center">
           <h2 className="text-3xl font-serif font-semibold tracking-tight">
             Projects
           </h2>
 
-          <div className="relative" ref={userPopupRef}>
+          <div className="relative flex items-center gap-3" ref={userPopupRef}>
+            <span className="hidden sm:inline text-sm font-medium text-foreground">
+              Hi, {user?.username || "User"}
+            </span>
             <Avatar
               className="cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all"
               onClick={() => setShowUserPopup(!showUserPopup)}
             >
               <AvatarFallback className="bg-primary text-primary-foreground">
-                {user?.username?.charAt(0)?.toUpperCase() || "U"}
+                <User className="h-4 w-4" />
               </AvatarFallback>
             </Avatar>
 
             {showUserPopup && user && (
-              <Card className="absolute right-0 mt-2 w-56 z-50 border border-primary shadow-lg">
+              <Card className="absolute right-0 top-full mt-1 w-56 z-50 border border-primary shadow-lg">
                 <CardContent className="p-4">
                   <p className="font-medium text-foreground">{user.username}</p>
                   <p className="text-sm text-muted-foreground">{user.email}</p>
@@ -427,7 +431,7 @@ export default function ProjectsPage() {
         </header>
 
         {/* Content */}
-        <main className="p-6">
+        <main className="p-6 flex-1">
           {/* Search and New Project */}
           <div className="mb-6 flex items-center gap-4 justify-between">
             <div className="relative flex-1 max-w-md">
