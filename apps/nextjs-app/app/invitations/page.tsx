@@ -136,7 +136,7 @@ export default function InvitationsPage() {
         <nav className="space-y-2 flex-1">
           <Button
             variant="ghost"
-            className="w-full justify-start text-lg hover:bg-primary hover:text-primary-foreground transition-all"
+            className="w-full justify-start text-sm hover:bg-primary hover:text-primary-foreground transition-all"
             onClick={() => router.push("/projects")}
           >
             <Folder className="h-5 w-5 mr-3" />
@@ -144,7 +144,7 @@ export default function InvitationsPage() {
           </Button>
           <Button
             variant="default"
-            className="w-full bg-primary justify-between text-lg hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer"
+            className="w-full bg-primary justify-between text-sm hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer"
             onClick={() => router.push("/invitations")}
           >
             <div className="flex items-center">
