@@ -640,7 +640,7 @@ export default function EditorPage() {
         {/* Sidebar Header */}
         <div className="p-4 flex items-center justify-center min-h-[60px] relative bg-card">
           {!sidebarCollapsed && (
-            <h2 className="text-lg font-bold truncate text-center text-teal-400">
+            <h2 className="text-lg font-bold truncate text-center bg-gradient-primary bg-clip-text text-transparent">
               {projectTitle}
             </h2>
           )}
@@ -808,7 +808,7 @@ export default function EditorPage() {
             {/* Action Buttons */}
             <div className="flex gap-2 flex-shrink-0 ml-4">
               <button
-                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg"
+                className="bg-gradient-primary hover:bg-gradient-secondary text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg"
                 onClick={handleSaveProject}
               >
                 Save Project
