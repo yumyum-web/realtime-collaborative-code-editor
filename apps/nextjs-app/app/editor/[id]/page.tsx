@@ -184,7 +184,7 @@ export default function EditorPage() {
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [chatOpen, vcOpen, showGitPanel, aiChatOpen, githubOpen]);
+  }, [chatOpen, vcOpen, showGitPanel, aiChatOpen]);
 
   // Force editor to reload when activeFile, filesRef, OR currentBranch changes
   const [editorKey, setEditorKey] = useState(0);
