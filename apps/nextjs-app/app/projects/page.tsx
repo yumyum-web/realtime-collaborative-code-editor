@@ -31,6 +31,11 @@ import {
   Users,
   Calendar,
   LogOut,
+  Folder,
+  Mail,
+  User,
+  Shield,
+  CheckCircle,
 } from "lucide-react";
 import { useToast } from "@/app/hooks/use-toast";
 import { Toaster } from "@/app/components/ui/toaster";
@@ -362,19 +367,26 @@ export default function ProjectsPage() {
         <nav className="space-y-2 flex-1">
           <Button
             variant="default"
-            className="w-full justify-start text-lg hover:bg-primary hover:text-primary-foreground transition-all"
+            className="w-full justify-start text-sm hover:bg-primary hover:text-primary-foreground transition-all"
             onClick={() => router.push("/projects")}
           >
+            <Folder className="h-5 w-5 mr-3" />
             Projects
           </Button>
           <Button
             variant="ghost"
-            className="w-full bg-accent/10 justify-between text-lg hover:bg-gray-700 hover:text-accent-foreground transition-all cursor-pointer"
+            className="w-full bg-accent/10 justify-between text-sm hover:bg-gray-700 hover:text-accent-foreground transition-all cursor-pointer"
             onClick={() => router.push("/invitations")}
           >
-            Invitations
+            <div className="flex items-center">
+              <Mail className="h-5 w-5 mr-3" />
+              Invitations
+            </div>
             {invitationCount > 0 && (
-              <Badge variant="destructive" className="ml-2 text-lg">
+              <Badge
+                variant="destructive"
+                className="ml-2 text-xs px-1.5 py-0.5 h-5 min-w-5 flex items-center justify-center"
+              >
                 {invitationCount}
               </Badge>
             )}
@@ -385,27 +397,72 @@ export default function ProjectsPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col ml-64">
         {/* Header */}
-        <header className="bg-card border-b border-border shadow-md p-6 flex justify-between items-center">
+        <header className="sticky top-0 z-20 bg-card border-b border-border shadow-md p-6 flex justify-between items-center">
           <h2 className="text-3xl font-serif font-semibold tracking-tight">
             Projects
           </h2>
 
-          <div className="relative" ref={userPopupRef}>
+          <div className="relative flex items-center gap-3" ref={userPopupRef}>
+            <span className="hidden sm:inline text-sm font-medium text-foreground">
+              Hi, {user?.username || "User"}
+            </span>
             <Avatar
               className="cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all"
               onClick={() => setShowUserPopup(!showUserPopup)}
             >
               <AvatarFallback className="bg-primary text-primary-foreground">
-                {user?.username?.charAt(0)?.toUpperCase() || "U"}
+                <User className="h-4 w-4" />
               </AvatarFallback>
             </Avatar>
 
             {showUserPopup && user && (
-              <Card className="absolute right-0 mt-2 w-56 z-50 border border-primary shadow-lg">
-                <CardContent className="p-4">
-                  <p className="font-medium text-foreground">{user.username}</p>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
-                  <Separator className="my-3" />
+              <Card className="absolute right-0 top-full mt-1 w-80 z-50 border border-primary shadow-lg">
+                <CardContent className="p-4 space-y-4">
+                  {/* Email */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Email
+                      </span>
+                    </div>
+                    <span
+                      className="text-sm text-foreground truncate max-w-48"
+                      title={user.email}
+                    >
+                      {user.email}
+                    </span>
+                  </div>
+
+                  {/* Status */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Status
+                      </span>
+                    </div>
+                    <span className="text-sm text-green-600 font-medium">
+                      Active
+                    </span>
+                  </div>
+
+                  {/* Role */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Role
+                      </span>
+                    </div>
+                    <span className="text-sm text-foreground font-medium">
+                      Collaborator
+                    </span>
+                  </div>
+
+                  <Separator />
+
+                  {/* Logout Button */}
                   <Button
                     variant="outline"
                     className="w-full justify-start text-destructive border-destructive/20 hover:bg-destructive hover:text-destructive-foreground transition"
@@ -421,7 +478,7 @@ export default function ProjectsPage() {
         </header>
 
         {/* Content */}
-        <main className="p-6">
+        <main className="p-6 flex-1">
           {/* Search and New Project */}
           <div className="mb-6 flex items-center gap-4 justify-between">
             <div className="relative flex-1 max-w-md">
@@ -463,7 +520,7 @@ export default function ProjectsPage() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filtered.map((project) => (
                 <Card
                   key={project._id}
@@ -491,16 +548,13 @@ export default function ProjectsPage() {
                       <span>{project.owner}</span>
                     </div>
 
-                    {project.collaborators &&
-                      project.collaborators.length > 0 && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Users className="h-3 w-3 text-primary" />
-                          <span>
-                            {project.collaborators.length} collaborator
-                            {project.collaborators.length !== 1 ? "s" : ""}
-                          </span>
-                        </div>
-                      )}
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Users className="h-3 w-3 text-primary" />
+                      <span>
+                        {project.collaborators?.length || 0} collaborator
+                        {(project.collaborators?.length || 0) !== 1 ? "s" : ""}
+                      </span>
+                    </div>
 
                     {project.createdAt && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -627,7 +681,7 @@ export default function ProjectsPage() {
 
                 {selectedProject.collaborators?.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    No collaborators yet.
+                    No contributors
                   </p>
                 ) : (
                   <div className="space-y-2">

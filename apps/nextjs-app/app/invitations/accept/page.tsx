@@ -26,8 +26,17 @@ function AcceptInvitationContent() {
       } else if (domain === "gmail.com") {
         // If local part is 5 or fewer chars, mask it fully
         return "*".repeat(localPart.length) + "@" + domain;
+      } else if (domain === "cse.mrt.ac.lk") {
+        // Mask CSE emails: show first char, mask middle, show last char
+        if (localPart.length <= 2) {
+          return `${localPart}***@cse.mrt.ac.lk`;
+        }
+        const firstChar = localPart.charAt(0);
+        const lastChar = localPart.charAt(localPart.length - 1);
+        const maskedChars = "*".repeat(localPart.length - 2);
+        return `${firstChar}${maskedChars}${lastChar}@cse.mrt.ac.lk`;
       }
-      // For non-gmail domains, return as-is (or customize if needed)
+      // For other domains, return as-is
       return match;
     });
   };
