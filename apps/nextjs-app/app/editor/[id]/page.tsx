@@ -26,7 +26,7 @@ import { ChatPanel } from "./components/ChatPanel";
 import { AiChatPanel } from "./components/AiChatPanel";
 import VersionControlPanel from "./components/versioncontrol";
 import { ResizablePanel } from "./components/ResizablePanel";
-import GitHubIntegrationPanel from "@/app/components/GitHubIntegrationPanel";
+import GitHubIntegrationPanelV2 from "@/app/components/GitHubIntegrationPanelV2";
 
 // --- Minimal Local Toast Implementation ---
 type ToastMessage = {
@@ -1022,17 +1022,7 @@ export default function EditorPage() {
 
             {/* GitHub Panel Content */}
             <div className="flex-1 overflow-y-auto p-4">
-              <GitHubIntegrationPanel
-                projectId={projectId}
-                onPush={(message) => {
-                  showToast(`Pushing changes: ${message}`, "success");
-                  // TODO: Implement actual push logic with git
-                }}
-                onPull={() => {
-                  showToast("Pulling latest changes from GitHub...", "success");
-                  // TODO: Implement actual pull logic with git
-                }}
-              />
+              <GitHubIntegrationPanelV2 projectId={projectId} />
             </div>
           </div>
         )}

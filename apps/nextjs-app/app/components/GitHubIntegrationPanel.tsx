@@ -231,17 +231,22 @@ const GitHubIntegrationPanel: React.FC<GitHubIntegrationPanelProps> = ({
     setStatus("Loading commit history...");
     try {
       const res = await fetch(
-        `/api/github?commits=true&token=${authToken}&owner=${repo.owner.login}&repo=${repo.name}`,
+        `/api/github/commits?token=${authToken}&owner=${repo.owner.login}&repo=${repo.name}`,
       );
 
-      if (!res.ok) throw new Error("Failed to fetch commit history");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to fetch commit history");
+      }
 
       const data: Commit[] = await res.json();
       setCommitHistory(data.slice(0, 10)); // Show last 10 commits
       setStatus(`Loaded ${data.length} commits`);
     } catch (error) {
-      setStatus("Error loading commit history");
-      console.error(error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      setStatus(`Error loading commits: ${errorMessage}`);
+      console.error("Commit history error:", error);
     } finally {
       setLoading(false);
     }
@@ -373,6 +378,31 @@ const GitHubIntegrationPanel: React.FC<GitHubIntegrationPanelProps> = ({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Important Notice */}
+        <div className="bg-yellow-900/20 border border-yellow-700/50 rounded p-3 text-xs">
+          <p className="text-yellow-200 font-semibold mb-1">
+            ⚠️ Limited GitHub API Mode
+          </p>
+          <p className="text-yellow-300/80 mb-2">
+            This panel creates empty commits without actual file changes. Your
+            pushes won&apos;t show real code in your GitHub repository.
+          </p>
+          <p className="text-yellow-300/80 mb-2">
+            <strong>For real Git operations with actual file changes:</strong>
+          </p>
+          <Button
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                window.location.href = "/local-git";
+              }
+            }}
+            size="sm"
+            className="w-full bg-green-600 hover:bg-green-700 text-white"
+          >
+            🚀 Use Local Git Panel (Recommended)
+          </Button>
+        </div>
+
         {/* Create New Repository */}
         <div className="border-b border-gray-800 pb-4">
           <h3 className="text-sm font-semibold mb-2 text-gray-100">
