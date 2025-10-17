@@ -500,6 +500,7 @@ const GitHubIntegrationPanel: React.FC<GitHubIntegrationPanelProps> = ({
 
     await withLock(async () => {
       setLoading(true);
+      console.log(`[GitHub Push] Starting push of branch '${currentBranch}' to ${selectedRepo.full_name}`);
       showToast(`Pushing '${currentBranch}' to GitHub...`, "success");
 
       try {
@@ -509,6 +510,7 @@ const GitHubIntegrationPanel: React.FC<GitHubIntegrationPanelProps> = ({
           `https://${token}@`,
         );
 
+        console.log(`[GitHub Push] Setting remote URL for ${selectedRepo.full_name}`);
         const setRemoteRes = await fetch("/api/git/local", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -520,10 +522,13 @@ const GitHubIntegrationPanel: React.FC<GitHubIntegrationPanelProps> = ({
         });
 
         if (!setRemoteRes.ok) {
-          console.warn("Failed to set remote, may already exist");
+          console.warn("[GitHub Push] Failed to set remote, may already exist");
+        } else {
+          console.log("[GitHub Push] Remote URL set successfully");
         }
 
         // Push current branch
+        console.log(`[GitHub Push] Executing: git push -u origin ${currentBranch}`);
         const res = await fetch("/api/git/local", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -536,18 +541,21 @@ const GitHubIntegrationPanel: React.FC<GitHubIntegrationPanelProps> = ({
         });
 
         const data = await res.json();
+        console.log(`[GitHub Push] Push response:`, data);
 
-        if (res.ok) {
+        if (res.ok || data.success) {
+          console.log(`[GitHub Push] ✓ Successfully pushed '${currentBranch}' to GitHub`);
           showToast(
-            `✓ Pushed to ${selectedRepo.full_name} successfully!`,
+            `✓ Pushed '${currentBranch}' to ${selectedRepo.full_name} successfully!`,
             "success",
           );
           await loadLocalCommitHistory();
         } else {
+          console.error(`[GitHub Push] ✗ Push failed:`, data);
           showToast(data.error || data.message || "Push failed", "error");
         }
       } catch (error) {
-        console.error("Push error:", error);
+        console.error("[GitHub Push] Exception during push:", error);
         showToast("Error pushing to GitHub", "error");
       } finally {
         setLoading(false);

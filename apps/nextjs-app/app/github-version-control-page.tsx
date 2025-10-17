@@ -1,5 +1,5 @@
 import React from "react";
-import GitHubVersionControl from "./components/GitHubVersionControl";
+import GitHubVersionControl from "./editor/[id]/components/GitHubVersionControl";
 
 export default function GitHubVersionControlPage() {
   return (

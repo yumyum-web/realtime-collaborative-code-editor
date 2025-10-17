@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import LocalGitPanel from "../components/LocalGitPanel";
+import LocalGitPanel from "../editor/[id]/components/LocalGitPanel";
 import { Folder } from "lucide-react";
 
 export default function LocalGitPage() {
