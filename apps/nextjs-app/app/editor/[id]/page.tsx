@@ -26,7 +26,7 @@ import { ChatPanel } from "./components/ChatPanel";
 import { AiChatPanel } from "./components/AiChatPanel";
 import VersionControlPanel from "./components/versioncontrol";
 import { ResizablePanel } from "./components/ResizablePanel";
-import GitHubIntegrationPanel from "@/app/components/GitHubIntegrationPanel";
+import GitHubIntegrationPanel from "./components/GitHubIntegrationPanel";
 
 // --- Minimal Local Toast Implementation ---
 type ToastMessage = {
@@ -1021,8 +1021,15 @@ export default function EditorPage() {
             </div>
 
             {/* GitHub Panel Content */}
-            <div className="flex-1 overflow-y-auto p-4">
-              <GitHubIntegrationPanel projectId={projectId} />
+            <div className="flex-1 overflow-y-auto">
+              <GitHubIntegrationPanel
+                projectId={projectId}
+                currentBranch={currentBranch}
+                setCurrentBranch={setCurrentBranch}
+                showToast={showToast}
+                applyStructureToEditor={applyStructureToEditor}
+                onClose={() => setGithubOpen(false)}
+              />
             </div>
           </div>
         )}

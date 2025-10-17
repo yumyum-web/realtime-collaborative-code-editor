@@ -109,9 +109,8 @@ export async function GET(req: NextRequest) {
     const isPopup = searchParams.get("popup") === "true";
 
     if (isPopup) {
-      // For popup mode, return HTML that closes the popup and notifies parent
-      const response = new Response(
-        `<!DOCTYPE html>
+      // For popup mode, set cookies using NextResponse for proper cookie handling
+      const htmlContent = `<!DOCTYPE html>
         <html>
         <head>
           <title>GitHub Connected</title>
@@ -162,23 +161,34 @@ export async function GET(req: NextRequest) {
             }
           </script>
         </body>
-        </html>`,
-        {
-          headers: { "Content-Type": "text/html" },
-          status: 200,
-        },
-      );
+        </html>`;
 
-      // Set cookies before returning HTML response
-      response.headers.append(
-        "Set-Cookie",
-        `github_token=${tokenData.access_token}; Path=/; HttpOnly; ${process.env.NODE_ENV === "production" ? "Secure;" : ""} SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}`,
-      );
+      // Use NextResponse to properly set cookies
+      const response = new NextResponse(htmlContent, {
+        headers: { "Content-Type": "text/html" },
+        status: 200,
+      });
+
+      // Set cookies using NextResponse.cookies for proper handling
+      response.cookies.set("github_token", tokenData.access_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+        path: "/",
+      });
 
       if (projectId) {
-        response.headers.append(
-          "Set-Cookie",
-          `github_token_${projectId}=${tokenData.access_token}; Path=/; HttpOnly; ${process.env.NODE_ENV === "production" ? "Secure;" : ""} SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}`,
+        response.cookies.set(
+          `github_token_${projectId}`,
+          tokenData.access_token,
+          {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            maxAge: 60 * 60 * 24 * 30,
+            path: "/",
+          },
         );
       }
 

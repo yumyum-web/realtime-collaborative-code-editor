@@ -66,8 +66,12 @@ export const useGitHubOAuth = () => {
       const messageHandler = (event: MessageEvent) => {
         if (event.data && event.data.type === "GITHUB_CONNECTED") {
           window.removeEventListener("message", messageHandler);
-          // Reload to check for new connection and update UI
-          window.location.reload();
+          // Dispatch custom event instead of reloading page
+          window.dispatchEvent(
+            new CustomEvent("github-connected", {
+              detail: { projectId: event.data.projectId },
+            }),
+          );
         }
       };
       window.addEventListener("message", messageHandler);
