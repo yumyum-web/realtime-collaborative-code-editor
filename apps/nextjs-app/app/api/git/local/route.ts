@@ -196,8 +196,9 @@ export async function POST(req: NextRequest) {
       case "push": {
         const branch = branchName || "main";
         const remoteName = remote || "origin";
+        // Use -u flag to set upstream and create branch on remote if it doesn't exist
         const result = await executeGitCommand(
-          `git push ${remoteName} ${branch}`,
+          `git push -u ${remoteName} ${branch}`,
           repoPath,
         );
 

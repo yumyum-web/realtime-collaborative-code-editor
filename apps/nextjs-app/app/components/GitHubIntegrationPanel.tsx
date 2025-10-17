@@ -460,7 +460,7 @@ const GitHubIntegrationPanel: React.FC<GitHubIntegrationPanelProps> = ({
         body: JSON.stringify({
           repoPath,
           action: "push",
-          branch: currentBranch,
+          branchName: currentBranch,
           remote: "origin",
         }),
       });
@@ -515,7 +515,7 @@ const GitHubIntegrationPanel: React.FC<GitHubIntegrationPanelProps> = ({
         body: JSON.stringify({
           repoPath,
           action: "pull",
-          branch: currentBranch,
+          branchName: currentBranch,
           remote: "origin",
         }),
       });

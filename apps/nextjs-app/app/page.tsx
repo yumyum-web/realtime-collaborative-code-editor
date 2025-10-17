@@ -47,16 +47,6 @@ const WelcomePage = () => {
         style={{ animationDelay: "1s" }}
       ></div>
 
-      {/* log in handling*/}
-      <div className="absolute top-4 right-4 z-20">
-        <Link href="/login">
-          <Button variant="outline" className="flex items-center gap-2">
-            <GitBranch className="w-4 h-4" />
-            Sign in
-          </Button>
-        </Link>
-      </div>
-
       <div className="relative z-10">
         {/* Header */}
         <header className="px-6 py-4 flex justify-between items-center">
