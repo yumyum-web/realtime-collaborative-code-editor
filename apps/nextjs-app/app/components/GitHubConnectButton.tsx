@@ -7,6 +7,7 @@ import { useGitHubOAuth } from "@/app/hooks/useGitHubOAuth";
 interface GitHubConnectButtonProps {
   projectId?: string;
   mode?: "popup" | "redirect";
+  returnUrl?: string;
   variant?: "default" | "outline" | "ghost";
   size?: "default" | "sm" | "lg" | "icon";
   className?: string;
@@ -16,6 +17,7 @@ interface GitHubConnectButtonProps {
 export function GitHubConnectButton({
   projectId,
   mode = "popup",
+  returnUrl,
   variant = "default",
   size = "default",
   className = "",
@@ -25,7 +27,7 @@ export function GitHubConnectButton({
 
   const handleConnect = () => {
     onConnect?.();
-    connectGitHub(projectId, mode);
+    connectGitHub(projectId, mode, returnUrl);
   };
 
   return (

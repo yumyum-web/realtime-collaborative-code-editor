@@ -39,14 +39,16 @@ export async function GET(req: NextRequest) {
   try {
     // Validate environment variables
     if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
-      console.error("Missing GitHub OAuth credentials in environment variables");
+      console.error(
+        "Missing GitHub OAuth credentials in environment variables",
+      );
       return NextResponse.redirect(
         new URL(`${returnUrl}?github_error=missing_credentials`, req.url),
       );
     }
 
     const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/auth/github/callback`;
-    
+
     console.log("GitHub OAuth token exchange attempt:", {
       hasClientId: !!process.env.GITHUB_CLIENT_ID,
       hasClientSecret: !!process.env.GITHUB_CLIENT_SECRET,
@@ -73,9 +75,15 @@ export async function GET(req: NextRequest) {
     );
 
     if (!tokenResponse.ok) {
-      console.error("GitHub token exchange failed with status:", tokenResponse.status);
+      console.error(
+        "GitHub token exchange failed with status:",
+        tokenResponse.status,
+      );
       return NextResponse.redirect(
-        new URL(`${returnUrl}?github_error=token_exchange_failed&status=${tokenResponse.status}`, req.url),
+        new URL(
+          `${returnUrl}?github_error=token_exchange_failed&status=${tokenResponse.status}`,
+          req.url,
+        ),
       );
     }
 
@@ -92,7 +100,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(
         new URL(
           `${returnUrl}?github_error=token_exchange_failed&details=${encodeURIComponent(tokenData.error_description || tokenData.error || "no_token")}`,
-          req.url
+          req.url,
         ),
       );
     }

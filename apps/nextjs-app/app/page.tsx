@@ -47,12 +47,12 @@ const WelcomePage = () => {
         style={{ animationDelay: "1s" }}
       ></div>
 
-      {/* GitHub Version Control Navigation */}
+      {/* log in handling*/}
       <div className="absolute top-4 right-4 z-20">
-        <Link href="/github-version-control-page">
+        <Link href="/login">
           <Button variant="outline" className="flex items-center gap-2">
             <GitBranch className="w-4 h-4" />
-            GitHub Version Control
+            Sign in
           </Button>
         </Link>
       </div>

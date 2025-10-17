@@ -12,6 +12,7 @@ export const useGitHubOAuth = () => {
   const connectGitHub = (
     projectId?: string,
     mode: "popup" | "redirect" = "redirect",
+    returnUrl?: string,
   ) => {
     const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
 
@@ -21,17 +22,27 @@ export const useGitHubOAuth = () => {
       return;
     }
 
-    const redirectUri = `${window.location.origin}/api/auth/github/callback`;
-    const state = projectId || ""; // Pass projectId as state
+    // Use the main callback for token, then redirect to popup callback for window handling
+    const baseCallback = `${window.location.origin}/api/auth/github/callback`;
+    // Encode state with projectId and return URL
+    const stateData = {
+      projectId: projectId || "",
+      returnUrl: returnUrl || window.location.pathname,
+    };
+    const state = btoa(JSON.stringify(stateData));
     const scope = "repo read:user";
 
     const githubAuthUrl = new URL("https://github.com/login/oauth/authorize");
     githubAuthUrl.searchParams.append("client_id", clientId);
-    githubAuthUrl.searchParams.append("redirect_uri", redirectUri);
+    githubAuthUrl.searchParams.append("redirect_uri", baseCallback);
     githubAuthUrl.searchParams.append("scope", scope);
     githubAuthUrl.searchParams.append("state", state);
 
     if (mode === "popup") {
+      // Add popup flag to callback URL
+      const callbackWithPopup = `${baseCallback}?popup=true`;
+      githubAuthUrl.searchParams.set("redirect_uri", callbackWithPopup);
+
       // Open OAuth in popup window
       const width = 600;
       const height = 700;
@@ -51,16 +62,17 @@ export const useGitHubOAuth = () => {
         return;
       }
 
-      // Listen for OAuth callback
-      const checkPopup = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkPopup);
-          // Refresh the page to check for new connection
+      // Listen for postMessage from popup callback
+      const messageHandler = (event: MessageEvent) => {
+        if (event.data && event.data.type === "GITHUB_CONNECTED") {
+          window.removeEventListener("message", messageHandler);
+          // Reload to check for new connection and update UI
           window.location.reload();
         }
-      }, 500);
+      };
+      window.addEventListener("message", messageHandler);
     } else {
-      // Redirect to GitHub OAuth
+      // Redirect mode
       window.location.href = githubAuthUrl.toString();
     }
   };
