@@ -31,6 +31,8 @@ import {
   Users,
   Calendar,
   LogOut,
+  Folder,
+  Mail,
 } from "lucide-react";
 import { useToast } from "@/app/hooks/use-toast";
 import { Toaster } from "@/app/components/ui/toaster";
@@ -365,6 +367,7 @@ export default function ProjectsPage() {
             className="w-full justify-start text-lg hover:bg-primary hover:text-primary-foreground transition-all"
             onClick={() => router.push("/projects")}
           >
+            <Folder className="h-5 w-5 mr-3" />
             Projects
           </Button>
           <Button
@@ -372,7 +375,10 @@ export default function ProjectsPage() {
             className="w-full bg-accent/10 justify-between text-lg hover:bg-gray-700 hover:text-accent-foreground transition-all cursor-pointer"
             onClick={() => router.push("/invitations")}
           >
-            Invitations
+            <div className="flex items-center">
+              <Mail className="h-5 w-5 mr-3" />
+              Invitations
+            </div>
             {invitationCount > 0 && (
               <Badge variant="destructive" className="ml-2 text-lg">
                 {invitationCount}
@@ -463,7 +469,7 @@ export default function ProjectsPage() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filtered.map((project) => (
                 <Card
                   key={project._id}
@@ -491,16 +497,13 @@ export default function ProjectsPage() {
                       <span>{project.owner}</span>
                     </div>
 
-                    {project.collaborators &&
-                      project.collaborators.length > 0 && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Users className="h-3 w-3 text-primary" />
-                          <span>
-                            {project.collaborators.length} collaborator
-                            {project.collaborators.length !== 1 ? "s" : ""}
-                          </span>
-                        </div>
-                      )}
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Users className="h-3 w-3 text-primary" />
+                      <span>
+                        {project.collaborators?.length || 0} collaborator
+                        {(project.collaborators?.length || 0) !== 1 ? "s" : ""}
+                      </span>
+                    </div>
 
                     {project.createdAt && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -627,7 +630,7 @@ export default function ProjectsPage() {
 
                 {selectedProject.collaborators?.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    No collaborators yet.
+                    No contributors
                   </p>
                 ) : (
                   <div className="space-y-2">
