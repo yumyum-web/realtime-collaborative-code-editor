@@ -500,7 +500,9 @@ const GitHubIntegrationPanel: React.FC<GitHubIntegrationPanelProps> = ({
 
     await withLock(async () => {
       setLoading(true);
-      console.log(`[GitHub Push] Starting push of branch '${currentBranch}' to ${selectedRepo.full_name}`);
+      console.log(
+        `[GitHub Push] Starting push of branch '${currentBranch}' to ${selectedRepo.full_name}`,
+      );
       showToast(`Pushing '${currentBranch}' to GitHub...`, "success");
 
       try {
@@ -510,7 +512,9 @@ const GitHubIntegrationPanel: React.FC<GitHubIntegrationPanelProps> = ({
           `https://${token}@`,
         );
 
-        console.log(`[GitHub Push] Setting remote URL for ${selectedRepo.full_name}`);
+        console.log(
+          `[GitHub Push] Setting remote URL for ${selectedRepo.full_name}`,
+        );
         const setRemoteRes = await fetch("/api/git/local", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -528,7 +532,9 @@ const GitHubIntegrationPanel: React.FC<GitHubIntegrationPanelProps> = ({
         }
 
         // Push current branch
-        console.log(`[GitHub Push] Executing: git push -u origin ${currentBranch}`);
+        console.log(
+          `[GitHub Push] Executing: git push -u origin ${currentBranch}`,
+        );
         const res = await fetch("/api/git/local", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -543,16 +549,40 @@ const GitHubIntegrationPanel: React.FC<GitHubIntegrationPanelProps> = ({
         const data = await res.json();
         console.log(`[GitHub Push] Push response:`, data);
 
-        if (res.ok || data.success) {
-          console.log(`[GitHub Push] ✓ Successfully pushed '${currentBranch}' to GitHub`);
-          showToast(
-            `✓ Pushed '${currentBranch}' to ${selectedRepo.full_name} successfully!`,
-            "success",
+        // Show detailed information about what was pushed
+        if (data.filesCount !== undefined) {
+          console.log(
+            `[GitHub Push] Files pushed: ${data.filesCount}, Commits: ${data.commitCount}`,
           );
+        }
+
+        if (res.ok && data.success) {
+          console.log(
+            `[GitHub Push] ✓ Successfully pushed '${currentBranch}' to GitHub`,
+          );
+          const successMsg =
+            data.filesCount !== undefined
+              ? `✓ Pushed ${data.commitCount} commit(s) with ${data.filesCount} file(s) to ${selectedRepo.full_name}`
+              : `✓ Pushed '${currentBranch}' to ${selectedRepo.full_name} successfully!`;
+          showToast(successMsg, "success");
           await loadLocalCommitHistory();
         } else {
           console.error(`[GitHub Push] ✗ Push failed:`, data);
-          showToast(data.error || data.message || "Push failed", "error");
+
+          // Check if rejection is due to remote changes
+          if (
+            data.message &&
+            (data.message.includes("rejected") ||
+              data.message.includes("fetch first") ||
+              data.message.includes("git pull"))
+          ) {
+            showToast(
+              "⚠️ Push rejected: Remote has changes. Pull first, then push again.",
+              "error",
+            );
+          } else {
+            showToast(data.error || data.message || "Push failed", "error");
+          }
         }
       } catch (error) {
         console.error("[GitHub Push] Exception during push:", error);

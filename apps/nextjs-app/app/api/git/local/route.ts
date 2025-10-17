@@ -94,6 +94,21 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ commits });
       }
 
+      case "list-files": {
+        // List all files in the current HEAD commit
+        const filesResult = await executeGitCommand(
+          "git ls-tree -r HEAD --name-only",
+          repoPath,
+        );
+        const files = filesResult.output.split("\n").filter((f) => f.trim());
+
+        return NextResponse.json({
+          files,
+          count: files.length,
+          success: filesResult.success,
+        });
+      }
+
       case "diff": {
         const staged = await executeGitCommand("git diff --cached", repoPath);
         const unstaged = await executeGitCommand("git diff", repoPath);
@@ -136,6 +151,23 @@ export async function POST(req: NextRequest) {
     }
 
     switch (action) {
+      case "list-files": {
+        // List all files in the current HEAD commit
+        const filesResult = await executeGitCommand(
+          "git ls-tree -r HEAD --name-only",
+          repoPath,
+        );
+        const filesList = filesResult.output
+          .split("\n")
+          .filter((f) => f.trim());
+
+        return NextResponse.json({
+          files: filesList,
+          count: filesList.length,
+          success: filesResult.success,
+        });
+      }
+
       case "stage": {
         if (!files || files.length === 0) {
           return NextResponse.json(
@@ -196,16 +228,99 @@ export async function POST(req: NextRequest) {
       case "push": {
         const branch = branchName || "main";
         const remoteName = remote || "origin";
-        // Use -u flag to set upstream and create branch on remote if it doesn't exist
-        const result = await executeGitCommand(
-          `git push -u ${remoteName} ${branch}`,
+
+        // Pre-push validation: Check what will be pushed
+        console.log(`[Git Push] Preparing to push branch '${branch}'`);
+
+        // 1. Check current branch
+        const currentBranchResult = await executeGitCommand(
+          "git rev-parse --abbrev-ref HEAD",
           repoPath,
         );
+        const actualBranch = currentBranchResult.output.trim();
+        console.log(`[Git Push] Current branch: ${actualBranch}`);
+
+        // 2. Check if there are commits to push
+        const statusResult = await executeGitCommand("git status", repoPath);
+        console.log(`[Git Push] Git status:\n${statusResult.output}`);
+
+        // 3. Get list of files in the current commit
+        const filesResult = await executeGitCommand(
+          "git ls-tree -r HEAD --name-only",
+          repoPath,
+        );
+        const filesList = filesResult.output
+          .split("\n")
+          .filter((f) => f.trim());
+        console.log(
+          `[Git Push] Files in HEAD (${filesList.length} files):`,
+          filesList,
+        );
+
+        // 4. Check unpushed commits
+        const unpushedResult = await executeGitCommand(
+          `git log ${remoteName}/${branch}..HEAD --oneline 2>&1 || git log HEAD --oneline`,
+          repoPath,
+        );
+        const unpushedCommits = unpushedResult.output
+          .split("\n")
+          .filter((line) => line.trim());
+        console.log(
+          `[Git Push] Unpushed commits (${unpushedCommits.length}):`,
+          unpushedCommits,
+        );
+
+        // 5. Ensure we're on the correct branch
+        if (actualBranch !== branch) {
+          console.warn(
+            `[Git Push] Warning: On branch '${actualBranch}' but trying to push '${branch}'`,
+          );
+          // Checkout to the correct branch first
+          const checkoutResult = await executeGitCommand(
+            `git checkout ${branch}`,
+            repoPath,
+          );
+          if (!checkoutResult.success) {
+            return NextResponse.json({
+              success: false,
+              message: `Failed to checkout branch '${branch}': ${checkoutResult.error}`,
+              output: checkoutResult.error,
+            });
+          }
+          console.log(`[Git Push] Checked out to branch '${branch}'`);
+        }
+
+        // 6. Perform the push with verbose output
+        console.log(
+          `[Git Push] Executing: git push -u ${remoteName} ${branch}`,
+        );
+        const result = await executeGitCommand(
+          `git push -u ${remoteName} ${branch} --verbose`,
+          repoPath,
+        );
+
+        // 7. Verify push succeeded by checking remote branch
+        if (result.success) {
+          const remoteLsResult = await executeGitCommand(
+            `git ls-remote ${remoteName} ${branch}`,
+            repoPath,
+          );
+          console.log(
+            `[Git Push] Remote verification:\n${remoteLsResult.output}`,
+          );
+        }
+
+        const combinedOutput = result.output + "\n" + result.error;
+        console.log(`[Git Push] ${result.success ? "✓ Success" : "✗ Failed"}`);
+        console.log(`[Git Push] Output:\n${combinedOutput}`);
 
         return NextResponse.json({
           success: result.success,
           message: result.success ? "Pushed successfully" : result.error,
-          output: result.output + result.error,
+          output: combinedOutput,
+          filesCount: filesList.length,
+          commitCount: unpushedCommits.length,
+          branch: actualBranch,
         });
       }
 
