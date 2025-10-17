@@ -46,17 +46,6 @@ const LocalGitPanel: React.FC<{
   const [showBranchModal, setShowBranchModal] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // Load git status on mount
-  useEffect(() => {
-    const loadAll = async () => {
-      await loadGitStatus();
-      await loadBranches();
-      await loadCommitHistory();
-      await loadRemotes();
-    };
-    loadAll();
-  }, [repoPath, loadGitStatus, loadBranches, loadCommitHistory, loadRemotes]);
-
   // Parse git status output
   const parseGitStatus = (statusOutput: string) => {
     const lines = statusOutput.trim().split("\n").filter(Boolean);
@@ -161,6 +150,18 @@ const LocalGitPanel: React.FC<{
       setStatus("Error loading remotes");
     }
   };
+
+  // Load git status on mount
+  useEffect(() => {
+    const loadAll = async () => {
+      await loadGitStatus();
+      await loadBranches();
+      await loadCommitHistory();
+      await loadRemotes();
+    };
+    loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repoPath]);
 
   // Stage files
   const handleStage = async (files: string[]) => {
