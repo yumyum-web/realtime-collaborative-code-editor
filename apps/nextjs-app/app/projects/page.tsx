@@ -34,6 +34,8 @@ import {
   Folder,
   Mail,
   User,
+  Shield,
+  CheckCircle,
 } from "lucide-react";
 import { useToast } from "@/app/hooks/use-toast";
 import { Toaster } from "@/app/components/ui/toaster";
@@ -411,11 +413,50 @@ export default function ProjectsPage() {
             </Avatar>
 
             {showUserPopup && user && (
-              <Card className="absolute right-0 top-full mt-1 w-56 z-50 border border-primary shadow-lg">
-                <CardContent className="p-4">
-                  <p className="font-medium text-foreground">{user.username}</p>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
-                  <Separator className="my-3" />
+              <Card className="absolute right-0 top-full mt-1 w-64 z-50 border border-primary shadow-lg">
+                <CardContent className="p-4 space-y-4">
+                  {/* Email */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Email
+                      </span>
+                    </div>
+                    <span className="text-sm text-foreground">
+                      {user.email}
+                    </span>
+                  </div>
+
+                  {/* Status */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Status
+                      </span>
+                    </div>
+                    <span className="text-sm text-green-600 font-medium">
+                      Active
+                    </span>
+                  </div>
+
+                  {/* Role */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Role
+                      </span>
+                    </div>
+                    <span className="text-sm text-foreground font-medium">
+                      Collaborator
+                    </span>
+                  </div>
+
+                  <Separator />
+
+                  {/* Logout Button */}
                   <Button
                     variant="outline"
                     className="w-full justify-start text-destructive border-destructive/20 hover:bg-destructive hover:text-destructive-foreground transition"
