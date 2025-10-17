@@ -34,6 +34,8 @@ import {
   Folder,
   Mail,
   User,
+  Shield,
+  CheckCircle,
 } from "lucide-react";
 import { useToast } from "@/app/hooks/use-toast";
 import { Toaster } from "@/app/components/ui/toaster";
@@ -411,19 +413,76 @@ export default function ProjectsPage() {
             </Avatar>
 
             {showUserPopup && user && (
-              <Card className="absolute right-0 top-full mt-1 w-56 z-50 border border-primary shadow-lg">
-                <CardContent className="p-4">
-                  <p className="font-medium text-foreground">{user.username}</p>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
-                  <Separator className="my-3" />
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-destructive border-destructive/20 hover:bg-destructive hover:text-destructive-foreground transition"
-                    onClick={handleLogout}
-                  >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Logout
-                  </Button>
+              <Card className="absolute right-0 top-full mt-1 w-72 z-50 border border-primary shadow-xl bg-card">
+                <CardContent className="p-0">
+                  {/* Header Section */}
+                  <div className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-b border-border">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-12 w-12 border-2 border-primary/20">
+                        <AvatarFallback className="bg-primary text-primary-foreground">
+                          <User className="h-6 w-6" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="font-semibold text-foreground text-lg">
+                          {user.username}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          Developer
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Details Section */}
+                  <div className="p-4 space-y-3">
+                    {/* Email */}
+                    <div className="flex items-center justify-between py-2">
+                      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                        <Mail className="h-4 w-4 text-primary" />
+                        Email
+                      </div>
+                      <span className="text-sm text-foreground font-medium">
+                        {user.email}
+                      </span>
+                    </div>
+
+                    {/* Account Status */}
+                    <div className="flex items-center justify-between py-2">
+                      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        Status
+                      </div>
+                      <span className="text-sm text-green-600 font-medium">
+                        Active
+                      </span>
+                    </div>
+
+                    {/* Role */}
+                    <div className="flex items-center justify-between py-2">
+                      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                        <Shield className="h-4 w-4 text-primary" />
+                        Role
+                      </div>
+                      <span className="text-sm text-foreground font-medium">
+                        Collaborator
+                      </span>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Actions */}
+                  <div className="p-4">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-destructive border-destructive/20 hover:bg-destructive hover:text-destructive-foreground transition-all"
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Logout
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             )}
