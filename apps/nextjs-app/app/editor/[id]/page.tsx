@@ -26,6 +26,7 @@ import { ChatPanel } from "./components/ChatPanel";
 import { AiChatPanel } from "./components/AiChatPanel";
 import VersionControlPanel from "./components/versioncontrol";
 import { ResizablePanel } from "./components/ResizablePanel";
+import GitHubIntegrationPanel from "./components/GitHubIntegrationPanel";
 
 // --- Minimal Local Toast Implementation ---
 type ToastMessage = {
@@ -93,6 +94,7 @@ export default function EditorPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [vcOpen, setVcOpen] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [githubOpen, setGithubOpen] = useState(false);
   const [currentBranch, setCurrentBranch] = useState<string>("main");
   const [forceRefresh, setForceRefresh] = useState<number>(0);
   const [panelWidth, setPanelWidth] = useState(320);
@@ -854,7 +856,7 @@ export default function EditorPage() {
         className="fixed z-30 bottom-6 flex flex-col gap-4 mb-2 transition-all duration-300 ease-in-out"
         style={{
           right:
-            chatOpen || vcOpen || showGitPanel || aiChatOpen
+            chatOpen || vcOpen || showGitPanel || aiChatOpen || githubOpen
               ? `${panelWidth + 24}px`
               : "24px",
         }}
@@ -869,6 +871,7 @@ export default function EditorPage() {
             setVcOpen(false);
             setShowGitPanel(false);
             setAiChatOpen(false);
+            setGithubOpen(false);
           }}
           title="Open Chat"
         >
@@ -885,10 +888,34 @@ export default function EditorPage() {
             setChatOpen(false);
             setVcOpen(false);
             setShowGitPanel(false);
+            setGithubOpen(false);
           }}
           title="Open AI Assistant"
         >
           <Bot className="w-5 h-5" />
+        </button>
+
+        {/* GitHub Integration Button */}
+        <button
+          className={`w-12 h-12 bg-gray-800 hover:bg-gray-700 text-white rounded-full shadow-lg transition-all duration-200 transform hover:scale-110 active:scale-95 flex items-center justify-center group ${
+            githubOpen ? "ring-2 ring-gray-400" : ""
+          }`}
+          onClick={() => {
+            setGithubOpen(!githubOpen);
+            setChatOpen(false);
+            setVcOpen(false);
+            setShowGitPanel(false);
+            setAiChatOpen(false);
+          }}
+          title="GitHub Integration"
+        >
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path
+              fillRule="evenodd"
+              d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+              clipRule="evenodd"
+            />
+          </svg>
         </button>
 
         {/* Git History Button */}
@@ -902,6 +929,7 @@ export default function EditorPage() {
               setChatOpen(false);
               setVcOpen(false);
               setAiChatOpen(false);
+              setGithubOpen(false);
             }}
             title="Git History"
           >
@@ -919,6 +947,7 @@ export default function EditorPage() {
             setChatOpen(false);
             setShowGitPanel(false);
             setAiChatOpen(false);
+            setGithubOpen(false);
           }}
           title="Version Control"
         >
@@ -928,7 +957,7 @@ export default function EditorPage() {
 
       {/* Right Sidebar Panel */}
       <ResizablePanel
-        isOpen={chatOpen || vcOpen || showGitPanel || aiChatOpen}
+        isOpen={chatOpen || vcOpen || showGitPanel || aiChatOpen || githubOpen}
         minWidth={280}
         maxWidth={800}
         defaultWidth={320}
@@ -951,6 +980,58 @@ export default function EditorPage() {
             userEmail={user?.email || ""}
             onClose={() => setAiChatOpen(false)}
           />
+        )}
+
+        {githubOpen && (
+          <div className="h-full flex flex-col">
+            {/* GitHub Panel Header */}
+            <div className="flex justify-between items-center p-3 min-h-[44px] flex-shrink-0 border-b border-gray-700 bg-card h-14">
+              <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                GitHub Integration
+              </h3>
+              <button
+                onClick={() => setGithubOpen(false)}
+                className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* GitHub Panel Content */}
+            <div className="flex-1 overflow-y-auto">
+              <GitHubIntegrationPanel
+                projectId={projectId}
+                currentBranch={currentBranch}
+                setCurrentBranch={setCurrentBranch}
+                showToast={showToast}
+                applyStructureToEditor={applyStructureToEditor}
+                onClose={() => setGithubOpen(false)}
+              />
+            </div>
+          </div>
         )}
 
         {vcOpen && (
