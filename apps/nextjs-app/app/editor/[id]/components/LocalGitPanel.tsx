@@ -55,8 +55,7 @@ const LocalGitPanel: React.FC<{
       await loadRemotes();
     };
     loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repoPath]);
+  }, [repoPath, loadGitStatus, loadBranches, loadCommitHistory, loadRemotes]);
 
   // Parse git status output
   const parseGitStatus = (statusOutput: string) => {
