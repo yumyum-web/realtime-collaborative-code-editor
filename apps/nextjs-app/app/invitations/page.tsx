@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
+import { Separator } from "@/app/components/ui/separator";
+import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import {
   User,
   LogOut,
@@ -14,6 +16,9 @@ import {
   X,
   Inbox,
   Calendar,
+  Folder,
+  Shield,
+  CheckCircle,
 } from "lucide-react";
 import LogoTitle from "@/app/components/LogoTitle";
 
@@ -28,12 +33,12 @@ export default function InvitationsPage() {
   const [user, setUser] = useState<{ username: string; email: string } | null>(
     null,
   );
-  const [showPopup, setShowPopup] = useState(false);
+  const [showUserPopup, setShowUserPopup] = useState(false);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(false);
   const [invitationCount, setInvitationCount] = useState(0);
   const router = useRouter();
-  const popupRef = useRef<HTMLDivElement>(null);
+  const userPopupRef = useRef<HTMLDivElement>(null);
 
   // Fetch logged in user
   useEffect(() => {
@@ -61,10 +66,10 @@ export default function InvitationsPage() {
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
-        popupRef.current &&
-        !popupRef.current.contains(event.target as Node)
+        userPopupRef.current &&
+        !userPopupRef.current.contains(event.target as Node)
       ) {
-        setShowPopup(false);
+        setShowUserPopup(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -130,20 +135,27 @@ export default function InvitationsPage() {
 
         <nav className="space-y-2 flex-1">
           <Button
-            variant="default"
-            className="w-full bg-accent/10 justify-start text-lg hover:bg-gray-700 hover:text-accent-foreground transition-all cursor-pointer"
+            variant="ghost"
+            className="w-full justify-start text-sm hover:bg-primary hover:text-primary-foreground transition-all"
             onClick={() => router.push("/projects")}
           >
+            <Folder className="h-5 w-5 mr-3" />
             Projects
           </Button>
           <Button
-            variant="ghost"
-            className="w-full bg-accent/100 justify-between text-lg"
+            variant="default"
+            className="w-full bg-primary justify-between text-sm hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer"
             onClick={() => router.push("/invitations")}
           >
-            Invitations
+            <div className="flex items-center">
+              <Mail className="h-5 w-5 mr-3" />
+              Invitations
+            </div>
             {invitationCount > 0 && (
-              <Badge variant="destructive" className="ml-2 text-lg">
+              <Badge
+                variant="destructive"
+                className="ml-2 text-xs px-1.5 py-0.5 h-5 min-w-5 flex items-center justify-center"
+              >
                 {invitationCount}
               </Badge>
             )}
@@ -153,51 +165,82 @@ export default function InvitationsPage() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col ml-64">
-        {/* Topbar */}
-        <header className="bg-card border-b border-border shadow-sm p-6 flex justify-between items-center">
-          <div>
-            <h2 className="text-3xl font-serif font-semibold tracking-tight">
-              Invitations
-            </h2>
-            <p className="text-muted-foreground mt-1">
-              {invitationCount > 0
-                ? `You have ${invitationCount} pending invitation${invitationCount !== 1 ? "s" : ""}`
-                : "No pending invitations"}
-            </p>
-          </div>
+        {/* Header */}
+        <header className="sticky top-0 z-20 bg-card border-b border-border shadow-md p-6 flex justify-between items-center">
+          <h2 className="text-3xl font-serif font-semibold tracking-tight">
+            Invitations
+          </h2>
 
-          {/* User Icon & Popup */}
-          <div className="relative" ref={popupRef}>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-11 w-11 rounded-full bg-gradient-primary hover:shadow-glow transition"
-              onClick={() => setShowPopup((prev) => !prev)}
+          <div className="relative flex items-center gap-3" ref={userPopupRef}>
+            <span className="hidden sm:inline text-sm font-medium text-foreground">
+              Hi, {user?.username || "User"}
+            </span>
+            <Avatar
+              className="cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all"
+              onClick={() => setShowUserPopup(!showUserPopup)}
             >
-              {user?.username?.charAt(0)?.toUpperCase() || "U"}
-            </Button>
-            {showPopup && user && (
-              <div className="absolute right-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg p-4 z-50 animate-slide-up">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="h-10 w-10 rounded-full bg-gradient-primary flex items-center justify-center">
-                    <User className="h-5 w-5 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">{user.username}</p>
-                    <p className="text-sm text-muted-foreground">
+              <AvatarFallback className="bg-primary text-primary-foreground">
+                <User className="h-4 w-4" />
+              </AvatarFallback>
+            </Avatar>
+            {showUserPopup && user && (
+              <Card className="absolute right-0 top-full mt-1 w-80 z-50 border border-primary shadow-lg">
+                <CardContent className="p-4 space-y-4">
+                  {/* Email */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Email
+                      </span>
+                    </div>
+                    <span
+                      className="text-sm text-foreground truncate max-w-48"
+                      title={user.email}
+                    >
                       {user.email}
-                    </p>
+                    </span>
                   </div>
-                </div>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-destructive border-destructive/20 hover:bg-destructive hover:text-destructive-foreground transition"
-                  onClick={handleLogout}
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </div>
+
+                  {/* Status */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Status
+                      </span>
+                    </div>
+                    <span className="text-sm text-green-600 font-medium">
+                      Active
+                    </span>
+                  </div>
+
+                  {/* Role */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Role
+                      </span>
+                    </div>
+                    <span className="text-sm text-foreground font-medium">
+                      Collaborator
+                    </span>
+                  </div>
+
+                  <Separator />
+
+                  {/* Logout Button */}
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-destructive border-destructive/20 hover:bg-destructive hover:text-destructive-foreground transition"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Logout
+                  </Button>
+                </CardContent>
+              </Card>
             )}
           </div>
         </header>
