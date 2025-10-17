@@ -13,7 +13,10 @@ import {
   CardContent,
 } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
-import { Plus, X, User, LogOut } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
+import { Separator } from "@/app/components/ui/separator";
+import { Plus, X, User, LogOut, Mail, Shield, CheckCircle } from "lucide-react";
+import LogoTitle from "../../components/LogoTitle";
 
 export default function CreateProjectPage() {
   const [title, setTitle] = useState("");
@@ -94,22 +97,20 @@ export default function CreateProjectPage() {
       {/* Sidebar */}
       <aside className="w-64 bg-card border-r border-border flex flex-col p-6 min-h-screen">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-            CollabCode
-          </h1>
+          <LogoTitle />
         </div>
 
         <nav className="flex-1 flex flex-col gap-2">
           <Button
             variant="ghost"
-            className="w-full justify-start text-lg bg-accent/10 hover:bg-accent/100 transition-all"
+            className="w-full justify-start text-sm bg-accent/10 hover:bg-accent/100 transition-all"
             onClick={() => router.push("/projects")}
           >
             Projects
           </Button>
           <Button
             variant="ghost"
-            className="w-full justify-start text-lg bg-accent/10 hover:bg-accent/100 transition-all"
+            className="w-full justify-start text-sm bg-accent/10 hover:bg-accent/100 transition-all"
             onClick={() => router.push("/invitations")}
           >
             Invitations
@@ -131,40 +132,77 @@ export default function CreateProjectPage() {
           </div>
 
           {/* User menu */}
-          <div className="relative" ref={popupRef}>
-            <Button
-              variant="outline"
-              size="icon"
-              className="relative h-11 w-11 rounded-full bg-gradient-primary hover:shadow-glow transition"
-              onClick={() => setShowPopup((p) => !p)}
+          <div className="relative flex items-center gap-3" ref={popupRef}>
+            <span className="hidden sm:inline text-sm font-medium text-foreground">
+              Hi, {user?.username || "User"}
+            </span>
+            <Avatar
+              className="cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all"
+              onClick={() => setShowPopup(!showPopup)}
             >
-              <span className="text-lg font-bold text-primary-foreground">
-                {user?.username?.charAt(0)?.toUpperCase() || "U"}
-              </span>
-            </Button>
+              <AvatarFallback className="bg-primary text-primary-foreground">
+                <User className="h-4 w-4" />
+              </AvatarFallback>
+            </Avatar>
 
             {showPopup && user && (
-              <div className="absolute right-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg p-4 z-50 animate-slide-up">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="h-10 w-10 rounded-full bg-gradient-primary flex items-center justify-center">
-                    <User className="h-5 w-5 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">{user.username}</p>
-                    <p className="text-sm text-muted-foreground">
+              <Card className="absolute right-0 top-full mt-1 w-80 z-50 border border-primary shadow-lg">
+                <CardContent className="p-4 space-y-4">
+                  {/* Email */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Email
+                      </span>
+                    </div>
+                    <span
+                      className="text-sm text-foreground truncate max-w-48"
+                      title={user.email}
+                    >
                       {user.email}
-                    </p>
+                    </span>
                   </div>
-                </div>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-destructive border-destructive/20 hover:bg-destructive hover:text-destructive-foreground transition"
-                  onClick={handleLogout}
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-              </div>
+
+                  {/* Status */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Status
+                      </span>
+                    </div>
+                    <span className="text-sm text-green-600 font-medium">
+                      Active
+                    </span>
+                  </div>
+
+                  {/* Role */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Role
+                      </span>
+                    </div>
+                    <span className="text-sm text-foreground font-medium">
+                      Collaborator
+                    </span>
+                  </div>
+
+                  <Separator />
+
+                  {/* Logout Button */}
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-destructive border-destructive/20 hover:bg-destructive hover:text-destructive-foreground transition"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Logout
+                  </Button>
+                </CardContent>
+              </Card>
             )}
           </div>
         </header>
@@ -269,13 +307,23 @@ export default function CreateProjectPage() {
                   )}
                 </div>
 
-                <Button
-                  type="submit"
-                  disabled={loading || !title.trim()}
-                  className="w-full h-12 bg-gradient-primary hover:shadow-primary disabled:opacity-50 transition text-lg font-semibold"
-                >
-                  {loading ? "Creating Project..." : "Create Project"}
-                </Button>
+                <div className="flex gap-4">
+                  <Button
+                    type="submit"
+                    disabled={loading || !title.trim()}
+                    className="flex-1 h-12 bg-gradient-primary hover:shadow-primary disabled:opacity-50 transition text-lg font-semibold"
+                  >
+                    {loading ? "Creating Project..." : "Create Project"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => router.push("/projects")}
+                    className="flex-1 h-12 border-destructive/20 text-destructive hover:bg-destructive hover:text-destructive-foreground transition text-lg font-semibold"
+                  >
+                    Cancel
+                  </Button>
+                </div>
               </form>
             </CardContent>
           </Card>
