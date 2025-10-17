@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   VscGithubInverted,
   VscRepo,
@@ -45,11 +45,11 @@ type FileChange = {
   status: string;
 };
 
-interface GitHubIntegrationPanelV2Props {
+interface GitHubIntegrationPanelProps {
   projectId: string;
 }
 
-const GitHubIntegrationPanelV2: React.FC<GitHubIntegrationPanelV2Props> = ({
+const GitHubIntegrationPanel: React.FC<GitHubIntegrationPanelProps> = ({
   projectId,
 }) => {
   // GitHub state
@@ -91,7 +91,19 @@ const GitHubIntegrationPanelV2: React.FC<GitHubIntegrationPanelV2Props> = ({
     fetchRepoPath();
   }, [projectId]);
 
-  // Load GitHub token
+  // Restore selected repository from localStorage
+  const restoreSelectedRepo = useCallback(() => {
+    const savedRepoId = localStorage.getItem(`github_repo_${projectId}`);
+    if (savedRepoId && repos.length > 0) {
+      const repo = repos.find((r) => r.id.toString() === savedRepoId);
+      if (repo) {
+        setSelectedRepo(repo);
+        setStatus(`Connected to ${repo.full_name || repo.name}`);
+      }
+    }
+  }, [projectId, repos]);
+
+  // Load GitHub token and restore selected repo
   useEffect(() => {
     async function checkToken() {
       const res = await fetch(`/api/github?token=check&projectId=${projectId}`);
@@ -100,7 +112,7 @@ const GitHubIntegrationPanelV2: React.FC<GitHubIntegrationPanelV2Props> = ({
         if (data.token) {
           setToken(data.token);
           setIsConnected(true);
-          loadRepos(data.token);
+          await loadRepos(data.token);
           return;
         }
       }
@@ -109,11 +121,18 @@ const GitHubIntegrationPanelV2: React.FC<GitHubIntegrationPanelV2Props> = ({
       if (savedToken) {
         setToken(savedToken);
         setIsConnected(true);
-        loadRepos(savedToken);
+        await loadRepos(savedToken);
       }
     }
     checkToken();
   }, [projectId]);
+
+  // Restore selected repo when repos are loaded
+  useEffect(() => {
+    if (repos.length > 0) {
+      restoreSelectedRepo();
+    }
+  }, [repos, restoreSelectedRepo]);
 
   // Load local Git status
   useEffect(() => {
@@ -402,12 +421,17 @@ const GitHubIntegrationPanelV2: React.FC<GitHubIntegrationPanelV2Props> = ({
 
   const handlePush = async () => {
     if (!selectedRepo) {
-      setStatus("Please select a GitHub repository first");
+      setStatus("⚠️ Please select a GitHub repository first");
+      return;
+    }
+
+    if (!currentBranch) {
+      setStatus("⚠️ No active branch detected");
       return;
     }
 
     setLoading(true);
-    setStatus("Pushing to GitHub...");
+    setStatus(`Pushing '${currentBranch}' to GitHub...`);
     try {
       // First, ensure remote is set to the selected repo
       const remoteUrl = selectedRepo.clone_url.replace(
@@ -429,14 +453,14 @@ const GitHubIntegrationPanelV2: React.FC<GitHubIntegrationPanelV2Props> = ({
         console.warn("Failed to set remote, may already exist");
       }
 
-      // Now push
+      // Now push current branch
       const res = await fetch("/api/git/local", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           repoPath,
           action: "push",
-          branch: currentBranch || "main",
+          branch: currentBranch,
           remote: "origin",
         }),
       });
@@ -458,25 +482,87 @@ const GitHubIntegrationPanelV2: React.FC<GitHubIntegrationPanelV2Props> = ({
   };
 
   const handlePull = async () => {
-    setLoading(true);
-    setStatus("Pulling from GitHub...");
-    try {
-      // Use version-control pull-git endpoint
-      const res = await fetch(
-        `/api/projects/${projectId}/version-control/pull-git`,
-        {
-          method: "POST",
-        },
+    if (!currentBranch) {
+      setStatus("⚠️ No active branch detected");
+      return;
+    }
+
+    // Check if there are uncommitted changes
+    if (unstagedFiles.length > 0) {
+      const confirmed = window.confirm(
+        `⚠️ You have ${unstagedFiles.length} uncommitted change(s).\n\n` +
+          `Pulling from GitHub will:\n` +
+          `- Fetch the latest code from branch '${currentBranch}'\n` +
+          `- Update your local file structure\n` +
+          `- Your uncommitted changes may be lost!\n\n` +
+          `Do you want to commit your changes first?\n\n` +
+          `Click OK to commit first, or Cancel to pull anyway (not recommended).`,
       );
+
+      if (confirmed) {
+        setStatus("⚠️ Please commit your changes before pulling");
+        return;
+      }
+    }
+
+    setLoading(true);
+    setStatus(`Pulling '${currentBranch}' from GitHub...`);
+    try {
+      // Use git/local to pull current branch
+      const res = await fetch("/api/git/local", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          repoPath,
+          action: "pull",
+          branch: currentBranch,
+          remote: "origin",
+        }),
+      });
 
       const data = await res.json();
 
-      if (res.ok) {
-        setStatus("✓ Pulled from GitHub successfully!");
+      if (res.ok || data.success) {
+        setStatus(`✓ Pulled '${currentBranch}' from GitHub successfully!`);
+
+        // Reload git status and commits
         await loadLocalGitStatus();
         await loadLocalCommitHistory();
+
+        // Update file structure from Git
+        try {
+          const structureRes = await fetch(
+            `/api/projects/${projectId}?branch=${currentBranch}`,
+            {
+              cache: "no-store",
+              headers: { "Cache-Control": "no-cache" },
+            },
+          );
+
+          if (structureRes.ok) {
+            const structureData = await structureRes.json();
+            if (structureData.structure) {
+              setStatus(
+                `✓ File structure updated from '${currentBranch}'. Refresh page to see all changes.`,
+              );
+
+              // Notify user to refresh
+              setTimeout(() => {
+                if (
+                  window.confirm(
+                    `File structure has been updated from GitHub.\n\nWould you like to refresh the page to see all changes?`,
+                  )
+                ) {
+                  window.location.reload();
+                }
+              }, 1000);
+            }
+          }
+        } catch (structureError) {
+          console.warn("Could not update structure:", structureError);
+        }
       } else {
-        setStatus(`Error: ${data.error || "Pull failed"}`);
+        setStatus(`Error: ${data.error || data.message || "Pull failed"}`);
       }
     } catch (error) {
       setStatus("Error pulling from GitHub");
@@ -814,30 +900,43 @@ const GitHubIntegrationPanelV2: React.FC<GitHubIntegrationPanelV2Props> = ({
 
             {/* Push/Pull */}
             <div className="border-b border-gray-800 pb-4">
-              <h3 className="text-sm font-semibold mb-2 text-gray-100">
-                Sync with GitHub
-              </h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-gray-100">
+                  Sync with GitHub
+                </h3>
+                {selectedRepo && (
+                  <span className="text-xs text-green-400 bg-green-400/10 px-2 py-1 rounded">
+                    Branch: {currentBranch}
+                  </span>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   onClick={handlePush}
-                  disabled={loading}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={loading || !selectedRepo}
+                  className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   size="sm"
+                  title={`Push '${currentBranch}' to GitHub`}
                 >
                   <VscCloudUpload className="mr-2" />
                   Push
                 </Button>
                 <Button
                   onClick={handlePull}
-                  disabled={loading}
+                  disabled={loading || !selectedRepo}
                   variant="outline"
-                  className="border-gray-700 text-gray-100 bg-gray-800 hover:bg-gray-700"
+                  className="border-gray-700 text-gray-100 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   size="sm"
+                  title={`Pull '${currentBranch}' from GitHub`}
                 >
                   <VscCloudDownload className="mr-2" />
                   Pull
                 </Button>
               </div>
+              <p className="text-xs text-gray-400 mt-2">
+                💡 Push/pull works on any branch. Pull updates your local file
+                structure.
+              </p>
             </div>
 
             {/* Branch Management */}
@@ -916,4 +1015,4 @@ const GitHubIntegrationPanelV2: React.FC<GitHubIntegrationPanelV2Props> = ({
   );
 };
 
-export default GitHubIntegrationPanelV2;
+export default GitHubIntegrationPanel;
