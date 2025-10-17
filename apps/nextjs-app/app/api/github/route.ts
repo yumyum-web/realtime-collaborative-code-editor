@@ -30,11 +30,31 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
-    const token = searchParams.get("token");
+    const tokenParam = searchParams.get("token");
     const commits = searchParams.get("commits");
     const owner = searchParams.get("owner");
     const repo = searchParams.get("repo");
+    const projectId = searchParams.get("projectId");
 
+    // Special case: check for token in cookie for auth status
+    if (tokenParam === "check") {
+      // Try project-specific cookie first
+      let token = null;
+      if (projectId) {
+        token = req.cookies.get(`github_token_${projectId}`)?.value;
+      }
+      // Fallback to global cookie
+      if (!token) {
+        token = req.cookies.get("github_token")?.value;
+      }
+      if (token) {
+        return NextResponse.json({ token });
+      } else {
+        return NextResponse.json({ token: null });
+      }
+    }
+
+    const token = tokenParam;
     if (commits && owner && repo && token) {
       const commitHistory = await getCommitHistory(token, owner, repo);
       return NextResponse.json(commitHistory.data);
