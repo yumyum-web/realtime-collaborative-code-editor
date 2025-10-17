@@ -17,3 +17,6 @@
 /jmeter-tests/logs/*.log
 
 .env
+
+# temp repo clones
+repos/
