@@ -383,7 +383,10 @@ export default function ProjectsPage() {
               Invitations
             </div>
             {invitationCount > 0 && (
-              <Badge variant="destructive" className="ml-2 text-lg">
+              <Badge
+                variant="destructive"
+                className="ml-2 text-xs px-1.5 py-0.5 h-5 min-w-5 flex items-center justify-center"
+              >
                 {invitationCount}
               </Badge>
             )}
@@ -413,7 +416,7 @@ export default function ProjectsPage() {
             </Avatar>
 
             {showUserPopup && user && (
-              <Card className="absolute right-0 top-full mt-1 w-64 z-50 border border-primary shadow-lg">
+              <Card className="absolute right-0 top-full mt-1 w-80 z-50 border border-primary shadow-lg">
                 <CardContent className="p-4 space-y-4">
                   {/* Email */}
                   <div className="flex items-center justify-between">
@@ -423,7 +426,10 @@ export default function ProjectsPage() {
                         Email
                       </span>
                     </div>
-                    <span className="text-sm text-foreground">
+                    <span
+                      className="text-sm text-foreground truncate max-w-48"
+                      title={user.email}
+                    >
                       {user.email}
                     </span>
                   </div>
