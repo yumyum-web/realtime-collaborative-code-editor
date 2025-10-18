@@ -71,6 +71,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/nextjs-app/.next/standalone 
 COPY --from=builder --chown=nextjs:nodejs /app/apps/nextjs-app/.next/static ./apps/nextjs-app/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/apps/nextjs-app/public ./apps/nextjs-app/public
 
+RUN ls -la
+RUN --from=builder ls -la /app/apps/nextjs-app/.next/standalone
+RUN --from=builder ls -la /app/apps/nextjs-app/.next/static
+RUN --from=builder ls -la /app/apps/nextjs-app/public
+RUN exit 1
+
 USER nextjs
 
 EXPOSE 3000
