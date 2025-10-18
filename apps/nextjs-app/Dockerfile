@@ -55,11 +55,6 @@ COPY --from=deps /app/node_modules ./node_modules
 # Build the Next.js app
 RUN turbo run build --filter=nextjs-app
 
-RUN ls -la /app/apps/nextjs-app/.next
-RUN ls -la /app/apps/nextjs-app/.next/standalone
-RUN ls -la /app/apps/nextjs-app/.next/standalone/apps
-RUN ls -la /app/apps/nextjs-app/.next/standalone/apps/nextjs-app
-
 # Runner stage - production image
 FROM node:24-alpine AS runner
 WORKDIR /app
@@ -76,10 +71,6 @@ COPY --from=builder /app/apps/nextjs-app/package.json ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/nextjs-app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/nextjs-app/.next/static ./apps/nextjs-app/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/apps/nextjs-app/public ./apps/nextjs-app/public
-
-RUN ls -la
-RUN ls -la /app
-RUN exit 1
 
 USER nextjs
 
