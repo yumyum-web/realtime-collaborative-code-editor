@@ -49,6 +49,4 @@ EXPOSE 8000
 
 ENV PORT=8000
 
-WORKDIR /app/apps/socketio-server
-
-CMD ["node", "dist/index.js"]
+CMD ["node", "./apps/socketio-server/dist/index.js"]
