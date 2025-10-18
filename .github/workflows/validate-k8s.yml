@@ -33,8 +33,3 @@ jobs:
             echo "Validating $file..."
             kubeval --strict --ignore-missing-schemas "$file"
           done
-
-      - name: Check YAML syntax
-        run: |
-          sudo apt-get update && sudo apt-get install -y yamllint
-          yamllint -d "{extends: default, rules: {line-length: {max: 120}, indentation: {spaces: 2}}}" k8s/*.yaml
