@@ -41,8 +41,8 @@ jobs:
         
     - name: Verify kubectl connection
       run: |
+        kubectl version
         kubectl cluster-info
-        kubectl version --short
 
     - name: Create Kubernetes configs
       run: |
