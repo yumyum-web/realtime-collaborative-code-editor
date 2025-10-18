@@ -73,8 +73,8 @@ jobs:
         
         # GitHub OAuth configuration (optional)
         kubectl create secret generic github-oauth \
-          --from-literal=client-id=${{ secrets.GITHUB_CLIENT_ID }} \
-          --from-literal=client-secret=${{ secrets.GITHUB_CLIENT_SECRET }} \
+          --from-literal=client-id=${{ secrets.GH_CLIENT_ID }} \
+          --from-literal=client-secret=${{ secrets.GH_CLIENT_SECRET }} \
           --dry-run=client -o yaml | kubectl apply -f - || true
 
     - name: Build and push Next.js app

@@ -52,20 +52,19 @@ Go to: **Settings → Secrets and variables → Actions → Secrets**
 | `MONGO_URI`  | MongoDB connection string             | Your MongoDB Atlas or hosted MongoDB URI                          |
 | `JWT_SECRET` | Secret key for JWT token signing      | Generate a random secure string (e.g., `openssl rand -base64 32`) |
 
-
 ### Optional Secrets (for additional features)
 
-| Secret Name            | Description                                | Feature             |
-| ---------------------- | ------------------------------------------ | ------------------- |
-| `SMTP_HOST`            | SMTP server hostname                       | Email functionality |
-| `SMTP_PORT`            | SMTP server port (e.g., 587)               | Email functionality |
-| `SMTP_USER`            | SMTP authentication username               | Email functionality |
-| `SMTP_PASS`            | SMTP authentication password               | Email functionality |
-| `SENDER_EMAIL`         | Default sender email address               | Email functionality |
-| `GEMINI_API_KEY`       | Google Gemini API key                      | AI chat assistant   |
-| `GEMINI_MODEL_NAME`    | Gemini model name (e.g., gemini-2.0-flash) | AI chat assistant   |
-| `GITHUB_CLIENT_ID`     | GitHub OAuth Client ID                     | GitHub login        |
-| `GITHUB_CLIENT_SECRET` | GitHub OAuth Client Secret                 | GitHub login        |
+| Secret Name         | Description                                | Feature             |
+| ------------------- | ------------------------------------------ | ------------------- |
+| `SMTP_HOST`         | SMTP server hostname                       | Email functionality |
+| `SMTP_PORT`         | SMTP server port (e.g., 587)               | Email functionality |
+| `SMTP_USER`         | SMTP authentication username               | Email functionality |
+| `SMTP_PASS`         | SMTP authentication password               | Email functionality |
+| `SENDER_EMAIL`      | Default sender email address               | Email functionality |
+| `GEMINI_API_KEY`    | Google Gemini API key                      | AI chat assistant   |
+| `GEMINI_MODEL_NAME` | Gemini model name (e.g., gemini-2.0-flash) | AI chat assistant   |
+| `GH_CLIENT_ID`      | GitHub OAuth Client ID                     | GitHub login        |
+| `GH_CLIENT_SECRET`  | GitHub OAuth Client Secret                 | GitHub login        |
 
 ## Setup Instructions
 
