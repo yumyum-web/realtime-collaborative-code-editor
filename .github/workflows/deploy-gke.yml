@@ -27,6 +27,9 @@ jobs:
 
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
+      with:
+        project_id: ${{ env.GCP_PROJECT_ID }}
+        install_components: 'gke-gcloud-auth-plugin'
 
     - name: Configure Docker for GCR
       run: |
@@ -35,6 +38,11 @@ jobs:
     - name: Get GKE credentials
       run: |
         gcloud container clusters get-credentials $GKE_CLUSTER --region $GKE_REGION
+        
+    - name: Verify kubectl connection
+      run: |
+        kubectl cluster-info
+        kubectl version --short
 
     - name: Create Kubernetes configs
       run: |
