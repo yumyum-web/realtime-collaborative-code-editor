@@ -22,6 +22,7 @@ RUN npm ci
 # Builder stage - build the application
 FROM base AS builder
 COPY --from=pruner /app/out/full/ .
+COPY --from=pruner /app/out/package-lock.json ./package-lock.json
 COPY --from=deps /app/node_modules ./node_modules
 
 # Build the socketio-server
