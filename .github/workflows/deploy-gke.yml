@@ -36,6 +36,50 @@ jobs:
       run: |
         gcloud container clusters get-credentials $GKE_CLUSTER --zone $GKE_ZONE
 
+    - name: Create Kubernetes secrets
+      run: |
+        # Database configuration
+        kubectl create secret generic database-config \
+          --from-literal=mongo-uri=${{ secrets.MONGO_URI }} \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        # JWT configuration
+        kubectl create secret generic jwt-config \
+          --from-literal=secret=${{ secrets.JWT_SECRET }} \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        # SMTP configuration (optional)
+        kubectl create secret generic smtp-config \
+          --from-literal=host=${{ secrets.SMTP_HOST }} \
+          --from-literal=port=${{ secrets.SMTP_PORT }} \
+          --from-literal=user=${{ secrets.SMTP_USER }} \
+          --from-literal=pass=${{ secrets.SMTP_PASS }} \
+          --from-literal=sender-email=${{ secrets.SENDER_EMAIL }} \
+          --dry-run=client -o yaml | kubectl apply -f - || true
+        
+        # Gemini AI configuration (optional)
+        kubectl create secret generic gemini-config \
+          --from-literal=api-key=${{ secrets.GEMINI_API_KEY }} \
+          --from-literal=model-name=${{ secrets.GEMINI_MODEL_NAME }} \
+          --dry-run=client -o yaml | kubectl apply -f - || true
+        
+        # GitHub OAuth configuration (optional)
+        kubectl create secret generic github-oauth \
+          --from-literal=client-id=${{ secrets.GITHUB_CLIENT_ID }} \
+          --from-literal=client-secret=${{ secrets.GITHUB_CLIENT_SECRET }} \
+          --dry-run=client -o yaml | kubectl apply -f - || true
+        
+        # Firebase configuration
+        kubectl create secret generic firebase-config \
+          --from-literal=api-key=${{ secrets.FIREBASE_API_KEY }} \
+          --from-literal=auth-domain=${{ secrets.FIREBASE_AUTH_DOMAIN }} \
+          --from-literal=project-id=${{ secrets.FIREBASE_PROJECT_ID }} \
+          --from-literal=storage-bucket=${{ secrets.FIREBASE_STORAGE_BUCKET }} \
+          --from-literal=messaging-sender-id=${{ secrets.FIREBASE_MESSAGING_SENDER_ID }} \
+          --from-literal=app-id=${{ secrets.FIREBASE_APP_ID }} \
+          --from-literal=measurement-id=${{ secrets.FIREBASE_MEASUREMENT_ID }} \
+          --dry-run=client -o yaml | kubectl apply -f -
+
     - name: Build and push Next.js app
       run: |
         docker build \
