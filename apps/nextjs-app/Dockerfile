@@ -72,9 +72,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/nextjs-app/.next/static ./ap
 COPY --from=builder --chown=nextjs:nodejs /app/apps/nextjs-app/public ./apps/nextjs-app/public
 
 RUN ls -la
-RUN --from=builder ls -la /app/apps/nextjs-app/.next/standalone
-RUN --from=builder ls -la /app/apps/nextjs-app/.next/static
-RUN --from=builder ls -la /app/apps/nextjs-app/public
 RUN exit 1
 
 USER nextjs
