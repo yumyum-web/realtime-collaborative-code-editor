@@ -40,8 +40,9 @@ RUN adduser --system --uid 1001 socketio
 # Copy necessary files
 COPY --from=builder /app/apps/socketio-server/package.json ./apps/socketio-server/
 COPY --from=builder /app/apps/socketio-server/dist ./apps/socketio-server/dist
-COPY --from=builder /app/packages/database/dist ./packages/database/dist
 COPY --from=builder /app/packages/database/package.json ./packages/database/
+COPY --from=builder /app/packages/database/dist ./packages/database/dist
+COPY --from=builder /app/package.json ./
 COPY --from=builder /app/node_modules ./node_modules
 
 USER socketio
