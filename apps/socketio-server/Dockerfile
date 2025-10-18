@@ -28,6 +28,10 @@ COPY --from=deps /app/node_modules ./node_modules
 # Build the socketio-server
 RUN turbo run build --filter=socketio-server
 
+RUN ls -la /app
+RUN ls -la /app/node_modules
+RUN exit 1
+
 # Runner stage - production image
 FROM node:24-alpine AS runner
 WORKDIR /app
