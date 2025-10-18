@@ -47,7 +47,6 @@ COPY --from=builder /app/package-lock.json ./
 
 # Copy the node_modules from builder instead of reinstalling
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/apps/socketio-server/node_modules ./apps/socketio-server/node_modules
 
 USER socketio
 
