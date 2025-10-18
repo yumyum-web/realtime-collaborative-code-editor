@@ -52,17 +52,6 @@ Go to: **Settings → Secrets and variables → Actions → Secrets**
 | `MONGO_URI`  | MongoDB connection string             | Your MongoDB Atlas or hosted MongoDB URI                          |
 | `JWT_SECRET` | Secret key for JWT token signing      | Generate a random secure string (e.g., `openssl rand -base64 32`) |
 
-### Firebase Secrets (Required for Firebase Auth)
-
-| Secret Name                    | Description                  |
-| ------------------------------ | ---------------------------- |
-| `FIREBASE_API_KEY`             | Firebase API Key             |
-| `FIREBASE_AUTH_DOMAIN`         | Firebase Auth Domain         |
-| `FIREBASE_PROJECT_ID`          | Firebase Project ID          |
-| `FIREBASE_STORAGE_BUCKET`      | Firebase Storage Bucket      |
-| `FIREBASE_MESSAGING_SENDER_ID` | Firebase Messaging Sender ID |
-| `FIREBASE_APP_ID`              | Firebase App ID              |
-| `FIREBASE_MEASUREMENT_ID`      | Firebase Measurement ID      |
 
 ### Optional Secrets (for additional features)
 

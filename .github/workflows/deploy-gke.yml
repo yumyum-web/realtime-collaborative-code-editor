@@ -8,7 +8,7 @@ on:
 
 env:
   GKE_CLUSTER: ${{ vars.GKE_CLUSTER }}
-  GKE_ZONE: ${{ vars.GKE_ZONE }}
+  GKE_REGION: ${{ vars.GKE_REGION }}
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
 
 jobs:
@@ -34,7 +34,7 @@ jobs:
 
     - name: Get GKE credentials
       run: |
-        gcloud container clusters get-credentials $GKE_CLUSTER --zone $GKE_ZONE
+        gcloud container clusters get-credentials $GKE_CLUSTER --region $GKE_REGION
 
     - name: Create Kubernetes configs
       run: |
