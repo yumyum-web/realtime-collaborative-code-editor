@@ -56,33 +56,33 @@ jobs:
       run: |
         # Database configuration
         kubectl create secret generic database-config \
-          --from-literal=mongo-uri=${{ secrets.MONGO_URI }} \
+          --from-literal=mongo-uri='${{ secrets.MONGO_URI }}' \
           --dry-run=client -o yaml | kubectl apply -f -
         
         # JWT configuration
         kubectl create secret generic jwt-config \
-          --from-literal=secret=${{ secrets.JWT_SECRET }} \
+          --from-literal=secret='${{ secrets.JWT_SECRET }}' \
           --dry-run=client -o yaml | kubectl apply -f -
         
         # SMTP configuration (optional)
         kubectl create secret generic smtp-config \
-          --from-literal=host=${{ secrets.SMTP_HOST }} \
-          --from-literal=port=${{ secrets.SMTP_PORT }} \
-          --from-literal=user=${{ secrets.SMTP_USER }} \
-          --from-literal=pass=${{ secrets.SMTP_PASS }} \
-          --from-literal=sender-email=${{ secrets.SENDER_EMAIL }} \
+          --from-literal=host='${{ secrets.SMTP_HOST }}' \
+          --from-literal=port='${{ secrets.SMTP_PORT }}' \
+          --from-literal=user='${{ secrets.SMTP_USER }}' \
+          --from-literal=pass='${{ secrets.SMTP_PASS }}' \
+          --from-literal=sender-email='${{ secrets.SENDER_EMAIL }}' \
           --dry-run=client -o yaml | kubectl apply -f - || true
         
         # Gemini AI configuration (optional)
         kubectl create secret generic gemini-config \
-          --from-literal=api-key=${{ secrets.GEMINI_API_KEY }} \
-          --from-literal=model-name=${{ secrets.GEMINI_MODEL_NAME }} \
+          --from-literal=api-key='${{ secrets.GEMINI_API_KEY }}' \
+          --from-literal=model-name='${{ secrets.GEMINI_MODEL_NAME }}' \
           --dry-run=client -o yaml | kubectl apply -f - || true
         
         # GitHub OAuth configuration (optional)
         kubectl create secret generic github-oauth \
-          --from-literal=client-id=${{ secrets.GH_CLIENT_ID }} \
-          --from-literal=client-secret=${{ secrets.GH_CLIENT_SECRET }} \
+          --from-literal=client-id='${{ secrets.GH_CLIENT_ID }}' \
+          --from-literal=client-secret='${{ secrets.GH_CLIENT_SECRET }}' \
           --dry-run=client -o yaml | kubectl apply -f - || true
 
     - name: Build and push Next.js app
