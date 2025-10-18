@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
 import { connectDB, Project } from "@repo/database";
@@ -68,7 +67,7 @@ io.on("connection", (socket: ClientSocket) => {
             senderUsername: c.senderUsername,
             message: c.message,
             timestamp: new Date(c.timestamp).getTime(),
-          })),
+          }))
         );
       }
     } catch (err) {
@@ -87,7 +86,7 @@ io.on("connection", (socket: ClientSocket) => {
       name: string;
     }) => {
       if (socket.room) socket.to(socket.room).emit("node-added", payload);
-    },
+    }
   );
 
   socket.on("node-deleted", (payload: { path: string }) => {
@@ -123,7 +122,7 @@ io.on("connection", (socket: ClientSocket) => {
       } catch (err) {
         console.error("Failed to store chat:", err);
       }
-    },
+    }
   );
 
   socket.on("disconnect", () => {
@@ -133,5 +132,5 @@ io.on("connection", (socket: ClientSocket) => {
 
 const PORT = process.env.SOCKET_PORT ? Number(process.env.SOCKET_PORT) : 3001;
 httpServer.listen(PORT, () =>
-  console.log(`Socket.IO server running on http://localhost:${PORT}`),
+  console.log(`Socket.IO server running on http://localhost:${PORT}`)
 );
