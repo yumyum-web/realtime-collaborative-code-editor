@@ -28,10 +28,6 @@ COPY --from=deps /app/node_modules ./node_modules
 # Build the socketio-server
 RUN turbo run build --filter=socketio-server
 
-RUN ls -la /app
-RUN ls -la /app/node_modules
-RUN exit 1
-
 # Runner stage - production image
 FROM node:24-alpine AS runner
 WORKDIR /app
@@ -49,11 +45,9 @@ COPY --from=builder /app/packages/database/dist ./packages/database/dist
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/package-lock.json ./
 
-RUN npm ci
-
-RUN ls -la /app
-RUN ls -la /app/node_modules
-RUN exit 1
+# Copy the node_modules from builder instead of reinstalling
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/socketio-server/node_modules ./apps/socketio-server/node_modules
 
 USER socketio
 
