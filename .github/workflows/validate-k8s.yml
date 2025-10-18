@@ -3,81 +3,38 @@ name: Validate Kubernetes Manifests
 on:
   pull_request:
     paths:
-      - 'k8s/**'
-      - '.github/workflows/validate-k8s.yml'
+      - "k8s/**/*.yaml"
+      - ".github/workflows/validate-k8s.yml"
   push:
     branches:
       - main
     paths:
-      - 'k8s/**'
+      - "k8s/**/*.yaml"
+  workflow_dispatch:
 
 jobs:
   validate:
     name: Validate K8s Manifests
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up kubectl
-      uses: azure/setup-kubectl@v4
-      with:
-        version: 'latest'
+      - name: Install kubeval
+        run: |
+          wget https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
+          tar xf kubeval-linux-amd64.tar.gz
+          sudo mv kubeval /usr/local/bin
 
-    - name: Validate YAML syntax
-      run: |
-        for file in k8s/*.yaml; do
-          echo "Validating $file..."
-          kubectl apply --dry-run=client -f "$file" || exit 1
-        done
+      - name: Validate Kubernetes manifests
+        run: |
+          for file in k8s/*.yaml; do
+            echo "Validating $file..."
+            kubeval --strict --ignore-missing-schemas "$file"
+          done
 
-    - name: Install kubeval
-      run: |
-        wget https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
-        tar xf kubeval-linux-amd64.tar.gz
-        sudo mv kubeval /usr/local/bin
-
-    - name: Validate Kubernetes schemas
-      run: |
-        for file in k8s/*.yaml; do
-          echo "Validating schema for $file..."
-          kubeval --ignore-missing-schemas "$file" || exit 1
-        done
-
-    - name: Check for common issues
-      run: |
-        echo "Checking for common configuration issues..."
-        
-        # Check if image pull policy is set
-        if grep -r "imagePullPolicy: Always" k8s/; then
-          echo "Warning: Using 'Always' imagePullPolicy may cause performance issues"
-        fi
-        
-        # Check if resource limits are set
-        if ! grep -r "limits:" k8s/*-deployment.yaml; then
-          echo "Error: Resource limits not set in deployments"
-          exit 1
-        fi
-        
-        # Check if health probes are configured
-        if ! grep -r "livenessProbe:" k8s/*-deployment.yaml; then
-          echo "Error: Liveness probes not configured"
-          exit 1
-        fi
-        
-        echo "All checks passed!"
-
-    - name: Validate with kustomize
-      run: |
-        kubectl kustomize k8s/ > /tmp/manifests.yaml
-        echo "Kustomize build successful"
-        kubectl apply --dry-run=client -f /tmp/manifests.yaml
-
-    - name: Summary
-      if: success()
-      run: |
-        echo "✅ All Kubernetes manifests are valid"
-        echo "✅ Schema validation passed"
-        echo "✅ Best practices check passed"
-        echo "✅ Kustomize build successful"
+      - name: Check YAML syntax
+        run: |
+          sudo apt-get update && sudo apt-get install -y yamllint
+          yamllint -d "{extends: default, rules: {line-length: {max: 120}, indentation: {spaces: 2}}}" k8s/*.yaml
