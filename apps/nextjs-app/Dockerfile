@@ -49,6 +49,7 @@ ENV NEXT_PUBLIC_SOCKETIO_SERVER_URL=$NEXT_PUBLIC_SOCKETIO_SERVER_URL
 ENV NEXT_PUBLIC_YJS_SERVER_URL=$NEXT_PUBLIC_YJS_SERVER_URL
 
 COPY --from=pruner /app/out/full/ .
+COPY --from=pruner /app/out/package-lock.json ./package-lock.json
 COPY --from=deps /app/node_modules ./node_modules
 
 # Build the Next.js app
