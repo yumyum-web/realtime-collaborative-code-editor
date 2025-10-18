@@ -126,6 +126,12 @@ jobs:
     - name: Update Kubernetes manifests with PROJECT_ID
       run: |
         sed -i "s/GCP_PROJECT_ID/$GCP_PROJECT_ID/g" k8s/*.yaml
+    
+    - name: Update image tags in Kubernetes manifests
+      run: |
+        sed -i "s|gcr.io/$GCP_PROJECT_ID/nextjs-app:latest|gcr.io/$GCP_PROJECT_ID/nextjs-app:${{ github.sha }}|g" k8s/nextjs-app-deployment.yaml
+        sed -i "s|gcr.io/$GCP_PROJECT_ID/socketio-server:latest|gcr.io/$GCP_PROJECT_ID/socketio-server:${{ github.sha }}|g" k8s/socketio-server-deployment.yaml
+        sed -i "s|gcr.io/$GCP_PROJECT_ID/yjs-server:latest|gcr.io/$GCP_PROJECT_ID/yjs-server:${{ github.sha }}|g" k8s/yjs-server-deployment.yaml
 
     - name: Deploy to GKE
       run: |
