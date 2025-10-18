@@ -47,7 +47,13 @@ COPY --from=builder /app/apps/socketio-server/dist ./apps/socketio-server/dist
 COPY --from=builder /app/packages/database/package.json ./packages/database/
 COPY --from=builder /app/packages/database/dist ./packages/database/dist
 COPY --from=builder /app/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package-lock.json ./
+
+RUN npm ci
+
+RUN ls -la /app
+RUN ls -la /app/node_modules
+RUN exit 1
 
 USER socketio
 
