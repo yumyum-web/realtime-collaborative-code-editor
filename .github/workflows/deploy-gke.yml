@@ -114,15 +114,6 @@ jobs:
         docker push gcr.io/$GCP_PROJECT_ID/nextjs-app:${{ github.sha }}
         docker push gcr.io/$GCP_PROJECT_ID/nextjs-app:latest
 
-    - name: Build and push Y.js server
-      run: |
-        docker build \
-          -t gcr.io/$GCP_PROJECT_ID/yjs-server:${{ github.sha }} \
-          -t gcr.io/$GCP_PROJECT_ID/yjs-server:latest \
-          -f apps/yjs-server/Dockerfile .
-        docker push gcr.io/$GCP_PROJECT_ID/yjs-server:${{ github.sha }}
-        docker push gcr.io/$GCP_PROJECT_ID/yjs-server:latest
-
     - name: Update Kubernetes manifests with PROJECT_ID
       run: |
         sed -i "s/GCP_PROJECT_ID/$GCP_PROJECT_ID/g" k8s/*.yaml
@@ -131,7 +122,6 @@ jobs:
       run: |
         sed -i "s|gcr.io/$GCP_PROJECT_ID/nextjs-app:latest|gcr.io/$GCP_PROJECT_ID/nextjs-app:${{ github.sha }}|g" k8s/nextjs-app-deployment.yaml
         sed -i "s|gcr.io/$GCP_PROJECT_ID/socketio-server:latest|gcr.io/$GCP_PROJECT_ID/socketio-server:${{ github.sha }}|g" k8s/socketio-server-deployment.yaml
-        sed -i "s|gcr.io/$GCP_PROJECT_ID/yjs-server:latest|gcr.io/$GCP_PROJECT_ID/yjs-server:${{ github.sha }}|g" k8s/yjs-server-deployment.yaml
 
     - name: Deploy to GKE
       run: |

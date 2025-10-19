@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: yjs-server
-        image: gcr.io/GCP_PROJECT_ID/yjs-server:latest
+        image: texera/y-websocket-server:latest
         ports:
         - containerPort: 1234
         env:
