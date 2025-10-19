@@ -3,11 +3,35 @@ kind: Ingress
 metadata:
   name: app-ingress
   annotations:
-    kubernetes.io/ingress.class: "gce"
-    kubernetes.io/ingress.allow-http: "true"
+    kubernetes.io/ingress.class: "nginx" 
+    # Enable WebSocket support
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
 spec:
-  defaultBackend:
-    service:
-      name: nextjs-service
-      port:
-        number: 80
+  rules:
+  - http:
+      paths:
+      # Socket.IO server path
+      - path: /socket.io
+        pathType: Prefix
+        backend:
+          service:
+            name: socketio-service
+            port:
+              number: 8000
+      # Yjs WebSocket server path
+      - path: /yjs
+        pathType: Prefix
+        backend:
+          service:
+            name: yjs-service
+            port:
+              number: 1234
+      # Next.js app - catch all other paths
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nextjs-service
+            port:
+              number: 80
