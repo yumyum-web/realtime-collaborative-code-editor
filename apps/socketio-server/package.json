@@ -2,6 +2,7 @@
   "name": "socketio-server",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "The Socket.io server for the real-time collaborative code editor application.",
   "scripts": {
     "build": "tsc",
