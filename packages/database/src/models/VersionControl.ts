@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from "mongoose";
-import { FileEntity } from "./project"; // Re-using FileEntity type from Project model
+import { FileEntity } from "./project.js"; // Re-using FileEntity type from Project model
 
 // --- Interfaces for Type Safety ---
 
