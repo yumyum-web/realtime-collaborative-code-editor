@@ -35,9 +35,25 @@ jobs:
       run: |
         gcloud auth configure-docker
 
-    - name: Get GKE credentials
+    - name: Build and push Next.js app
       run: |
-        gcloud container clusters get-credentials $GKE_CLUSTER --region $GKE_REGION
+        docker build \
+          --build-arg NEXT_PUBLIC_FIREBASE_API_KEY=${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY }} \
+          --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ vars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }} \
+          --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID }} \
+          --build-arg NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ vars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }} \
+          --build-arg NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ vars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }} \
+          --build-arg NEXT_PUBLIC_FIREBASE_APP_ID=${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID }} \
+          --build-arg NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${{ vars.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }} \
+          --build-arg NEXT_PUBLIC_GITHUB_CLIENT_ID=${{ vars.NEXT_PUBLIC_GITHUB_CLIENT_ID }} \
+          --build-arg NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }} \
+          --build-arg NEXT_PUBLIC_SOCKETIO_SERVER_URL=${{ vars.NEXT_PUBLIC_SOCKETIO_SERVER_URL }} \
+          --build-arg NEXT_PUBLIC_YJS_SERVER_URL=${{ vars.NEXT_PUBLIC_YJS_SERVER_URL }} \
+          -t gcr.io/$GCP_PROJECT_ID/nextjs-app:${{ github.sha }} \
+          -t gcr.io/$GCP_PROJECT_ID/nextjs-app:latest \
+          -f apps/nextjs-app/Dockerfile .
+        docker push gcr.io/$GCP_PROJECT_ID/nextjs-app:${{ github.sha }}
+        docker push gcr.io/$GCP_PROJECT_ID/nextjs-app:latest
 
     - name: Build and push Socket.io server
       run: |
@@ -47,6 +63,10 @@ jobs:
           -f apps/socketio-server/Dockerfile .
         docker push gcr.io/$GCP_PROJECT_ID/socketio-server:${{ github.sha }}
         docker push gcr.io/$GCP_PROJECT_ID/socketio-server:latest
+
+    - name: Get GKE credentials
+      run: |
+        gcloud container clusters get-credentials $GKE_CLUSTER --region $GKE_REGION
         
     - name: Verify kubectl connection
       run: |
@@ -93,26 +113,6 @@ jobs:
           --from-literal=client-id='${{ secrets.GH_CLIENT_ID }}' \
           --from-literal=client-secret='${{ secrets.GH_CLIENT_SECRET }}' \
           --dry-run=client -o yaml | kubectl apply -f - || true
-
-    - name: Build and push Next.js app
-      run: |
-        docker build \
-          --build-arg NEXT_PUBLIC_FIREBASE_API_KEY=${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY }} \
-          --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ vars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }} \
-          --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID }} \
-          --build-arg NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ vars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }} \
-          --build-arg NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ vars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }} \
-          --build-arg NEXT_PUBLIC_FIREBASE_APP_ID=${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID }} \
-          --build-arg NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${{ vars.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }} \
-          --build-arg NEXT_PUBLIC_GITHUB_CLIENT_ID=${{ vars.NEXT_PUBLIC_GITHUB_CLIENT_ID }} \
-          --build-arg NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }} \
-          --build-arg NEXT_PUBLIC_SOCKETIO_SERVER_URL=${{ vars.NEXT_PUBLIC_SOCKETIO_SERVER_URL }} \
-          --build-arg NEXT_PUBLIC_YJS_SERVER_URL=${{ vars.NEXT_PUBLIC_YJS_SERVER_URL }} \
-          -t gcr.io/$GCP_PROJECT_ID/nextjs-app:${{ github.sha }} \
-          -t gcr.io/$GCP_PROJECT_ID/nextjs-app:latest \
-          -f apps/nextjs-app/Dockerfile .
-        docker push gcr.io/$GCP_PROJECT_ID/nextjs-app:${{ github.sha }}
-        docker push gcr.io/$GCP_PROJECT_ID/nextjs-app:latest
 
     - name: Update Kubernetes manifests with PROJECT_ID
       run: |
