@@ -4,12 +4,25 @@ metadata:
   name: app-ingress
   annotations:
     kubernetes.io/ingress.class: "nginx" 
+    # SSL/TLS configuration with cert-manager
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # Force HTTPS redirect
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     # Enable WebSocket support
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # Enable session affinity for WebSocket connections
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "route"
+    nginx.ingress.kubernetes.io/session-cookie-hash: "sha1"
 spec:
+  tls:
+  - hosts:
+    - rcce.yumeth.dev
+    secretName: rcce-tls-cert
   rules:
-  - http:
+  - host: rcce.yumeth.dev
+    http:
       paths:
       # Socket.IO server path
       - path: /socket.io

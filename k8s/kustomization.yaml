@@ -4,6 +4,8 @@ kind: Kustomization
 namespace: default
 
 resources:
+  - cert-issuer.yaml
+  - configmap.yaml
   - nextjs-app-deployment.yaml
   - socketio-server-deployment.yaml
   - yjs-server-deployment.yaml

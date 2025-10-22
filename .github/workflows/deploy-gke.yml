@@ -73,11 +73,29 @@ jobs:
         kubectl version
         kubectl cluster-info
 
+    - name: Check NGINX Ingress Controller
+      run: |
+        if ! kubectl get namespace ingress-nginx &> /dev/null; then
+          echo "Please install NGINX Ingress Controller before deploying. Refer to the deployment guide."
+          exit 1
+        else
+          echo "NGINX Ingress Controller installed"
+        fi
+
+    - name: Check cert-manager
+      run: |
+        if ! kubectl get namespace cert-manager &> /dev/null; then
+          echo "Please install cert-manager before deploying. Refer to the deployment guide."
+          exit 1
+        else
+          echo "cert-manager installed"
+        fi
+
     - name: Create Kubernetes configs
       run: |
         kubectl create configmap app-config \
           --from-literal=NEXT_TELEMETRY_DISABLED=1 \
-          --from-literal=CORS_ORIGIN="*" \
+          --from-literal=CORS_ORIGIN="https://rcce.yumeth.dev" \
           --from-literal=NODE_ENV=production \
           --dry-run=client -o yaml | kubectl apply -f -
 
@@ -123,6 +141,12 @@ jobs:
         sed -i "s|gcr.io/$GCP_PROJECT_ID/nextjs-app:latest|gcr.io/$GCP_PROJECT_ID/nextjs-app:${{ github.sha }}|g" k8s/nextjs-app-deployment.yaml
         sed -i "s|gcr.io/$GCP_PROJECT_ID/socketio-server:latest|gcr.io/$GCP_PROJECT_ID/socketio-server:${{ github.sha }}|g" k8s/socketio-server-deployment.yaml
 
+    - name: Deploy cert-manager ClusterIssuer
+      run: |
+        kubectl apply -f k8s/cert-issuer.yaml
+        echo "Waiting for ClusterIssuer to be ready..."
+        sleep 10
+
     - name: Deploy to GKE
       run: |
         kubectl apply -f k8s/nextjs-app-deployment.yaml
@@ -136,8 +160,56 @@ jobs:
         kubectl rollout status deployment/socketio-server --timeout=5m
         kubectl rollout status deployment/yjs-server --timeout=5m
 
+    - name: Wait for certificate to be issued
+      run: |
+        echo "Waiting for SSL certificate to be issued..."
+        for i in {1..60}; do
+          STATUS=$(kubectl get certificate rcce-tls-cert -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "NotFound")
+          if [ "$STATUS" = "True" ]; then
+            echo "✅ Certificate successfully issued!"
+            kubectl get certificate rcce-tls-cert
+            break
+          elif [ "$STATUS" = "False" ]; then
+            echo "⚠️  Certificate issuance in progress (attempt $i/60)..."
+          else
+            echo "⏳ Waiting for certificate resource (attempt $i/60)..."
+          fi
+          
+          if [ $i -eq 60 ]; then
+            echo "❌ Certificate issuance timeout. Checking status..."
+            kubectl get certificate rcce-tls-cert || echo "Certificate not found"
+            kubectl describe certificate rcce-tls-cert || echo "Cannot describe certificate"
+            kubectl get certificaterequest || echo "No certificate requests"
+            kubectl get challenges || echo "No challenges"
+            echo "Certificate may still be issuing. Check logs with:"
+            echo "  kubectl logs -n cert-manager -l app=cert-manager"
+            exit 0  # Don't fail the deployment
+          fi
+          sleep 10
+        done
+
     - name: Get deployment status
       run: |
+        echo "================================"
+        echo "Services:"
+        echo "================================"
         kubectl get services
+        echo ""
+        echo "================================"
+        echo "Pods:"
+        echo "================================"
         kubectl get pods
+        echo ""
+        echo "================================"
+        echo "Ingress:"
+        echo "================================"
         kubectl get ingress
+        echo ""
+        echo "================================"
+        echo "Certificate:"
+        echo "================================"
+        kubectl get certificate rcce-tls-cert || echo "Certificate not yet created"
+        echo ""
+        echo "================================"
+        echo "Application URL: https://rcce.yumeth.dev"
+        echo "================================"
