@@ -27,8 +27,13 @@ kubectl get svc ingress-nginx-controller -n ingress-nginx -w
 # 4. Install cert-manager
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
 
-# 5. Wait for cert-manager to be ready
+# 5. Wait for cert-manager to be ready (IMPORTANT!)
 kubectl get pods -n cert-manager -w
+# Wait until all 3 pods show 1/1 Running
+
+# Give cert-manager webhook time to initialize its certificates
+echo "Waiting 30 seconds for cert-manager webhook to initialize..."
+sleep 30
 
 # 6. Create secrets
 kubectl create secret generic database-config --from-literal=mongo-uri='your-mongo-uri'
@@ -79,6 +84,16 @@ kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller
 
 ## Troubleshooting
 
+### cert-manager webhook error (Common!)
+If you see: `failed calling webhook "webhook.cert-manager.io"`:
+```bash
+# This is common when cert-manager was just installed
+# Wait 30 seconds and retry:
+sleep 30
+kubectl apply -f k8s/cert-issuer.yaml
+```
+See `CERT_MANAGER_WEBHOOK_ERROR.md` for detailed troubleshooting.
+
 ### Certificate not issuing
 ```bash
 kubectl get certificaterequest
@@ -101,6 +116,7 @@ kubectl get endpoints
 
 ## Important Notes
 
+- **cert-manager Initialization:** Wait 30-60 seconds after installation before applying ClusterIssuer
 - **DNS Propagation:** Can take 5-60 minutes. Wait before deploying.
 - **Certificate Issuance:** Takes 5-10 minutes after DNS is confirmed.
 - **Rate Limits:** Let's Encrypt has rate limits. Use staging issuer for testing.

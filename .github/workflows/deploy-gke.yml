@@ -90,6 +90,22 @@ jobs:
         else
           echo "cert-manager installed"
         fi
+    
+    - name: Wait for cert-manager to be ready
+      run: |
+        echo "Waiting for cert-manager webhook to be ready..."
+        kubectl wait --for=condition=Available --timeout=300s \
+          deployment/cert-manager-webhook -n cert-manager || true
+        
+        # Give webhook extra time to initialize its certificates
+        echo "Waiting for webhook certificates to be ready..."
+        sleep 30
+        
+        # Verify webhook is responding
+        kubectl get validatingwebhookconfigurations cert-manager-webhook || true
+        kubectl get mutatingwebhookconfigurations cert-manager-webhook || true
+        
+        echo "cert-manager should now be ready"
 
     - name: Create Kubernetes configs
       run: |
@@ -143,8 +159,37 @@ jobs:
 
     - name: Deploy cert-manager ClusterIssuer
       run: |
-        kubectl apply -f k8s/cert-issuer.yaml
-        echo "Waiting for ClusterIssuer to be ready..."
+        echo "Deploying ClusterIssuer for Let's Encrypt..."
+        
+        # Retry logic for ClusterIssuer deployment
+        max_attempts=3
+        attempt=1
+        
+        while [ $attempt -le $max_attempts ]; do
+          echo "Attempt $attempt of $max_attempts..."
+          
+          if kubectl apply -f k8s/cert-issuer.yaml; then
+            echo "✅ ClusterIssuer deployed successfully"
+            break
+          else
+            echo "⚠️  Failed to deploy ClusterIssuer"
+            
+            if [ $attempt -lt $max_attempts ]; then
+              echo "Waiting 15 seconds before retry..."
+              sleep 15
+            else
+              echo "❌ Failed to deploy ClusterIssuer after $max_attempts attempts"
+              echo "This might be due to cert-manager webhook not being fully ready."
+              echo "The deployment will continue, but SSL certificates may not be issued."
+              echo "You can manually apply the ClusterIssuer later with:"
+              echo "  kubectl apply -f k8s/cert-issuer.yaml"
+            fi
+          fi
+          
+          attempt=$((attempt + 1))
+        done
+        
+        echo "Waiting for ClusterIssuer to be registered..."
         sleep 10
 
     - name: Deploy to GKE
