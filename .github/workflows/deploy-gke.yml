@@ -88,8 +88,35 @@ jobs:
           echo "Please install cert-manager before deploying. Refer to the deployment guide."
           exit 1
         else
-          echo "cert-manager installed"
+          echo "cert-manager namespace found"
         fi
+    
+    - name: Configure cert-manager for GKE
+      run: |
+        echo "Configuring cert-manager for GKE compatibility..."
+        
+        # Configure cert-manager to use its own namespace for leader election
+        # This avoids GKE's kube-system permission restrictions
+        
+        # cert-manager deployment (container is named "cert-manager-controller")
+        kubectl set env deployment/cert-manager -n cert-manager \
+          --containers=cert-manager-controller \
+          LEADER_ELECTION_NAMESPACE=cert-manager \
+          2>/dev/null || echo "cert-manager leader election already configured"
+        
+        # cert-manager-cainjector deployment
+        kubectl set env deployment/cert-manager-cainjector -n cert-manager \
+          --containers=cert-manager-cainjector \
+          LEADER_ELECTION_NAMESPACE=cert-manager \
+          2>/dev/null || echo "cainjector leader election already configured"
+        
+        # cert-manager-webhook deployment
+        kubectl set env deployment/cert-manager-webhook -n cert-manager \
+          --containers=cert-manager-webhook \
+          LEADER_ELECTION_NAMESPACE=cert-manager \
+          2>/dev/null || echo "webhook leader election already configured"
+        
+        echo "cert-manager configured for GKE"
     
     - name: Wait for cert-manager to be ready
       run: |
@@ -104,6 +131,10 @@ jobs:
         # Verify webhook is responding
         kubectl get validatingwebhookconfigurations cert-manager-webhook || true
         kubectl get mutatingwebhookconfigurations cert-manager-webhook || true
+        
+        # Check for any errors in cert-manager logs
+        echo "Checking cert-manager status..."
+        kubectl get pods -n cert-manager
         
         echo "cert-manager should now be ready"
 

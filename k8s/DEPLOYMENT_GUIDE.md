@@ -24,12 +24,28 @@ kubectl get svc ingress-nginx-controller -n ingress-nginx -w
 # 3. Configure DNS with the LoadBalancer IP
 # Create A record: rcce.yumeth.dev -> <EXTERNAL-IP>
 
-# 4. Install cert-manager
+# 4. Install cert-manager (GKE-compatible)
+# Use this command for GKE to avoid kube-system permission issues
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
 
+# Configure cert-manager for GKE (avoid kube-system namespace issues)
+# Note: The cert-manager container is named "cert-manager-controller"
+kubectl set env deployment/cert-manager -n cert-manager \
+  --containers=cert-manager-controller \
+  LEADER_ELECTION_NAMESPACE=cert-manager
+
+kubectl set env deployment/cert-manager-cainjector -n cert-manager \
+  --containers=cert-manager-cainjector \
+  LEADER_ELECTION_NAMESPACE=cert-manager
+
+kubectl set env deployment/cert-manager-webhook -n cert-manager \
+  --containers=cert-manager-webhook \
+  LEADER_ELECTION_NAMESPACE=cert-manager
+
 # 5. Wait for cert-manager to be ready (IMPORTANT!)
-kubectl get pods -n cert-manager -w
-# Wait until all 3 pods show 1/1 Running
+kubectl rollout status deployment/cert-manager -n cert-manager
+kubectl rollout status deployment/cert-manager-cainjector -n cert-manager
+kubectl rollout status deployment/cert-manager-webhook -n cert-manager
 
 # Give cert-manager webhook time to initialize its certificates
 echo "Waiting 30 seconds for cert-manager webhook to initialize..."

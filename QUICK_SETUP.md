@@ -45,6 +45,37 @@ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/cont
 kubectl get svc ingress-nginx-controller -n ingress-nginx -w
 ```
 
+### 2b. Install cert-manager (One-time, GKE-compatible)
+
+```bash
+# Install cert-manager
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
+
+# Wait for deployments
+sleep 10
+
+# Configure for GKE (avoids kube-system permission issues)
+kubectl set env deployment/cert-manager -n cert-manager \
+  --containers=cert-manager-controller \
+  LEADER_ELECTION_NAMESPACE=cert-manager
+
+kubectl set env deployment/cert-manager-cainjector -n cert-manager \
+  --containers=cert-manager-cainjector \
+  LEADER_ELECTION_NAMESPACE=cert-manager
+
+kubectl set env deployment/cert-manager-webhook -n cert-manager \
+  --containers=cert-manager-webhook \
+  LEADER_ELECTION_NAMESPACE=cert-manager
+
+# Wait for rollout to complete
+kubectl rollout status deployment/cert-manager -n cert-manager
+kubectl rollout status deployment/cert-manager-cainjector -n cert-manager
+kubectl rollout status deployment/cert-manager-webhook -n cert-manager
+
+# Wait 30 seconds for webhook initialization
+sleep 30
+```
+
 ### 3. Configure DNS (One-time)
 
 Create A record:

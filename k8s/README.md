@@ -36,10 +36,38 @@ kubectl get svc -n ingress-nginx -w
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
 ```
 
+**GKE-Specific Configuration** (Required for GKE):
+```bash
+# Configure cert-manager to use its own namespace for leader election
+# This avoids permission issues with GKE's managed kube-system namespace
+# Note: The main cert-manager container is named "cert-manager-controller"
+kubectl set env deployment/cert-manager -n cert-manager \
+  --containers=cert-manager-controller \
+  LEADER_ELECTION_NAMESPACE=cert-manager
+
+kubectl set env deployment/cert-manager-cainjector -n cert-manager \
+  --containers=cert-manager-cainjector \
+  LEADER_ELECTION_NAMESPACE=cert-manager
+
+kubectl set env deployment/cert-manager-webhook -n cert-manager \
+  --containers=cert-manager-webhook \
+  LEADER_ELECTION_NAMESPACE=cert-manager
+
+# Wait for rollout to complete
+kubectl rollout status deployment/cert-manager -n cert-manager
+kubectl rollout status deployment/cert-manager-cainjector -n cert-manager
+kubectl rollout status deployment/cert-manager-webhook -n cert-manager
+```
+
 Verify cert-manager installation:
 ```bash
 kubectl get pods -n cert-manager
+
+# Check for errors (should see no permission errors about kube-system)
+kubectl logs -n cert-manager -l app=cert-manager --tail=50
 ```
+
+**Wait 30-60 seconds** for cert-manager webhook to initialize before proceeding.
 
 ### 4. Configure Domain DNS
 
